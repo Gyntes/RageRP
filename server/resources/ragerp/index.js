@@ -8,6 +8,19 @@ const workCooldowns = new Map();
 const previewUpdates = new Map();
 const previewGenders = new Map();
 const rotationUpdates = new Map();
+const openPhones = new Set();
+const phoneMessageCooldowns = new Map();
+const phoneAdCooldowns = new Map();
+const taxiRequestCooldowns = new Map();
+const vehicleCallCooldowns = new Map();
+const spawnedStarterVehicles = new Map();
+const hudNotifications = new Map();
+const phoneAds = [];
+const taxiCalls = [];
+let taxiCallSequence = 0;
+let hudNotificationSequence = 0;
+const starterVehicleModel = 'blista';
+const starterVehicleName = 'Blista';
 const spawnPoint = { x: 215.76, y: -810.12, z: 30.73 };
 const registrationPoint = { x: 402.8664, y: -996.4108, z: -99.0 };
 const registrationDimensionOffset = 100000;
@@ -77,6 +90,190 @@ function getAccount(player) {
 
 function characterFor(player) {
   return getAccount(player).character;
+}
+
+function ensureStarterVehicle(account) {
+  if (!account.character) return null;
+
+  const starterVehicle = account.character.starterVehicle;
+  if (starterVehicle &&
+      starterVehicle.model === starterVehicleModel &&
+      typeof starterVehicle.plate === 'string' &&
+      /^RP\d{6}$/.test(starterVehicle.plate)) {
+    return starterVehicle;
+  }
+
+  ensureStaticId(account);
+  account.character.starterVehicle = {
+    model: starterVehicleModel,
+    plate: `RP${account.staticId.replace('-', '')}`
+  };
+  saveAccounts();
+  return account.character.starterVehicle;
+}
+
+function starterVehicleState(player) {
+  const account = getAccount(player);
+  const starterVehicle = ensureStarterVehicle(account);
+  if (!starterVehicle) return null;
+
+  const key = sessions.get(player.id);
+  let vehicle = spawnedStarterVehicles.get(key);
+  if (vehicle && !mp.vehicles.exists(vehicle)) {
+    spawnedStarterVehicles.delete(key);
+    vehicle = null;
+  }
+
+  const state = {
+    model: starterVehicle.model,
+    name: starterVehicleName,
+    plate: starterVehicle.plate,
+    isOut: Boolean(vehicle)
+  };
+  if (vehicle) {
+    state.x = Number(vehicle.position.x);
+    state.y = Number(vehicle.position.y);
+    state.z = Number(vehicle.position.z);
+  }
+  return state;
+}
+
+function summonStarterVehicle(player) {
+  const account = getAccount(player);
+  const key = sessions.get(player.id);
+  const existing = spawnedStarterVehicles.get(key);
+  if (existing && mp.vehicles.exists(existing)) {
+    player.call('ragerp:phone:waypoint', [JSON.stringify({
+      x: existing.position.x,
+      y: existing.position.y
+    })]);
+    updatePhone(player, {
+      starterVehicle: starterVehicleState(player),
+      notice: `Твоя ${starterVehicleName} уже в городе. Метка добавлена на GPS.`
+    });
+    return;
+  }
+
+  const lastCall = vehicleCallCooldowns.get(player.id) || 0;
+  if (Date.now() - lastCall < 3000) {
+    phoneNotice(player, 'Подожди немного перед следующим вызовом машины.');
+    return;
+  }
+  if (player.vehicle) {
+    phoneNotice(player, 'Выйди из машины перед вызовом стартового автомобиля.');
+    return;
+  }
+
+  vehicleCallCooldowns.set(player.id, Date.now());
+  const starterVehicle = ensureStarterVehicle(account);
+  const heading = Number.isFinite(player.heading) ? player.heading : 0;
+  const angle = heading * Math.PI / 180;
+  const position = new mp.Vector3(
+    player.position.x + Math.sin(angle) * 3.5,
+    player.position.y - Math.cos(angle) * 3.5,
+    player.position.z + 0.25
+  );
+  const vehicle = mp.vehicles.new(mp.joaat(starterVehicle.model), position, {
+    heading,
+    dimension: player.dimension,
+    numberPlate: starterVehicle.plate,
+    locked: false,
+    engine: true
+  });
+  if (!vehicle) {
+    phoneNotice(player, 'Не удалось создать автомобиль. Попробуй ещё раз.');
+    return;
+  }
+
+  vehicle.setVariable('ragerp:ownerStaticId', account.staticId);
+  vehicle.setVariable('ragerp:starterVehicle', true);
+  spawnedStarterVehicles.set(key, vehicle);
+  player.putIntoVehicle(vehicle, -1);
+  updatePhone(player, {
+    starterVehicle: starterVehicleState(player),
+    notice: `Твоя ${starterVehicleName} готова. Номер: ${starterVehicle.plate}.`
+  });
+}
+
+function onlinePhonePlayers() {
+  const online = [];
+  mp.players.forEach((player) => {
+    if (player.dimension !== 0) return;
+    const account = getAccount(player);
+    if (!account.character) return;
+
+    online.push({
+      player,
+      staticId: ensureStaticId(account),
+      name: `${account.character.firstName} ${account.character.lastName}`,
+      x: Number(player.position.x),
+      y: Number(player.position.y),
+      z: Number(player.position.z)
+    });
+  });
+  return online;
+}
+
+function phoneStateFor(player) {
+  const account = getAccount(player);
+  ensureStarterVehicle(account);
+  if (!Array.isArray(account.messages)) account.messages = [];
+  return {
+    staticId: account.staticId,
+    name: `${account.character.firstName} ${account.character.lastName}`,
+    cash: Number(account.character.cash) || 0,
+    bank: Number(account.character.bank) || 0,
+    online: onlinePhonePlayers().map((person) => ({
+      staticId: person.staticId,
+      name: person.name,
+      x: person.x,
+      y: person.y,
+      z: person.z
+    })),
+    messages: account.messages.slice(-100),
+    ads: phoneAds.slice(-30),
+    taxiCalls: taxiCalls.slice(-20),
+    starterVehicle: starterVehicleState(player)
+  };
+}
+
+function updatePhone(player, update) {
+  if (openPhones.has(player.id)) {
+    player.call('ragerp:phone:update', [JSON.stringify(update)]);
+  }
+}
+
+function updateOpenPhones(update) {
+  mp.players.forEach((player) => {
+    if (openPhones.has(player.id)) updatePhone(player, update);
+  });
+}
+
+function phoneNotice(player, text) {
+  if (openPhones.has(player.id)) player.call('ragerp:phone:notice', [text]);
+}
+
+function accountByStaticId(staticId) {
+  const key = Object.keys(accounts).find((accountKey) =>
+    accounts[accountKey] && accounts[accountKey].staticId === staticId
+  );
+  return key ? { key, account: accounts[key] } : null;
+}
+
+function playerByAccountKey(accountKey) {
+  let result = null;
+  mp.players.forEach((player) => {
+    if (sessions.get(player.id) === accountKey) result = player;
+  });
+  return result;
+}
+
+function broadcastTaxiCalls(notice) {
+  const update = { taxiCalls: taxiCalls.slice(-20) };
+  updateOpenPhones(update);
+  if (notice) {
+    mp.players.forEach((player) => phoneNotice(player, notice));
+  }
 }
 
 function formatStaticId(value) {
@@ -272,6 +469,8 @@ function showHelp(player) {
   message(player, '/register <Имя> <Фамилия> <возраст> [male|female] — резервное создание персонажа');
   message(player, '/stats, /bank, /deposit <сумма>, /withdraw <сумма>');
   message(player, '/job [courier|unemployed], /work, /faction, /joinfaction <civilian|mechanic>, /me <текст>');
+  message(player, 'Телефон: клавиша P. Доступны SMS, банк, GPS, такси и объявления.');
+  message(player, 'HUD: /hudtest — проверить окно уведомления.');
 }
 
 function parseAmount(value) {
@@ -287,6 +486,42 @@ function parseAmount(value) {
 
 function formatMoney(amount) {
   return `${Math.trunc(amount).toLocaleString('ru-RU')} ₽`;
+}
+
+function hudStateFor(player) {
+  const account = getAccount(player);
+  const character = account.character;
+  if (!character) return null;
+
+  return {
+    staticId: ensureStaticId(account),
+    cash: Number(character.cash) || 0,
+    bank: Number(character.bank) || 0
+  };
+}
+
+function updateHud(player) {
+  const state = hudStateFor(player);
+  if (state) player.call('ragerp:hud:update', [JSON.stringify(state)]);
+}
+
+function sendHudNotification(player, details) {
+  const account = getAccount(player);
+  if (!account.character || player.dimension !== 0) return;
+
+  const id = `${Date.now()}-${++hudNotificationSequence}`;
+  const notification = {
+    id,
+    title: String(details.title || 'Уведомление').slice(0, 40),
+    message: String(details.message || '').slice(0, 240),
+    acceptLabel: String(details.acceptLabel || 'Принять').slice(0, 24),
+    declineLabel: String(details.declineLabel || 'Отказаться').slice(0, 24)
+  };
+  hudNotifications.set(player.id, {
+    id,
+    responseEvent: details.responseEvent || ''
+  });
+  player.call('ragerp:hud:notification', [JSON.stringify(notification)]);
 }
 
 function requireCharacter(player) {
@@ -329,6 +564,10 @@ function createCharacter(player, firstNameValue, lastNameValue, ageValue, appear
     age,
     gender: appearance.gender,
     appearance,
+    starterVehicle: {
+      model: starterVehicleModel,
+      plate: `RP${account.staticId.replace('-', '')}`
+    },
     cash: 5000,
     bank: 10000,
     faction: 'Civilian',
@@ -338,6 +577,7 @@ function createCharacter(player, firstNameValue, lastNameValue, ageValue, appear
   saveAccounts();
   spawnPlayer(player, account.character);
   player.dimension = 0;
+  player.call('ragerp:hud:show', [JSON.stringify(hudStateFor(player))]);
   message(player, `Добро пожаловать, ${firstName} ${lastName}! Начни с /help.`);
   return null;
 }
@@ -360,6 +600,18 @@ function handleCommand(player, command) {
   const parts = String(command || '').trim().replace(/^\/+/, '').split(/\s+/);
   const name = (parts.shift() || '').toLowerCase();
   const args = parts;
+
+  if (name === 'hudtest') {
+    if (!requireCharacter(player)) return;
+    sendHudNotification(player, {
+      title: 'Уведомление',
+      message: 'Демо-событие: зафиксирована поломка светофора. Направиться на ремонт?',
+      acceptLabel: 'Принять',
+      declineLabel: 'Отказаться',
+      responseEvent: 'ragerp:hud:demo-response'
+    });
+    return;
+  }
 
   if (name === 'help') {
     showHelp(player);
@@ -432,6 +684,7 @@ function handleCommand(player, command) {
     character[from] -= amount;
     character[to] += amount;
     saveAccounts();
+    updateHud(player);
     message(player, `Переведено ${formatMoney(amount)}. Наличные: ${formatMoney(character.cash)}; банк: ${formatMoney(character.bank)}.`);
     return;
   }
@@ -475,6 +728,7 @@ function handleCommand(player, command) {
     workCooldowns.set(key, Date.now());
     character.cash += workPay;
     saveAccounts();
+    updateHud(player);
     message(player, `Смена завершена. Получено ${formatMoney(workPay)}.`);
     return;
   }
@@ -515,14 +769,286 @@ mp.events.add('playerJoin', (player) => {
 });
 
 mp.events.add('playerReady', (player) => {
-  const character = characterFor(player);
+  const account = getAccount(player);
+  const character = account.character;
   if (!character) {
     openRegistration(player);
     return;
   }
 
+  ensureStarterVehicle(account);
   spawnPlayer(player, character);
+  player.call('ragerp:hud:show', [JSON.stringify(hudStateFor(player))]);
   message(player, `С возвращением, ${character.firstName}. Используй /help.`);
+});
+
+mp.events.add('ragerp:phone:request-open', (player) => {
+  const character = characterFor(player);
+  if (!character || player.dimension !== 0) {
+    player.call('ragerp:phone:notice', ['Сначала создай персонажа, чтобы пользоваться телефоном.']);
+    return;
+  }
+
+  const account = getAccount(player);
+  if (!Array.isArray(account.messages)) account.messages = [];
+  ensureStaticId(account);
+  openPhones.add(player.id);
+  player.call('ragerp:phone:open', [JSON.stringify(phoneStateFor(player))]);
+});
+
+mp.events.add('ragerp:phone:close', (player) => {
+  openPhones.delete(player.id);
+});
+
+mp.events.add('ragerp:phone:action', (player, action, payload) => {
+  if (!openPhones.has(player.id) || typeof action !== 'string' ||
+      typeof payload !== 'string' || payload.length > 4096 ||
+      player.dimension !== 0 || !characterFor(player)) {
+    return;
+  }
+
+  let data;
+  try {
+    data = JSON.parse(payload);
+  } catch (error) {
+    phoneNotice(player, 'Не удалось прочитать запрос телефона.');
+    return;
+  }
+
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    phoneNotice(player, 'Некорректный запрос телефона.');
+    return;
+  }
+
+  const account = getAccount(player);
+  const character = account.character;
+
+  if (action === 'refresh') {
+    updatePhone(player, phoneStateFor(player));
+    return;
+  }
+
+  if (action === 'starter-vehicle') {
+    try {
+      summonStarterVehicle(player);
+    } catch (error) {
+      console.error('[RageRP] Starter vehicle summon failed:', error);
+      phoneNotice(player, 'Не удалось вызвать автомобиль. Попробуй позже.');
+    }
+    return;
+  }
+
+  if (action === 'gps-location') {
+    const destinations = {
+      city_hall: { x: -545.25, y: -204.34 },
+      hospital: { x: 298.4, y: -584.8 },
+      police: { x: 425.1, y: -979.5 },
+      bank: { x: 150.0, y: -1040.0 },
+      spawn: { x: spawnPoint.x, y: spawnPoint.y }
+    };
+    const destination = destinations[data.key];
+    if (!destination) {
+      phoneNotice(player, 'Эта точка не найдена.');
+      return;
+    }
+    player.call('ragerp:phone:waypoint', [JSON.stringify(destination)]);
+    return;
+  }
+
+  if (action === 'gps-player') {
+    const staticId = String(data.staticId || '');
+    const target = onlinePhonePlayers().find((person) => person.staticId === staticId);
+    if (!target || target.player === player) {
+      phoneNotice(player, 'Игрок не найден в городе.');
+      return;
+    }
+    player.call('ragerp:phone:waypoint', [JSON.stringify({ x: target.x, y: target.y })]);
+    phoneNotice(player, `Маршрут к игроку ${target.name} отмечен на GPS.`);
+    return;
+  }
+
+  if (action === 'bank') {
+    const amount = parseAmount(data.amount);
+    if (amount === null) {
+      phoneNotice(player, 'Укажи сумму от 1 до 1 000 000 ₽.');
+      return;
+    }
+
+    if (data.operation === 'deposit') {
+      if (character.cash < amount) {
+        phoneNotice(player, 'Недостаточно наличных.');
+        return;
+      }
+      character.cash -= amount;
+      character.bank += amount;
+    } else if (data.operation === 'withdraw') {
+      if (character.bank < amount) {
+        phoneNotice(player, 'Недостаточно средств на счёте.');
+        return;
+      }
+      character.bank -= amount;
+      character.cash += amount;
+    } else if (data.operation === 'transfer') {
+      const targetId = String(data.targetId || '');
+      const target = /^\d{3}-\d{3}$/.test(targetId) ? accountByStaticId(targetId) : null;
+      if (!target || !target.account.character || target.account === account) {
+        phoneNotice(player, 'Получатель не найден или указан некорректно.');
+        return;
+      }
+      if (character.bank < amount) {
+        phoneNotice(player, 'Недостаточно средств на счёте.');
+        return;
+      }
+      character.bank -= amount;
+      target.account.character.bank = (Number(target.account.character.bank) || 0) + amount;
+      const receiver = playerByAccountKey(target.key);
+      if (receiver) {
+        updateHud(receiver);
+        updatePhone(receiver, {
+          cash: Number(target.account.character.cash) || 0,
+          bank: target.account.character.bank
+        });
+        phoneNotice(receiver, `На счёт поступило ${formatMoney(amount)} от ${character.firstName} ${character.lastName}.`);
+      }
+    } else {
+      phoneNotice(player, 'Выбери корректную банковскую операцию.');
+      return;
+    }
+
+    saveAccounts();
+    updateHud(player);
+    updatePhone(player, {
+      cash: character.cash,
+      bank: character.bank,
+      notice: `Операция выполнена. Баланс счёта: ${formatMoney(character.bank)}.`
+    });
+    return;
+  }
+
+  if (action === 'message') {
+    const targetId = String(data.targetId || '');
+    const body = typeof data.body === 'string'
+      ? data.body.replace(/[\u0000-\u001f\u007f]/g, ' ').trim()
+      : '';
+    if (!/^\d{3}-\d{3}$/.test(targetId) || !body || body.length > 300) {
+      phoneNotice(player, 'Укажи контакт и сообщение длиной до 300 символов.');
+      return;
+    }
+    const lastSent = phoneMessageCooldowns.get(player.id) || 0;
+    if (Date.now() - lastSent < 1500) {
+      phoneNotice(player, 'Подожди немного перед отправкой следующего SMS.');
+      return;
+    }
+
+    const target = accountByStaticId(targetId);
+    if (!target || !target.account.character || target.account === account) {
+      phoneNotice(player, 'Получатель не найден.');
+      return;
+    }
+
+    phoneMessageCooldowns.set(player.id, Date.now());
+    const entry = {
+      fromId: account.staticId,
+      toId: targetId,
+      fromName: `${character.firstName} ${character.lastName}`,
+      toName: `${target.account.character.firstName} ${target.account.character.lastName}`,
+      body,
+      at: Date.now()
+    };
+    if (!Array.isArray(account.messages)) account.messages = [];
+    if (!Array.isArray(target.account.messages)) target.account.messages = [];
+    account.messages.push(entry);
+    target.account.messages.push(entry);
+    account.messages = account.messages.slice(-100);
+    target.account.messages = target.account.messages.slice(-100);
+    saveAccounts();
+
+    updatePhone(player, {
+      messages: account.messages,
+      notice: `SMS отправлено: ${entry.toName}.`
+    });
+    const recipient = playerByAccountKey(target.key);
+    if (recipient) {
+      updatePhone(recipient, { messages: target.account.messages });
+      phoneNotice(recipient, `Новое SMS от ${entry.fromName}.`);
+    }
+    return;
+  }
+
+  if (action === 'ad') {
+    const text = typeof data.text === 'string'
+      ? data.text.replace(/[\u0000-\u001f\u007f]/g, ' ').trim()
+      : '';
+    if (!text || text.length > 180) {
+      phoneNotice(player, 'Объявление должно содержать от 1 до 180 символов.');
+      return;
+    }
+    const lastPosted = phoneAdCooldowns.get(player.id) || 0;
+    if (Date.now() - lastPosted < 10000) {
+      phoneNotice(player, 'Подожди перед публикацией следующего объявления.');
+      return;
+    }
+
+    phoneAdCooldowns.set(player.id, Date.now());
+    phoneAds.push({
+      authorId: account.staticId,
+      authorName: `${character.firstName} ${character.lastName}`,
+      text,
+      createdAt: Date.now()
+    });
+    if (phoneAds.length > 30) phoneAds.shift();
+    updateOpenPhones({ ads: phoneAds.slice(-30) });
+    mp.players.forEach((target) => phoneNotice(target, `Новое объявление от ${character.firstName} ${character.lastName}.`));
+    return;
+  }
+
+  if (action === 'taxi-request') {
+    const lastRequest = taxiRequestCooldowns.get(player.id) || 0;
+    if (Date.now() - lastRequest < 15000) {
+      phoneNotice(player, 'Подожди перед созданием нового вызова такси.');
+      return;
+    }
+    const activeRequest = taxiCalls.find((call) =>
+      call.requesterId === account.staticId && call.status === 'open'
+    );
+    if (activeRequest) {
+      phoneNotice(player, 'У тебя уже есть активный вызов такси.');
+      return;
+    }
+
+    taxiRequestCooldowns.set(player.id, Date.now());
+    taxiCalls.push({
+      id: `${Date.now()}-${++taxiCallSequence}`,
+      requesterId: account.staticId,
+      requesterName: `${character.firstName} ${character.lastName}`,
+      x: Number(player.position.x),
+      y: Number(player.position.y),
+      status: 'open',
+      driverId: '',
+      driverName: '',
+      createdAt: Date.now()
+    });
+    if (taxiCalls.length > 20) taxiCalls.shift();
+    broadcastTaxiCalls(`Новый вызов такси от ${character.firstName} ${character.lastName}.`);
+    return;
+  }
+
+  if (action === 'taxi-accept') {
+    const taxiCall = taxiCalls.find((call) => call.id === String(data.id || ''));
+    if (!taxiCall || taxiCall.status !== 'open' || taxiCall.requesterId === account.staticId) {
+      phoneNotice(player, 'Этот вызов уже принят или недоступен.');
+      return;
+    }
+    taxiCall.status = 'accepted';
+    taxiCall.driverId = account.staticId;
+    taxiCall.driverName = `${character.firstName} ${character.lastName}`;
+    taxiCall.acceptedAt = Date.now();
+    broadcastTaxiCalls(`${taxiCall.driverName} принял вызов такси.`);
+    player.call('ragerp:phone:waypoint', [JSON.stringify({ x: taxiCall.x, y: taxiCall.y })]);
+    return;
+  }
+
+  phoneNotice(player, 'В этом приложении такой команды нет.');
 });
 
 mp.events.add('ragerp:registration:preview', (player, payload) => {
@@ -618,11 +1144,52 @@ mp.events.add('playerCommand', (player, command) => {
   }
 });
 
+mp.events.add('ragerp:hud:answer', (player, notificationId, accepted) => {
+  const notification = hudNotifications.get(player.id);
+  if (!notification || notification.id !== String(notificationId) ||
+      typeof accepted !== 'boolean') {
+    return;
+  }
+
+  hudNotifications.delete(player.id);
+  if (notification.responseEvent) {
+    mp.events.call(notification.responseEvent, player, accepted);
+  }
+});
+
+mp.events.add('ragerp:hud:demo-response', (player, accepted) => {
+  if (typeof accepted !== 'boolean') return;
+  message(player, accepted
+    ? 'Демо-уведомление принято.'
+    : 'Демо-уведомление отклонено.');
+});
+
+mp.events.add('playerEnterVehicle', (player, vehicle) => {
+  if (!vehicle.getVariable('ragerp:starterVehicle')) return;
+
+  const account = getAccount(player);
+  if (ensureStaticId(account) !== vehicle.getVariable('ragerp:ownerStaticId')) {
+    player.removeFromVehicle();
+    message(player, 'Этот автомобиль закреплён за другим персонажем.');
+  }
+});
+
 mp.events.add('playerQuit', (player) => {
   const key = sessions.get(player.id);
+  openPhones.delete(player.id);
+  phoneMessageCooldowns.delete(player.id);
+  phoneAdCooldowns.delete(player.id);
+  taxiRequestCooldowns.delete(player.id);
+  vehicleCallCooldowns.delete(player.id);
+  hudNotifications.delete(player.id);
   if (!key) return;
 
-  const character = accounts[key] && accounts[key].character;
+  const starterVehicle = spawnedStarterVehicles.get(key);
+  if (starterVehicle && mp.vehicles.exists(starterVehicle)) starterVehicle.destroy();
+  spawnedStarterVehicles.delete(key);
+
+  const account = accounts[key];
+  const character = account && account.character;
   if (character && isValidPosition(player.position)) {
     character.position = {
       x: player.position.x,
@@ -632,10 +1199,26 @@ mp.events.add('playerQuit', (player) => {
     saveAccounts();
   }
 
+  let taxiCallsChanged = false;
+  for (let index = taxiCalls.length - 1; index >= 0; index -= 1) {
+    const taxiCall = taxiCalls[index];
+    if (account && taxiCall.requesterId === account.staticId) {
+      taxiCalls.splice(index, 1);
+      taxiCallsChanged = true;
+    } else if (account && taxiCall.driverId === account.staticId) {
+      taxiCall.status = 'open';
+      taxiCall.driverId = '';
+      taxiCall.driverName = '';
+      delete taxiCall.acceptedAt;
+      taxiCallsChanged = true;
+    }
+  }
+
   sessions.delete(player.id);
   previewUpdates.delete(player.id);
   previewGenders.delete(player.id);
   rotationUpdates.delete(player.id);
+  if (taxiCallsChanged) broadcastTaxiCalls();
   console.log(`[RageRP] ${player.name} disconnected.`);
 });
 

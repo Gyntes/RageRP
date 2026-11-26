@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <title>Телефон</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="phone-shell" id="phone-shell" data-wallpaper="night">
+    <div class="phone-frame">
+      <section class="phone-screen">
+        <div class="screen-wallpaper"></div>
+        <header class="status-bar">
+          <span id="clock">09:41</span>
+          <span class="status-icons"><span>●●●</span><span>◖</span><span class="battery">▰</span></span>
+        </header>
+
+        <section class="home-screen" id="home-screen">
+          <div class="home-date">
+            <p id="date-label">СРЕДА, 12 ИЮНЯ</p>
+            <h1 id="home-clock">09:41</h1>
+            <span id="home-name">Мобильная связь</span>
+          </div>
+          <div class="app-grid">
+            <button class="app-icon app-contacts" data-open-app="contacts" type="button"><span>◎</span><small>Контакты</small></button>
+            <button class="app-icon app-messages" data-open-app="messages" type="button"><span>▤</span><small>Сообщения</small></button>
+            <button class="app-icon app-gps" data-open-app="gps" type="button"><span>⌖</span><small>Навигация</small></button>
+            <button class="app-icon app-bank" data-open-app="bank" type="button"><span>₽</span><small>Банк</small></button>
+            <button class="app-icon app-taxi" data-open-app="taxi" type="button"><span>↗</span><small>Такси</small></button>
+            <button class="app-icon app-ads" data-open-app="ads" type="button"><span>▧</span><small>Объявления</small></button>
+            <button class="app-icon app-settings" data-open-app="settings" type="button"><span>⚙</span><small>Настройки</small></button>
+            <button class="app-icon app-vehicle" data-open-app="vehicle" type="button"><span>◈</span><small>Машина</small></button>
+          </div>
+          <div class="home-dock">
+            <div class="dock-pill"><span>●</span><span>●</span><span>●</span><span>●</span></div>
+            <small>Нажми P, чтобы закрыть</small>
+          </div>
+        </section>
+
+        <section class="app-screen" id="app-screen" hidden>
+          <header class="app-header">
+            <button class="back-button" id="back-button" type="button" aria-label="На главный экран">‹</button>
+            <div><p class="eyebrow">ГОРОДСКИЕ СЕРВИСЫ</p><h2 id="app-title">Приложение</h2></div>
+            <span class="header-mark">●</span>
+          </header>
+          <div class="app-content" id="app-content"></div>
+          <nav class="bottom-nav">
+            <button type="button" data-home="true" aria-label="Главный экран">⌂</button>
+            <span class="home-indicator"></span>
+            <button type="button" data-close="true" aria-label="Закрыть телефон">×</button>
+          </nav>
+        </section>
+
+        <div class="toast" id="toast" role="status" aria-live="polite"></div>
+      </section>
+    </div>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
