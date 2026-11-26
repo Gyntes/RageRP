@@ -21,6 +21,8 @@ let taxiCallSequence = 0;
 let hudNotificationSequence = 0;
 const starterVehicleModel = 'blista';
 const starterVehicleName = 'Blista';
+const starterVehicleRegion = '97';
+const russianPlateLetters = 'ABEKMHOPCTYX';
 const spawnPoint = { x: 215.76, y: -810.12, z: 30.73 };
 const registrationPoint = { x: 402.8664, y: -996.4108, z: -99.0 };
 const registrationDimensionOffset = 100000;
@@ -92,21 +94,37 @@ function characterFor(player) {
   return getAccount(player).character;
 }
 
+function russianPlateForStaticId(staticId) {
+  const digits = String(staticId).replace(/\D/g, '').padStart(6, '0');
+  if (!/^\d{6}$/.test(digits)) {
+    throw new Error('Cannot generate a vehicle plate without a valid static ID.');
+  }
+
+  const letterCode = Number(digits.slice(3));
+  const letters = [
+    russianPlateLetters[Math.floor(letterCode / 144)],
+    russianPlateLetters[Math.floor(letterCode / 12) % 12],
+    russianPlateLetters[letterCode % 12]
+  ];
+  return `${letters[0]}${digits.slice(0, 3)}${letters[1]}${letters[2]}`;
+}
+
 function ensureStarterVehicle(account) {
   if (!account.character) return null;
 
   const starterVehicle = account.character.starterVehicle;
   if (starterVehicle &&
       starterVehicle.model === starterVehicleModel &&
-      typeof starterVehicle.plate === 'string' &&
-      /^RP\d{6}$/.test(starterVehicle.plate)) {
+      /^[ABEKMHOPCTYX]\d{3}[ABEKMHOPCTYX]{2}$/.test(String(starterVehicle.plate || '')) &&
+      /^\d{2,3}$/.test(String(starterVehicle.region || ''))) {
     return starterVehicle;
   }
 
-  ensureStaticId(account);
+  const staticId = ensureStaticId(account);
   account.character.starterVehicle = {
     model: starterVehicleModel,
-    plate: `RP${account.staticId.replace('-', '')}`
+    plate: russianPlateForStaticId(staticId),
+    region: starterVehicleRegion
   };
   saveAccounts();
   return account.character.starterVehicle;
@@ -128,6 +146,7 @@ function starterVehicleState(player) {
     model: starterVehicle.model,
     name: starterVehicleName,
     plate: starterVehicle.plate,
+    region: starterVehicle.region,
     isOut: Boolean(vehicle)
   };
   if (vehicle) {
@@ -136,6 +155,15 @@ function starterVehicleState(player) {
     state.z = Number(vehicle.position.z);
   }
   return state;
+}
+
+function phoneNumbersFor(starterVehicle) {
+  if (!starterVehicle) return [];
+  return [{
+    plate: starterVehicle.plate,
+    region: starterVehicle.region,
+    vehicleName: starterVehicle.name
+  }];
 }
 
 function summonStarterVehicle(player) {
@@ -147,8 +175,10 @@ function summonStarterVehicle(player) {
       x: existing.position.x,
       y: existing.position.y
     })]);
+    const vehicleState = starterVehicleState(player);
     updatePhone(player, {
-      starterVehicle: starterVehicleState(player),
+      starterVehicle: vehicleState,
+      numbers: phoneNumbersFor(vehicleState),
       notice: `Твоя ${starterVehicleName} уже в городе. Метка добавлена на GPS.`
     });
     return;
@@ -176,7 +206,7 @@ function summonStarterVehicle(player) {
   const vehicle = mp.vehicles.new(mp.joaat(starterVehicle.model), position, {
     heading,
     dimension: player.dimension,
-    numberPlate: starterVehicle.plate,
+    numberPlate: `${starterVehicle.plate}${starterVehicle.region}`,
     locked: false,
     engine: true
   });
@@ -189,9 +219,12 @@ function summonStarterVehicle(player) {
   vehicle.setVariable('ragerp:starterVehicle', true);
   spawnedStarterVehicles.set(key, vehicle);
   player.putIntoVehicle(vehicle, -1);
+  const plateLabel = `${starterVehicle.plate} ${starterVehicle.region}`;
+  const vehicleState = starterVehicleState(player);
   updatePhone(player, {
-    starterVehicle: starterVehicleState(player),
-    notice: `Твоя ${starterVehicleName} готова. Номер: ${starterVehicle.plate}.`
+    starterVehicle: vehicleState,
+    numbers: phoneNumbersFor(vehicleState),
+    notice: `Твоя ${starterVehicleName} готова. Номер: ${plateLabel}.`
   });
 }
 
@@ -218,6 +251,7 @@ function phoneStateFor(player) {
   const account = getAccount(player);
   ensureStarterVehicle(account);
   if (!Array.isArray(account.messages)) account.messages = [];
+  const starterVehicle = starterVehicleState(player);
   return {
     staticId: account.staticId,
     name: `${account.character.firstName} ${account.character.lastName}`,
@@ -233,7 +267,8 @@ function phoneStateFor(player) {
     messages: account.messages.slice(-100),
     ads: phoneAds.slice(-30),
     taxiCalls: taxiCalls.slice(-20),
-    starterVehicle: starterVehicleState(player)
+    starterVehicle,
+    numbers: phoneNumbersFor(starterVehicle)
   };
 }
 
@@ -566,7 +601,8 @@ function createCharacter(player, firstNameValue, lastNameValue, ageValue, appear
     appearance,
     starterVehicle: {
       model: starterVehicleModel,
-      plate: `RP${account.staticId.replace('-', '')}`
+      plate: russianPlateForStaticId(account.staticId),
+      region: starterVehicleRegion
     },
     cash: 5000,
     bank: 10000,
