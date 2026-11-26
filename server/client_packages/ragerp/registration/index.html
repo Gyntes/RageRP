@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Создание персонажа — RageRP</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="creator">
+    <aside class="creator-panel">
+      <header class="panel-header">
+        <div class="brand"><span class="brand-mark">R</span><span>RAGERP</span></div>
+        <div class="static-id">
+          <span>СТАТИК ID</span>
+          <strong id="static-id">--- ---</strong>
+        </div>
+      </header>
+
+      <div class="heading-row">
+        <div>
+          <p class="eyebrow">СОЗДАНИЕ ПЕРСОНАЖА</p>
+          <h1 id="step-title">Личные данные</h1>
+        </div>
+        <span class="step-count" id="step-count">01 / 03</span>
+      </div>
+
+      <nav class="progress" aria-label="Шаги создания персонажа">
+        <span class="progress-segment active" data-progress="1"></span>
+        <span class="progress-segment" data-progress="2"></span>
+        <span class="progress-segment" data-progress="3"></span>
+      </nav>
+
+      <div class="step-content">
+        <section class="step active" data-step="1">
+          <p class="step-description">Укажи имя, под которым тебя будут знать в городе.</p>
+          <label class="field">
+            <span>ИМЯ</span>
+            <input id="first-name" maxlength="20" autocomplete="off" placeholder="Например, Алексей">
+          </label>
+          <label class="field">
+            <span>ФАМИЛИЯ</span>
+            <input id="last-name" maxlength="20" autocomplete="off" placeholder="Например, Морозов">
+          </label>
+          <label class="field age-field">
+            <span>ВОЗРАСТ</span>
+            <input id="age" type="number" min="18" max="100" inputmode="numeric" placeholder="25">
+            <small>От 18 до 100 лет</small>
+          </label>
+          <div class="hint-box">Имя и фамилия — только русскими буквами. ID назначается автоматически и останется с аккаунтом.</div>
+        </section>
+
+        <section class="step appearance-step" data-step="2" hidden>
+          <div class="gender-options">
+            <button class="gender-card selected" type="button" data-gender="male" aria-pressed="true">
+              <span class="gender-symbol">М</span><span>Мужчина</span>
+            </button>
+            <button class="gender-card" type="button" data-gender="female" aria-pressed="false">
+              <span class="gender-symbol">Ж</span><span>Женщина</span>
+            </button>
+          </div>
+
+          <nav class="custom-tabs" aria-label="Категории внешности">
+            <button type="button" class="custom-tab active" data-tab="genetics">ЛИЦО</button>
+            <button type="button" class="custom-tab" data-tab="hair">ВОЛОСЫ</button>
+            <button type="button" class="custom-tab" data-tab="clothes">ОДЕЖДА</button>
+          </nav>
+
+          <div class="custom-panel active" data-panel="genetics">
+            <div class="select-row">
+              <label class="field compact">
+                <span>МАТЬ</span>
+                <select id="mother"></select>
+              </label>
+              <label class="field compact">
+                <span>ОТЕЦ</span>
+                <select id="father"></select>
+              </label>
+            </div>
+            <div class="range-grid">
+              <label class="range-control">
+                <span>Сходство с родителями <output id="value-shape-mix">50%</output></span>
+                <input id="shape-mix" type="range" min="0" max="1" step="0.01" value="0.5">
+              </label>
+              <label class="range-control">
+                <span>Тон кожи <output id="value-skin-mix">50%</output></span>
+                <input id="skin-mix" type="range" min="0" max="1" step="0.01" value="0.5">
+              </label>
+            </div>
+            <div class="face-features" id="face-features"></div>
+          </div>
+
+          <div class="custom-panel" data-panel="hair" hidden>
+            <div class="range-grid">
+              <label class="range-control">
+                <span>Причёска <output id="value-hair-style">0</output></span>
+                <input id="hair-style" type="range" min="0" max="20" step="1" value="0">
+              </label>
+              <label class="range-control">
+                <span>Цвет волос <output id="value-hair-color">0</output></span>
+                <input id="hair-color" type="range" min="0" max="63" step="1" value="0">
+              </label>
+              <label class="range-control">
+                <span>Оттенок волос <output id="value-highlight-color">0</output></span>
+                <input id="highlight-color" type="range" min="0" max="63" step="1" value="0">
+              </label>
+              <label class="range-control">
+                <span>Цвет глаз <output id="value-eye-color">0</output></span>
+                <input id="eye-color" type="range" min="0" max="31" step="1" value="0">
+              </label>
+              <label class="range-control">
+                <span>Форма бровей <output id="value-eyebrows">0</output></span>
+                <input id="eyebrows" type="range" min="0" max="33" step="1" value="0">
+              </label>
+              <label class="range-control" id="beard-control">
+                <span>Борода <output id="value-beard">Нет</output></span>
+                <input id="beard" type="range" min="-1" max="28" step="1" value="-1">
+              </label>
+            </div>
+          </div>
+
+          <div class="custom-panel" data-panel="clothes" hidden>
+            <p class="step-description">Компоненты одежды подбираются для выбранной модели.</p>
+            <div class="range-grid">
+              <label class="range-control">
+                <span>Верх <output id="value-top">0</output></span>
+                <input id="top" type="range" min="0" max="20" step="1" value="0">
+              </label>
+              <label class="range-control">
+                <span>Нижняя одежда <output id="value-legs">0</output></span>
+                <input id="legs" type="range" min="0" max="20" step="1" value="0">
+              </label>
+              <label class="range-control">
+                <span>Обувь <output id="value-shoes">0</output></span>
+                <input id="shoes" type="range" min="0" max="20" step="1" value="0">
+              </label>
+              <label class="range-control">
+                <span>Нижний слой <output id="value-undershirt">0</output></span>
+                <input id="undershirt" type="range" min="0" max="20" step="1" value="0">
+              </label>
+              <label class="range-control">
+                <span>Торс <output id="value-torso">0</output></span>
+                <input id="torso" type="range" min="0" max="20" step="1" value="0">
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <section class="step" data-step="3" hidden>
+          <p class="step-description">Проверь данные и внешний вид перед началом игры.</p>
+          <div class="summary">
+            <div class="summary-avatar" id="summary-avatar">М</div>
+            <div class="summary-copy">
+              <span class="summary-label">ТВОЙ ПЕРСОНАЖ</span>
+              <strong id="summary-name">—</strong>
+              <span id="summary-details">—</span>
+            </div>
+          </div>
+          <div class="summary-id"><span>ТВОЙ СТАТИК ID</span><strong id="summary-id">--- ---</strong></div>
+          <p class="confirmation-note">После создания имя и внешний вид сохранятся в персонаже. Статик ID останется закреплён за аккаунтом.</p>
+        </section>
+      </div>
+
+      <p class="feedback" id="feedback" role="alert"></p>
+      <footer class="form-actions">
+        <button class="back-button" id="back-button" type="button" hidden>НАЗАД</button>
+        <button class="next-button" id="next-button" type="button">
+          <span id="next-label">ПРОДОЛЖИТЬ</span><span aria-hidden="true">→</span>
+        </button>
+      </footer>
+      <p class="step-hint" id="step-hint">ШАГ 1 ИЗ 3 · ДАННЫЕ ПЕРСОНАЖА</p>
+    </aside>
+
+    <section class="scene-hud" aria-label="Предпросмотр персонажа">
+      <div class="scene-title"><span class="scene-dot"></span> ПРЕДПРОСМОТР ПЕРСОНАЖА</div>
+      <div class="rotation-controls">
+        <span>ПОВЕРНУТЬ</span>
+        <button type="button" data-rotate="-1" aria-label="Повернуть влево">←</button>
+        <button type="button" data-rotate="1" aria-label="Повернуть вправо">→</button>
+      </div>
+      <p class="scene-help">Осмотри образ в сцене перед созданием</p>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

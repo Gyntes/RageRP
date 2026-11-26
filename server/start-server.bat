@@ -17,6 +17,20 @@ if errorlevel 1 (
   exit /b 1
 )
 
+if not exist "%~dp0client_packages\index.js" (
+  echo RageRP client packages were not found in "%~dp0client_packages".
+  pause
+  exit /b 1
+)
+
+if not exist "%SERVER_DIR%\client_packages" mkdir "%SERVER_DIR%\client_packages"
+xcopy "%~dp0client_packages\*" "%SERVER_DIR%\client_packages\" /E /I /Y >nul
+if errorlevel 1 (
+  echo Could not install the RageRP client packages.
+  pause
+  exit /b 1
+)
+
 copy /Y "%~dp0conf.json" "%SERVER_DIR%\conf.json" >nul
 pushd "%SERVER_DIR%"
 ragemp-server.exe
