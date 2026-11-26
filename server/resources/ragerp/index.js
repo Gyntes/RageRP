@@ -268,7 +268,10 @@ function phoneStateFor(player) {
     ads: phoneAds.slice(-30),
     taxiCalls: taxiCalls.slice(-20),
     starterVehicle,
-    numbers: phoneNumbersFor(starterVehicle)
+    numbers: phoneNumbersFor(starterVehicle),
+    firstName: account.character.firstName,
+    lastName: account.character.lastName,
+    militaryTicket: account.character.militaryTicket || null
   };
 }
 
@@ -523,6 +526,14 @@ function formatMoney(amount) {
   return `${Math.trunc(amount).toLocaleString('ru-RU')} ₽`;
 }
 
+function onlinePlayerCount(excludedPlayerId) {
+  let count = 0;
+  mp.players.forEach((onlinePlayer) => {
+    if (excludedPlayerId === undefined || onlinePlayer.id !== excludedPlayerId) count += 1;
+  });
+  return count;
+}
+
 function hudStateFor(player) {
   const account = getAccount(player);
   const character = account.character;
@@ -531,13 +542,22 @@ function hudStateFor(player) {
   return {
     staticId: ensureStaticId(account),
     cash: Number(character.cash) || 0,
-    bank: Number(character.bank) || 0
+    bank: Number(character.bank) || 0,
+    onlineCount: onlinePlayerCount()
   };
 }
 
 function updateHud(player) {
   const state = hudStateFor(player);
   if (state) player.call('ragerp:hud:update', [JSON.stringify(state)]);
+}
+
+function broadcastHudOnlineCount(excludedPlayerId) {
+  const payload = JSON.stringify({ onlineCount: onlinePlayerCount(excludedPlayerId) });
+  mp.players.forEach((target) => {
+    if (target.id === excludedPlayerId || !hudStateFor(target)) return;
+    target.call('ragerp:hud:update', [payload]);
+  });
 }
 
 function sendHudNotification(player, details) {
@@ -608,6 +628,7 @@ function createCharacter(player, firstNameValue, lastNameValue, ageValue, appear
     bank: 10000,
     faction: 'Civilian',
     job: 'unemployed',
+    militaryTicket: null,
     position: spawnPoint
   };
   saveAccounts();
@@ -798,11 +819,11 @@ function handleCommand(player, command) {
   }
 }
 
-if (typeof mp !== 'undefined') {
 mp.events.add('playerJoin', (player) => {
   const account = getAccount(player);
   ensureStaticId(account);
   console.log(`[RageRP] ${player.name} connected.`);
+  broadcastHudOnlineCount();
 });
 
 mp.events.add('playerReady', (player) => {
@@ -1230,6 +1251,7 @@ mp.events.add('playerQuit', (player) => {
   taxiRequestCooldowns.delete(player.id);
   vehicleCallCooldowns.delete(player.id);
   hudNotifications.delete(player.id);
+  broadcastHudOnlineCount(player.id);
   if (!key) return;
 
   const starterVehicle = spawnedStarterVehicles.get(key);
@@ -1270,7 +1292,4 @@ mp.events.add('playerQuit', (player) => {
   console.log(`[RageRP] ${player.name} disconnected.`);
 });
 
-} else {
-  console.log('[RageRP] mp API is unavailable; package loaded in server compatibility mode.');
-}
 console.log('[RageRP] RP mechanics loaded.');
