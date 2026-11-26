@@ -28,8 +28,19 @@
 
     <aside class="task-panel" id="task-panel" aria-label="Задания">
       <header class="task-topline">
-        <div class="brand-mark"><span class="brand-dot"></span>RAGERP <small>ГОРОДСКИЕ СЕРВИСЫ</small></div>
-        <div class="account-mark"><span id="hud-static-id">---</span><span class="online-dot"></span></div>
+        <div class="server-status">
+          <div class="account-mark">
+            <span class="player-status">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm0 1.5c-3.1 0-5.5 1.7-5.5 3.8 0 .4.3.7.7.7h9.6c.4 0 .7-.3.7-.7 0-2.1-2.4-3.8-5.5-3.8Z" /></svg>
+              <span id="hud-static-id">--- ---</span>
+            </span>
+            <span class="online-status" aria-label="Игроков в сети">
+              <span class="online-dot" aria-hidden="true"></span>
+              <span id="hud-online-count">0</span>
+            </span>
+          </div>
+          <time class="server-time" id="hud-date-time">--.-- --:--</time>
+        </div>
       </header>
       <div class="task-banner">
         <span class="banner-icon">✦</span>

@@ -26,10 +26,19 @@
     document.getElementById(id).textContent = String(value == null ? '' : value);
   }
 
+  function updateDateTime() {
+    const now = new Date();
+    const date = now.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
+    const time = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    setText('hud-date-time', `${date} ${time}`);
+  }
+
   function renderState() {
     setText('hud-static-id', state.staticId || '---');
     setText('hud-cash', formatMoney(state.cash));
     setText('hud-bank', formatMoney(state.bank));
+    const onlineCount = Number(state.onlineCount);
+    setText('hud-online-count', Number.isFinite(onlineCount) ? Math.max(0, Math.trunc(onlineCount)) : 0);
   }
 
   function sendAnswer(answer) {
@@ -67,6 +76,9 @@
     taskPanel.hidden = false;
     taskReopen.hidden = true;
   });
+
+  updateDateTime();
+  window.setInterval(updateDateTime, 15000);
 
   window.ragerpHud = {
     setBootstrap: function (payload) {
