@@ -176,7 +176,12 @@ function closePhone(notifyServer) {
   }
 
   if (mp.players.local) {
-    mp.game.ai.clearPedTasks(mp.players.local.handle);
+    const pedHandle = mp.players.local.handle;
+    if (typeof mp.game.ai.clearPedTasksImmediately === 'function') {
+      mp.game.ai.clearPedTasksImmediately(pedHandle);
+    } else if (typeof mp.game.invoke === 'function') {
+      mp.game.invoke('0xAAA34F8A7CB32098', pedHandle);
+    }
     mp.players.local.freezePosition(false);
   }
 
@@ -364,6 +369,10 @@ function setPhoneWaypoint(payload) {
 
 mp.events.add('ragerp:phone:set-waypoint', setPhoneWaypoint);
 mp.events.add('ragerp:phone:waypoint', setPhoneWaypoint);
+
+setTimeout(() => {
+  mp.events.callRemote('ragerp:client:ui-ready');
+}, 1500);
 
 mp.events.add('render', () => {
   if (phoneOpen || hudNotificationOpen) {

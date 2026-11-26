@@ -782,6 +782,17 @@ mp.events.add('playerReady', (player) => {
   message(player, `С возвращением, ${character.firstName}. Используй /help.`);
 });
 
+mp.events.add('ragerp:client:ui-ready', (player) => {
+  const account = getAccount(player);
+  if (!account.character) {
+    player.call('ragerp:registration:show', [ensureStaticId(account)]);
+    return;
+  }
+
+  if (player.dimension !== 0) return;
+  player.call('ragerp:hud:show', [JSON.stringify(hudStateFor(player))]);
+});
+
 mp.events.add('ragerp:phone:request-open', (player) => {
   const character = characterFor(player);
   if (!character || player.dimension !== 0) {
