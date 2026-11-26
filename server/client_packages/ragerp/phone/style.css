@@ -169,6 +169,7 @@ button { color: inherit; }
 .app-ads > span { background: linear-gradient(145deg,#dc8ad4,#9b4d9c); }
 .app-settings > span { background: linear-gradient(145deg,#89949a,#505b61); }
 .app-vehicle > span { background: linear-gradient(145deg,#7ccab0,#397e6b); }
+.app-numbers > span { background: linear-gradient(145deg,#86b9e8,#4d77aa); }
 .app-icon small { color: rgba(255,255,255,.94); font-size: 9px; text-shadow: 0 1px 5px #000; }
 
 .home-dock {
@@ -234,6 +235,7 @@ button { color: inherit; }
 .card-meta { margin-top: 6px; color: #77837a; font-size: 8px; }
 
 .contact-list, .message-list, .taxi-list, .ad-list { display: flex; flex-direction: column; gap: 8px; }
+.number-list { display: flex; flex-direction: column; gap: 8px; }
 .contact-card { display: flex; align-items: center; gap: 9px; }
 .avatar { display: grid; width: 33px; height: 33px; flex: none; place-items: center; border-radius: 11px; background: rgba(201,243,107,.15); color: var(--accent); font-size: 12px; font-weight: 800; }
 .contact-copy { min-width: 0; flex: 1; }
@@ -285,6 +287,21 @@ button { color: inherit; }
 .vehicle-card .card-subtitle { margin-top: 6px; }
 .vehicle-plate { display: inline-block; margin: 13px 0; padding: 5px 11px; border: 1px solid rgba(255,255,255,.19); border-radius: 5px; background: rgba(255,255,255,.06); color: #e8eee8; font-size: 11px; font-weight: 750; letter-spacing: .12em; }
 .vehicle-button { display: block; width: 100%; }
+.number-card { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px; border-color: rgba(0,0,0,.08); background: rgba(239,242,239,.96); }
+.number-plate { display: grid; width: 140px; min-width: 0; flex: 0 0 140px; grid-template-columns: minmax(0,1fr) 40px; overflow: hidden; border: 2px solid #313733; border-radius: 6px; background: #fff; color: #171b18; }
+.number-plate-main { display: grid; min-width: 0; min-height: 34px; place-items: center; padding: 0 5px; font-size: 18px; font-weight: 800; letter-spacing: .05em; white-space: nowrap; }
+.number-region { display: flex; min-height: 34px; align-items: center; flex-direction: column; justify-content: center; border-left: 2px solid #313733; font-variant-numeric: tabular-nums; line-height: 1; }
+.number-region strong { font-size: 13px; }
+.number-region small { margin-top: 2px; font-size: 8px; font-weight: 750; }
+.number-flag { width: 21px; height: 8px; margin-top: 2px; border: 1px solid rgba(0,0,0,.18); background: linear-gradient(to bottom,#fff 0 33.3%,#2456a6 33.3% 66.6%,#d52b1e 66.6% 100%); }
+.number-status { flex: 1; color: #444b46; font-size: 9px; line-height: 1.4; text-align: right; }
+@media (max-width: 360px) {
+  .number-card { gap: 7px; }
+  .number-plate { width: 132px; flex-basis: 132px; grid-template-columns: minmax(0,1fr) 36px; }
+  .number-plate-main { min-height: 32px; padding: 0 4px; font-size: 16px; }
+  .number-region { min-height: 32px; }
+  .number-status { font-size: 8px; }
+}
 
 .empty-state { padding: 21px 10px; color: #89958b; font-size: 10px; line-height: 1.6; text-align: center; }
 .status-badge { padding: 4px 7px; border: 1px solid rgba(201,243,107,.18); border-radius: 20px; color: var(--accent); font-size: 8px; white-space: nowrap; }
