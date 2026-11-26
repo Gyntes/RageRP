@@ -27,6 +27,7 @@
 - [`../map/tula_pilot_greybox_compact.obj`](../map/tula_pilot_greybox_compact.obj) + [`../map/tula_pilot_greybox_compact.blend`](../map/tula_pilot_greybox_compact.blend) — компактный 3D-greybox с горизонтальным масштабом 0.5; вертикальные высоты пока не масштабированы.
 - [`../map/tula_pilot_compact_manifest.json`](../map/tula_pilot_compact_manifest.json) — единая формула локального преобразования WGS84 в метры и параметры компактного пилота.
 - [`../map/convert_tula_pilot_coordinates.ps1`](../map/convert_tula_pilot_coordinates.ps1) — конвертер контрольных WGS84-точек в local/temporary GTA world coordinates.
+- [`../server/resources/tula_pilot_map/stream/tula_pilot_greybox.ydr`](../server/resources/tula_pilot_map/stream/tula_pilot_greybox.ydr), `.ytyp` и `.ymap` — native GTA asset pilot для RAGE MP.
 
 Greybox использует локальную систему координат: начало — `37.6175 E, 54.1930 N`, X на восток, Y на север, Z вверх; единицы — метры, пока в масштабе 1:1. У высот зданий без данных задана условная высота 8 м. Рельеф плоский; мосты, туннели, коллизии, интерьеры, LOD и оптимизация ещё не сделаны. Это **не готовая игровая карта**.
 

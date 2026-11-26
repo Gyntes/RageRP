@@ -17,7 +17,7 @@
 в установленной локальной копии RAGE MP.
 
 1. Скачай актуальную официальную Windows server-пачку RAGE MP.
-2. Запусти `server\setup-server.ps1 -ServerFiles "путь\к\официальной\пачке"`.
+2. Запусти `powershell.exe -ExecutionPolicy Bypass -File server\setup-server.ps1 "путь\к\официальной\пачке"`.
    Скрипт проверит `ragemp-server.exe` и установит ресурсы проекта в эту папку.
 3. Запусти `server\start-server.bat "путь\к\официальной\пачке"`.
    Без аргумента используется `server\server-files`, либо переменная `RAGEMP_SERVER_DIR`.
@@ -26,8 +26,17 @@
 Проверить установленную сборку:
 
 ```powershell
-.\server\verify-server.ps1 -ServerFiles "путь\к\официальной\пачке"
+powershell.exe -ExecutionPolicy Bypass -File server\verify-server.ps1 "путь\к\официальной\пачке"
 ```
+
+В комплект входит тестовый RAGE MP resource `tula_pilot_map` с native GTA assets:
+
+- `server/resources/tula_pilot_map/stream/tula_pilot_greybox.ydr`;
+- `.ytyp`;
+- `.ymap`.
+
+Setup устанавливает ресурс вместе с RageRP. Запуск сервера загрузит пакет `tula_pilot_map`
+из папки `packages`. Эти файлы являются compact greybox-пилотом, а не заменой всей карты GTA V.
 
 При первом входе откроется редактор создания персонажа. Укажи имя и фамилию кириллицей,
    возраст, настрой лицо, волосы и одежду, затем подтверди создание.

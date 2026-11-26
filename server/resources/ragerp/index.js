@@ -762,6 +762,7 @@ function handleCommand(player, command) {
   }
 }
 
+if (typeof mp !== 'undefined') {
 mp.events.add('playerJoin', (player) => {
   const account = getAccount(player);
   ensureStaticId(account);
@@ -1222,4 +1223,7 @@ mp.events.add('playerQuit', (player) => {
   console.log(`[RageRP] ${player.name} disconnected.`);
 });
 
+} else {
+  console.log('[RageRP] mp API is unavailable; package loaded in server compatibility mode.');
+}
 console.log('[RageRP] RP mechanics loaded.');
