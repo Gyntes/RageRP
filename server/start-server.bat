@@ -1,11 +1,26 @@
 @echo off
 setlocal
-set "SERVER_DIR=%~dp0server-files"
+set "SERVER_DIR=%~1"
+if not defined SERVER_DIR set "SERVER_DIR=%RAGEMP_SERVER_DIR%"
+if not defined SERVER_DIR set "SERVER_DIR=%~dp0server-files"
 
 if not exist "%SERVER_DIR%\ragemp-server.exe" (
   echo RageMP server files were not found in "%SERVER_DIR%".
-  echo Place the official server files there, then run this script again.
-  pause
+  echo.
+  echo Usage:
+  echo   start-server.bat "F:\path\to\ragemp-server"
+  echo.
+  echo Or set RAGEMP_SERVER_DIR and run start-server.bat.
+  exit /b 1
+)
+
+if not exist "%~dp0resources\ragerp\index.js" (
+  echo RageRP server package is missing.
+  exit /b 1
+)
+
+if not exist "%~dp0client_packages\index.js" (
+  echo RageRP client package is missing.
   exit /b 1
 )
 
