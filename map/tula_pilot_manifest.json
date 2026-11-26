@@ -1,0 +1,63 @@
+{
+  "name": "Tula compact pilot",
+  "status": "3d-greybox-distance-compressed",
+  "origin": {
+    "name": "Tula city centre",
+    "wgs84": {
+      "longitude": 37.6175,
+      "latitude": 54.193
+    },
+    "axes": {
+      "x": "east",
+      "y": "north",
+      "z": "up"
+    },
+    "units": "metres",
+    "scale": 1
+  },
+  "temporary_gta_origin": {
+    "x": 215.76,
+    "y": -810.12,
+    "z": 30.73,
+    "status": "test-only",
+    "spawn_changed": false
+  },
+  "pilot_bbox": {
+    "west": 37.55,
+    "south": 54.17,
+    "east": 37.64,
+    "north": 54.21,
+    "epsg": "4326",
+    "status": "proposed-for-verification",
+    "coverage": "Centre, Upa, Museum of Weapons, railway station and nearby park"
+  },
+  "required_proof": [
+    "OSM pilot extract covers all proposed landmarks",
+    "Coordinate transform is derived and checked by known control points",
+    "Road graph is connected and drivable",
+    "Greybox fits a test game asset",
+    "Spawn is moved only after the test asset is ready"
+  ],
+  "source": {
+    "provider": "OpenStreetMap",
+    "license": "ODbL-1.0",
+    "attribution": "© OpenStreetMap contributors",
+    "derivative_status": "GIS reference, not a game-ready map asset"
+  },
+  "current_assets": [
+    "map/tula_center_features.geojson",
+    "map/tula_center_detailed.svg",
+    "map/tula_center_greybox.obj",
+    "map/tula_center_greybox.mtl",
+    "map/source/tula_pilot.osm",
+    "map/tula_pilot_features.geojson",
+    "map/tula_pilot_detailed.svg",
+    "map/tula_pilot_greybox.obj",
+    "map/tula_pilot_greybox.mtl",
+    "map/tula_pilot_greybox.blend",
+    "map/tula_pilot_greybox_compact.obj",
+    "map/tula_pilot_greybox_compact.mtl",
+    "map/tula_pilot_greybox_compact.blend",
+    "map/tula_pilot_compact_manifest.json"
+  ]
+}

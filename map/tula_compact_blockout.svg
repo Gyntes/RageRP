@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="750" viewBox="0 0 1200 900" role="img" aria-labelledby="title description">
+  <title id="title">Компактный блок-аут Тулы — итерация 0</title>
+  <desc id="description">Схема центрального игрового прототипа Тулы с ориентировочным положением известных ориентиров, Упы и транспортных связей. Дорожная сеть схематична и требует сверки с GIS.</desc>
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#e8edf2" stroke-width="1"/>
+    </pattern>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#334155"/>
+    </marker>
+    <style>
+      text { font-family: "Segoe UI", Arial, sans-serif; fill: #172033; }
+      .title { font-size: 30px; font-weight: 700; }
+      .subtitle { font-size: 15px; fill: #526174; }
+      .zone-label { font-size: 14px; font-weight: 600; fill: #566578; }
+      .poi-label { font-size: 13px; font-weight: 600; }
+      .small { font-size: 12px; fill: #526174; }
+      .tiny { font-size: 10px; fill: #526174; }
+      .arterial { fill: none; stroke: #f0a44b; stroke-width: 10; stroke-linecap: round; stroke-linejoin: round; }
+      .road { fill: none; stroke: #f8d59b; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
+      .local-road { fill: none; stroke: #cbd5df; stroke-width: 2; stroke-linecap: round; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="900" fill="#f7f9fb"/>
+  <text x="48" y="58" class="title">Тула — компактный игровой блок-аут</text>
+  <text x="50" y="85" class="subtitle">Итерация 0 · центральный прототип ~5–6 км · схематичная дорожная сеть, не навигационная карта</text>
+
+  <rect x="48" y="112" width="1104" height="690" rx="14" fill="#fff" stroke="#d7dee7"/>
+  <rect x="64" y="128" width="1072" height="658" rx="8" fill="url(#grid)"/>
+
+  <path d="M205 315 C260 208 422 165 594 178 C788 152 972 230 1049 365 C1100 475 1024 648 907 722 C770 786 552 754 396 728 C261 701 178 581 183 447 C183 389 187 347 205 315 Z"
+        fill="#f2f6ec" stroke="#7ea56d" stroke-width="3" stroke-dasharray="11 8"/>
+  <text x="793" y="755" class="small">ориентировочный край пилотной зоны</text>
+
+  <path d="M676 210 C650 280 690 315 665 372 C645 430 710 472 700 525 C690 585 745 635 770 699"
+        fill="none" stroke="#89c9e8" stroke-width="32" stroke-linecap="round"/>
+  <path d="M676 210 C650 280 690 315 665 372 C645 430 710 472 700 525 C690 585 745 635 770 699"
+        fill="none" stroke="#d8f1fb" stroke-width="20" stroke-linecap="round"/>
+  <text x="708" y="325" class="zone-label">Упа</text>
+  <text x="708" y="344" class="tiny">русло уточнить по GIS</text>
+
+  <path d="M216 350 C323 321 394 308 474 326 C545 342 596 371 638 397 C693 431 758 426 829 436 C909 448 986 472 1034 496"
+        class="arterial"/>
+  <path d="M279 591 C353 550 417 523 480 513 C548 502 603 520 653 544 C706 569 775 584 844 596 C908 607 964 620 1007 640"
+        class="arterial"/>
+  <path d="M330 260 C406 298 451 324 489 350 M333 682 C385 620 426 560 484 488 M610 451 C609 396 608 340 603 278 M610 451 C665 488 716 524 782 568"
+        class="road"/>
+  <path d="M265 414 L420 415 L489 350 L557 352 L610 451 L561 526 L484 488 L420 548 L321 565 M424 330 L420 415 L484 488 L544 590 M558 352 L558 420 L610 451 L676 424 L716 525 L785 568 M772 353 L834 384 L887 516 L836 607"
+        class="local-road"/>
+  <path d="M645 403 C656 401 668 402 679 406 M681 541 C694 539 706 541 718 546"
+        fill="none" stroke="#f0a44b" stroke-width="7" stroke-linecap="round"/>
+  <text x="650" y="426" class="tiny">мост</text>
+  <text x="688" y="563" class="tiny">мост</text>
+
+  <path d="M121 372 L249 372 M121 392 L249 392" stroke="#636f7d" stroke-width="4"/>
+  <path d="M130 362 L130 402 M147 362 L147 402 M164 362 L164 402 M181 362 L181 402 M198 362 L198 402 M215 362 L215 402 M232 362 L232 402"
+        stroke="#8993a0" stroke-width="2"/>
+  <text x="82" y="346" class="zone-label">Железная дорога</text>
+
+  <path d="M240 624 C269 584 319 565 359 579 C404 595 418 641 398 688 C383 723 339 741 298 723 C253 704 224 663 240 624 Z"
+        fill="#d9edcf" stroke="#85ae78" stroke-width="2"/>
+  <text x="264" y="656" class="zone-label">Парк Белоусова</text>
+
+  <path d="M568 407 L614 402 L631 438 L617 474 L580 478 L558 446 Z"
+        fill="#e7d7bd" stroke="#9c7d52" stroke-width="2"/>
+  <text x="575" y="448" class="poi-label">Кремль</text>
+  <circle cx="624" cy="452" r="7" fill="#d7a93e" stroke="#fff" stroke-width="3"/>
+  <text x="638" y="456" class="poi-label">Пл. Ленина</text>
+
+  <circle cx="603" cy="278" r="13" fill="#805ad5" stroke="#fff" stroke-width="4"/>
+  <text x="624" y="274" class="poi-label">Музей оружия</text>
+
+  <circle cx="250" cy="372" r="13" fill="#d05e50" stroke="#fff" stroke-width="4"/>
+  <text x="85" y="430" class="poi-label">Московский вокзал</text>
+  <path d="M202 414 L242 388" fill="none" stroke="#8993a0" stroke-width="1.5"/>
+
+  <circle cx="657" cy="394" r="7" fill="#1682a6" stroke="#fff" stroke-width="3"/>
+  <text x="674" y="391" class="tiny">контрольная точка</text>
+  <text x="674" y="405" class="tiny">Упы</text>
+
+  <text x="352" y="239" class="zone-label">Жилые кварталы</text>
+  <text x="827" y="317" class="zone-label">Жилые кварталы</text>
+  <text x="485" y="650" class="zone-label">Южные жилые кварталы</text>
+  <path d="M855 592 C900 559 964 575 989 620 C1007 656 980 695 929 697 C879 698 840 654 855 592 Z"
+        fill="#e9dfd4" stroke="#b19a83" stroke-width="2"/>
+  <text x="865" y="638" class="zone-label">Промышленная</text>
+  <text x="883" y="657" class="zone-label">зона-кандидат</text>
+  <text x="194" y="244" class="zone-label">Западный транспортный узел</text>
+
+  <g transform="translate(1078 166)">
+    <text x="0" y="0" class="small" font-weight="700">С</text>
+    <path d="M7 52 L7 10" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/>
+  </g>
+  <text x="1076" y="228" class="tiny">север</text>
+
+  <g transform="translate(76 738)">
+    <circle cx="8" cy="0" r="6" fill="#d05e50"/>
+    <text x="22" y="4" class="small">вокзал / транспорт</text>
+    <circle cx="185" cy="0" r="6" fill="#805ad5"/>
+    <text x="199" y="4" class="small">ориентир</text>
+    <path d="M304 0 L340 0" class="arterial"/>
+    <text x="350" y="4" class="small">магистраль (схема)</text>
+    <path d="M520 0 L556 0" stroke="#89c9e8" stroke-width="12" stroke-linecap="round"/>
+    <text x="567" y="4" class="small">река</text>
+    <path d="M660 0 L696 0" stroke="#7ea56d" stroke-width="3" stroke-dasharray="8 5"/>
+    <text x="706" y="4" class="small">граница пилотной зоны</text>
+  </g>
+
+  <text x="64" y="830" class="small">Масштаб и дорожная схема условные. Положение опорных точек перенесено приблизительно по координатам WGS84;</text>
+  <text x="64" y="851" class="small">границы районов, улицы, мосты и промзона — рабочие гипотезы, требуют сверки с OSM в GIS и теста в игре.</text>
+  <text x="64" y="877" class="tiny">Справка: docs/Tula_Map_Research.md · Точки: map/tula_control_points.geojson · © OpenStreetMap contributors, ODbL 1.0 (openstreetmap.org/copyright)</text>
+</svg>

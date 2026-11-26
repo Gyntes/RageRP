@@ -24,3 +24,4 @@ obj/
 /server/mp.png
 /server/config.xml
 /server/*.log
+/tools/

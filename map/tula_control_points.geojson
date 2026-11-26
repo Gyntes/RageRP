@@ -1,0 +1,112 @@
+{
+  "type": "FeatureCollection",
+  "name": "Tula compact map control points",
+  "description": "Approximate WGS84 reference points for the first compact Tula map blockout. Verify against current GIS geometry before placing game assets.",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "tula_center",
+        "name": "Центр Тулы",
+        "role": "map_origin",
+        "phase": "prototype",
+        "coordinate_quality": "approximate",
+        "source": "OpenStreetMap Nominatim; see docs/Tula_Map_Research.md"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [37.6175, 54.1930]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "lenin_square",
+        "name": "Площадь Ленина и историческое ядро",
+        "role": "landmark",
+        "phase": "prototype",
+        "coordinate_quality": "approximate",
+        "source": "OpenStreetMap Nominatim; see docs/Tula_Map_Research.md"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [37.6176, 54.1932]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "upa_center",
+        "name": "Упа у центральной части",
+        "role": "river_reference",
+        "phase": "prototype",
+        "coordinate_quality": "approximate",
+        "source": "OpenStreetMap Nominatim; see docs/Tula_Map_Research.md"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [37.6223, 54.1964]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "arms_museum",
+        "name": "Тульский государственный музей оружия",
+        "role": "landmark",
+        "phase": "prototype",
+        "coordinate_quality": "approximate",
+        "source": "OpenStreetMap Nominatim; see docs/Tula_Map_Research.md"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [37.6163, 54.2040]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "moscow_station",
+        "name": "Московский вокзал / Тула-1",
+        "role": "transport_hub",
+        "phase": "prototype",
+        "coordinate_quality": "approximate",
+        "source": "OpenStreetMap Nominatim; see docs/Tula_Map_Research.md"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [37.5776, 54.1990]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "belousov_park",
+        "name": "Центральный парк им. П. П. Белоусова",
+        "role": "park",
+        "phase": "prototype",
+        "coordinate_quality": "approximate",
+        "source": "OpenStreetMap Nominatim; see docs/Tula_Map_Research.md"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [37.5866, 54.1806]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "yasnaya_polyana",
+        "name": "Ясная Поляна",
+        "role": "out_of_town_landmark",
+        "phase": "later_expansion",
+        "coordinate_quality": "approximate",
+        "source": "OpenStreetMap Nominatim; see docs/Tula_Map_Research.md"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [37.5267, 54.0701]
+      }
+    }
+  ]
+}

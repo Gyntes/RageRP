@@ -36,6 +36,28 @@ RageMP на `127.0.0.1:22005`.
 Бинарные файлы RageMP намеренно исключены из Git; перед запуском у других разработчиков
 должна быть собственная серверная сборка в `server\server-files`.
 
+## Карта Тулы
+
+В репозитории находится GIS и Blender-основа пилотной зоны Тулы:
+
+- исходные и конвертированные OSM-файлы в `map/source` и `map`;
+- детальная GeoJSON/SVG-карта;
+- 1:1 и 0.5 greybox-модели для Blender;
+- manifest временной привязки к GTA world coordinates;
+- PowerShell-конвертер контрольных координат;
+- проверочный скрипт `map/validate_tula_map.ps1`.
+
+Для локальной проверки артефактов в PowerShell выполните:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\map\validate_tula_map.ps1
+.\map\validate_tula_map.ps1 -Pilot
+```
+
+Файлы карты сейчас являются greybox, а не готовой заменой мира GTA V. Не добавляйте временный
+GTA-origin в spawn сервера до игрового теста и финального согласования карты.
+
 ## Сборка ядра
 
 ```powershell

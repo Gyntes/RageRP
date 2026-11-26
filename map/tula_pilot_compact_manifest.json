@@ -1,0 +1,68 @@
+{
+  "name": "Tula compact pilot",
+  "status": "3d-greybox-distance-compressed",
+  "source": {
+    "osm": "map/source/tula_pilot.osm",
+    "projection": "WGS84 EPSG:4326",
+    "attribution": "© OpenStreetMap contributors",
+    "license": "ODbL-1.0"
+  },
+  "world_origin": {
+    "wgs84": {
+      "longitude": 37.6175,
+      "latitude": 54.193
+    },
+    "local": {
+      "east_m": 0.0,
+      "north_m": 0.0,
+      "up_m": 0.0
+    },
+    "gta_world": {
+      "x": 215.76,
+      "y": -810.12,
+      "z": 30.73,
+      "status": "temporary-test-origin",
+      "spawn_changed": false
+    }
+  },
+  "transform": {
+    "distance_scale": 0.5,
+    "horizontal_formula": [
+      "(lon - 37.6175) * 111320 * cos(54.1930 rad) * 0.5",
+      "(lat - 54.1930) * 111320 * 0.5"
+    ],
+    "vertical_scale": 1.0,
+    "units": "metres",
+    "axis": {
+      "east": "+X",
+      "north": "+Y",
+      "up": "+Z"
+    },
+    "gta_world_mapping": [
+      "gta_x = 215.76 + east_m",
+      "gta_y = -810.12 + north_m",
+      "gta_z = 30.73 + up_m"
+    ]
+  },
+  "outputs": {
+    "blend": "map/tula_pilot_greybox_compact.blend",
+    "obj": "map/tula_pilot_greybox_compact.obj",
+    "mtl": "map/tula_pilot_greybox_compact.mtl"
+  },
+  "counts": {
+    "osm_nodes": 72949,
+    "buildings": 9671,
+    "roads": 5646,
+    "waterways": 0,
+    "railways": 340
+  },
+  "not_ready": [
+    "GTA V world coordinates",
+    "RAGE MP asset package",
+    "terrain",
+    "bridge and tunnel elevations",
+    "collision",
+    "interiors",
+    "LOD"
+  ]
+}
