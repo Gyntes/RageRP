@@ -29,6 +29,30 @@
 powershell.exe -ExecutionPolicy Bypass -File server\verify-server.ps1 "путь\к\официальной\пачке"
 ```
 
+Чтобы другие разработчики подключались к серверу с этого ПК:
+
+1. Запусти PowerShell от имени администратора:
+
+```powershell
+powershell.exe -ExecutionPolicy Bypass -File server\setup-lan.ps1
+```
+
+Скрипт откроет firewall для порта `22005/UDP` и `22006/TCP/UDP`.
+
+2. Для игроков в одной сети передай им IPv4, который выводит скрипт, например
+   `192.168.0.5:22005`.
+
+3. Для подключения из интернета в настройках роутера пробрось:
+
+- `22005/UDP` -> IPv4 этого ПК;
+- `22006/TCP` -> IPv4 этого ПК;
+- `22006/UDP` -> IPv4 этого ПК;
+- назначь ПК постоянный LAN IPv4 через DHCP reservation.
+
+После проброса внешние разработчики подключаются к публичному IPv4 роутера на порт `22005`.
+Проверь внешний адрес на этом сайте: `https://api.ipify.org`.
+Если провайдер использует CGNAT, портовый проброс будет недоступен; нужен VPS или разрешённый UPnP/TAP.
+
 В комплект входит тестовый RAGE MP resource `tula_pilot_map` с native GTA assets:
 
 - `server/resources/tula_pilot_map/stream/tula_pilot_greybox.ydr`;
