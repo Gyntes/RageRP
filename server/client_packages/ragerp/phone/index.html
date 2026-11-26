@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
   <title>Телефон</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=20261127-8">
 </head>
 <body>
   <main class="phone-shell" id="phone-shell" data-wallpaper="night">
@@ -26,7 +26,7 @@
             <button class="app-icon app-contacts" data-open-app="contacts" type="button"><span>◎</span><small>Контакты</small></button>
             <button class="app-icon app-messages" data-open-app="messages" type="button"><span>▤</span><small>Сообщения</small></button>
             <button class="app-icon app-gps" data-open-app="gps" type="button"><span>⌖</span><small>Навигация</small></button>
-            <button class="app-icon app-bank" data-open-app="bank" type="button"><span>₽</span><small>Банк</small></button>
+            <button class="app-icon app-bank" data-open-app="bank" type="button"><span>₽</span><small>Один Банк</small></button>
             <button class="app-icon app-taxi" data-open-app="taxi" type="button"><span>↗</span><small>Такси</small></button>
             <button class="app-icon app-ads" data-open-app="ads" type="button"><span>▧</span><small>Объявления</small></button>
             <button class="app-icon app-settings" data-open-app="settings" type="button"><span>⚙</span><small>Настройки</small></button>
@@ -42,16 +42,27 @@
 
         <section class="app-screen" id="app-screen" hidden>
           <header class="app-header">
-            <button class="back-button" id="back-button" type="button" aria-label="На главный экран">‹</button>
+            <button class="back-button" id="back-button" type="button" aria-label="Назад">‹</button>
             <div><p class="eyebrow">ГОРОДСКИЕ СЕРВИСЫ</p><h2 id="app-title">Приложение</h2></div>
             <span class="header-mark">●</span>
           </header>
           <div class="app-content" id="app-content"></div>
-          <nav class="bottom-nav">
-            <button type="button" data-home="true" aria-label="Главный экран">⌂</button>
-            <span class="home-indicator"></span>
-            <button type="button" data-close="true" aria-label="Закрыть телефон">×</button>
-          </nav>
+        </section>
+
+        <nav class="bottom-nav" aria-label="Управление телефоном">
+          <button type="button" data-phone-back="true" aria-label="Назад"><span>◀</span><b>Назад</b></button>
+          <button type="button" data-home="true" aria-label="Меню телефона"><span>⌂</span><b>Меню</b></button>
+          <button type="button" data-lock="true" aria-label="Блокировка экрана"><span>▣</span><b>Блокировка<br>экрана</b></button>
+        </nav>
+
+        <section class="phone-lock-screen" id="phone-lock-screen" hidden role="dialog" aria-modal="true" aria-label="Экран блокировки">
+          <div class="phone-lock-status">RMRP <span>●●●　▰</span></div>
+          <div class="phone-lock-content">
+            <p id="lock-date">ПЯТНИЦА, 27 НОЯБРЯ</p>
+            <h1 id="lock-clock">09:41</h1>
+            <span>Телефон заблокирован</span>
+          </div>
+          <button class="phone-unlock-button" id="unlock-phone" type="button">Разблокировать</button>
         </section>
 
         <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -64,6 +75,6 @@
       <button class="military-id-close" id="military-id-close" type="button">Закрыть</button>
     </div>
   </section>
-  <script src="app.js"></script>
+  <script src="app.js?v=20261127-8"></script>
 </body>
 </html>

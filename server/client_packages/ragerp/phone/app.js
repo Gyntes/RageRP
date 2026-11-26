@@ -3,6 +3,7 @@
   const homeScreen = document.getElementById('home-screen');
   const appScreen = document.getElementById('app-screen');
   const appContent = document.getElementById('app-content');
+  const phoneLockScreen = document.getElementById('phone-lock-screen');
   const militaryIdOverlay = document.getElementById('military-id-overlay');
   const militaryIdSheet = document.getElementById('military-id-sheet');
   const toast = document.getElementById('toast');
@@ -10,7 +11,7 @@
     contacts: 'Контакты',
     messages: 'Сообщения',
     gps: 'Навигация',
-    bank: 'Банк',
+    bank: 'Один Банк',
     taxi: 'Такси',
     ads: 'Объявления',
     settings: 'Настройки',
@@ -34,6 +35,7 @@
     militaryTicket: null,
     notices: [],
     activeApp: null,
+    navigationStack: [],
     contacts: loadContacts()
   };
   let toastTimer = null;
@@ -100,30 +102,65 @@
   function setPhoneOpen(open) {
     if (!open) {
       closeMilitaryId();
+      appScreen.classList.remove('is-bank-app');
+      shell.classList.remove('is-bank-app');
+      state.activeApp = null;
+      state.navigationStack = [];
+      phoneLockScreen.hidden = true;
       if (typeof mp !== 'undefined' && typeof mp.trigger === 'function') {
         mp.trigger('ragerp:phone:close-request');
       }
       return;
     }
+    phoneLockScreen.hidden = true;
     homeScreen.hidden = false;
     appScreen.hidden = true;
     state.activeApp = null;
+    state.navigationStack = [];
     sendAction('refresh', {});
   }
 
   function goHome() {
     state.activeApp = null;
+    state.navigationStack = [];
+    appScreen.classList.remove('is-bank-app');
+    shell.classList.remove('is-bank-app');
     homeScreen.hidden = false;
     appScreen.hidden = true;
   }
 
-  function openApp(app) {
-    if (!phoneTitles[app]) return;
+  function showApp(app) {
     state.activeApp = app;
     homeScreen.hidden = true;
     appScreen.hidden = false;
+    appScreen.classList.toggle('is-bank-app', app === 'bank');
+    shell.classList.toggle('is-bank-app', app === 'bank');
     document.getElementById('app-title').textContent = phoneTitles[app];
     renderApp();
+  }
+
+  function openApp(app) {
+    if (!phoneTitles[app] || app === state.activeApp) return;
+    state.navigationStack.push(state.activeApp);
+    showApp(app);
+  }
+
+  function goBack() {
+    const previousApp = state.navigationStack.pop();
+    if (previousApp) {
+      showApp(previousApp);
+      return;
+    }
+    goHome();
+  }
+
+  function lockPhone() {
+    closeMilitaryId();
+    phoneLockScreen.hidden = false;
+  }
+
+  function unlockPhone() {
+    phoneLockScreen.hidden = true;
   }
 
   function personName(person) {
@@ -248,23 +285,79 @@
   }
 
   function bankHtml() {
-    return `<div class="balance-card">
-        <span class="balance-label">Банковский счёт</span>
-        <strong class="balance-value">${formatMoney(state.bank)}</strong>
-        <div class="balance-secondary"><span>Наличные</span><strong>${formatMoney(state.cash)}</strong></div>
+    const accountName = String(state.name || 'Владелец счёта').trim();
+    return `<div class="one-bank-app">
+      <div class="one-bank-card">
+        <div class="one-bank-brand">
+          <span>Один Банк <small>Classic</small></span>
+          <span class="one-bank-brand-mark">◉</span>
+        </div>
+        <span class="one-bank-owner">${escapeHtml(accountName)}</span>
+        <strong class="one-bank-card-value">5455 3947 0502 2795</strong>
+        <span class="one-bank-currency">₽</span>
       </div>
-      <p class="section-title">Операции</p>
-      <form class="form" data-form="bank">
-        <select class="select" name="operation">
-          <option value="deposit">Положить наличные на счёт</option>
-          <option value="withdraw">Снять со счёта</option>
-          <option value="transfer">Перевести игроку по статик ID</option>
-        </select>
-        <input class="input" name="amount" type="number" min="1" max="1000000" placeholder="Сумма в ₽" required>
-        <input class="input" name="targetId" maxlength="7" placeholder="Статик ID получателя (для перевода)">
-        <button class="button primary" type="submit">Выполнить операцию</button>
-      </form>
-      <p class="muted">Операции проверяются и сохраняются сервером. Переводы доступны игрокам, уже зарегистрированным в городе.</p>`;
+      <div class="one-bank-total">
+        <strong>${formatMoney(state.bank)}</strong>
+        <span>00:10:27</span>
+      </div>
+      <section class="one-bank-group one-bank-section">
+        <div class="one-bank-grid">
+          <button type="button" data-action="bank-mode" data-operation="withdraw">
+            <span class="one-bank-icon">◈</span><b>Вклады</b>
+          </button>
+          <button type="button" data-action="bank-history">
+            <span class="one-bank-icon">▤</span><b>История<br>операций</b>
+          </button>
+          <button type="button" data-action="bank-fines-history">
+            <span class="one-bank-icon">₽</span><b>История<br>штрафов</b>
+          </button>
+        </div>
+      </section>
+      <section class="one-bank-group">
+        <p class="one-bank-section-title">Платежи</p>
+        <div class="one-bank-section one-bank-payments">
+          <div class="one-bank-grid">
+            <button type="button" data-action="bank-services">
+              <span class="one-bank-icon">◆</span><b>Коммунальные<br>услуги</b>
+            </button>
+            <button type="button" data-action="bank-fines">
+              <span class="one-bank-icon">P</span><b>Штрафы</b>
+            </button>
+            <button type="button" data-action="bank-atms">
+              <span class="one-bank-icon">▣</span><b>Банкоматы</b>
+            </button>
+          </div>
+        </div>
+      </section>
+      <section class="one-bank-group">
+        <p class="one-bank-section-title">Переводы</p>
+        <div class="one-bank-section">
+          <div class="one-bank-grid one-bank-transfers">
+            <button type="button" data-action="bank-mode" data-operation="transfer">
+              <span class="one-bank-icon">▰</span><b>Перевод</b>
+            </button>
+            <button type="button" data-action="bank-mode" data-operation="deposit">
+              <span class="one-bank-icon">♟</span><b>Пополнить</b>
+            </button>
+            <button type="button" data-action="bank-mode" data-operation="withdraw">
+              <span class="one-bank-icon">♟♟</span><b>Снять</b>
+            </button>
+          </div>
+        </div>
+      </section>
+      <div class="one-bank-operation" id="one-bank-operation" hidden>
+        <div class="one-bank-operation-head">
+          <b id="one-bank-operation-title">Операция</b>
+          <button type="button" data-action="bank-operation-close" aria-label="Закрыть">×</button>
+        </div>
+        <form class="form" data-form="bank">
+          <input type="hidden" name="operation" id="one-bank-operation-value" value="transfer">
+          <input class="input" name="amount" type="number" min="1" max="1000000" placeholder="Сумма в ₽" required>
+          <input class="input" id="one-bank-target" name="targetId" maxlength="7" placeholder="Статик ID получателя">
+          <button class="button primary" type="submit">Выполнить</button>
+        </form>
+      </div>
+    </div>`;
   }
 
   function vehicleHtml() {
@@ -491,7 +584,7 @@
       </article>
       <article class="card">
         <div class="card-title">Управление</div>
-        <div class="card-subtitle">Нажми P или кнопку закрытия, чтобы убрать телефон.</div>
+        <div class="card-subtitle">Нажми P или Esc, чтобы закрыть телефон. Кнопка блокировки блокирует экран.</div>
       </article>
       <div class="call-note">Голосовая связь отключена конфигурацией сервера. SMS и остальные приложения работают независимо.</div>`;
   }
@@ -523,6 +616,9 @@
     const time = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
     document.getElementById('clock').textContent = time;
     document.getElementById('home-clock').textContent = time;
+    document.getElementById('lock-clock').textContent = time;
+    document.getElementById('lock-date').textContent =
+      now.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' }).toLocaleUpperCase('ru-RU');
     document.getElementById('date-label').textContent =
       now.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' }).toLocaleUpperCase('ru-RU');
   }
@@ -532,13 +628,17 @@
       openApp(button.dataset.openApp);
     });
   });
-  document.getElementById('back-button').addEventListener('click', goHome);
+  document.getElementById('back-button').addEventListener('click', goBack);
+  document.querySelectorAll('[data-phone-back]').forEach(function (button) {
+    button.addEventListener('click', goBack);
+  });
   document.querySelectorAll('[data-home]').forEach(function (button) {
     button.addEventListener('click', goHome);
   });
-  document.querySelectorAll('[data-close]').forEach(function (button) {
-    button.addEventListener('click', function () { setPhoneOpen(false); });
+  document.querySelectorAll('[data-lock]').forEach(function (button) {
+    button.addEventListener('click', lockPhone);
   });
+  document.getElementById('unlock-phone').addEventListener('click', unlockPhone);
   document.getElementById('military-id-close').addEventListener('click', closeMilitaryId);
   militaryIdOverlay.addEventListener('click', function (event) {
     if (event.target === militaryIdOverlay || event.target.closest('[data-close-military-id]')) {
@@ -556,6 +656,59 @@
     const button = event.target.closest('[data-action]');
     if (!button || button.disabled) return;
     const action = button.dataset.action;
+
+    if (action === 'bank-mode') {
+      const operation = button.dataset.operation || 'transfer';
+      const panel = document.getElementById('one-bank-operation');
+      const operationInput = document.getElementById('one-bank-operation-value');
+      const title = document.getElementById('one-bank-operation-title');
+      const target = document.getElementById('one-bank-target');
+      if (!panel || !operationInput || !title || !target) return;
+      const titles = {
+        deposit: 'Пополнение счёта',
+        withdraw: 'Снятие со счёта',
+        transfer: 'Перевод другому игроку'
+      };
+      operationInput.value = operation;
+      title.textContent = titles[operation] || 'Операция';
+      target.hidden = operation !== 'transfer';
+      panel.hidden = false;
+      panel.scrollIntoView({ block: 'nearest' });
+      const amount = panel.querySelector('input[name="amount"]');
+      if (amount) amount.focus();
+      return;
+    }
+
+    if (action === 'bank-operation-close') {
+      const panel = document.getElementById('one-bank-operation');
+      if (panel) panel.hidden = true;
+      return;
+    }
+
+    if (action === 'bank-history') {
+      showToast('История серверных операций обновляется после пополнения, снятия и перевода.');
+      return;
+    }
+
+    if (action === 'bank-fines-history') {
+      showToast('История штрафов пока не подключена.');
+      return;
+    }
+
+    if (action === 'bank-services') {
+      showToast('Коммунальные услуги доступны в городском отделении.');
+      return;
+    }
+
+    if (action === 'bank-fines') {
+      showToast('Проверка и оплата штрафов пока недоступны.');
+      return;
+    }
+
+    if (action === 'bank-atms') {
+      showToast('Банкоматы отмечены на карте сервера.');
+      return;
+    }
 
     if (action === 'open-military-id') {
       openMilitaryId();
