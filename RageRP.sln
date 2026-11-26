@@ -1,0 +1,34 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{6597C58D-9BCF-48E3-9D91-10D21635363C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RageRP.Core", "src\RageRP.Core\RageRP.Core.csproj", "{3DA9EB48-F25B-4D25-9416-ABE61FCAB9C5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RageRP.Smoke", "src\RageRP.Smoke\RageRP.Smoke.csproj", "{38B83E25-FB77-46FC-81C5-5B65FFE33F1E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{3DA9EB48-F25B-4D25-9416-ABE61FCAB9C5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3DA9EB48-F25B-4D25-9416-ABE61FCAB9C5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3DA9EB48-F25B-4D25-9416-ABE61FCAB9C5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3DA9EB48-F25B-4D25-9416-ABE61FCAB9C5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{38B83E25-FB77-46FC-81C5-5B65FFE33F1E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{38B83E25-FB77-46FC-81C5-5B65FFE33F1E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{38B83E25-FB77-46FC-81C5-5B65FFE33F1E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{38B83E25-FB77-46FC-81C5-5B65FFE33F1E}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{3DA9EB48-F25B-4D25-9416-ABE61FCAB9C5} = {6597C58D-9BCF-48E3-9D91-10D21635363C}
+		{38B83E25-FB77-46FC-81C5-5B65FFE33F1E} = {6597C58D-9BCF-48E3-9D91-10D21635363C}
+	EndGlobalSection
+EndGlobal
