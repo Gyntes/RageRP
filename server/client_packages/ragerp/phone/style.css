@@ -10,6 +10,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 
 html, body {
   width: 100%;
@@ -38,6 +39,7 @@ button { color: inherit; }
   box-shadow: 0 25px 85px rgba(0,0,0,.68), 0 0 0 1px rgba(0,0,0,.75);
   animation: phone-in .24s cubic-bezier(.2,.8,.2,1) both;
 }
+.phone-shell.is-document-covered { visibility: hidden; pointer-events: none; }
 
 @keyframes phone-in {
   from { opacity: 0; transform: translate(32px, 24px) scale(.96); }
@@ -170,6 +172,7 @@ button { color: inherit; }
 .app-settings > span { background: linear-gradient(145deg,#89949a,#505b61); }
 .app-vehicle > span { background: linear-gradient(145deg,#7ccab0,#397e6b); }
 .app-numbers > span { background: linear-gradient(145deg,#86b9e8,#4d77aa); }
+.app-documents > span { background: linear-gradient(145deg,#e8c878,#a67735); }
 .app-icon small { color: rgba(255,255,255,.94); font-size: 9px; text-shadow: 0 1px 5px #000; }
 
 .home-dock {
@@ -236,6 +239,12 @@ button { color: inherit; }
 
 .contact-list, .message-list, .taxi-list, .ad-list { display: flex; flex-direction: column; gap: 8px; }
 .number-list { display: flex; flex-direction: column; gap: 8px; }
+.military-document-entry { display: flex; width: 100%; align-items: center; gap: 10px; color: inherit; text-align: left; cursor: pointer; }
+.military-document-entry:hover { border-color: rgba(201,243,107,.35); background: rgba(201,243,107,.08); }
+.military-document-entry-icon { display: grid; width: 38px; height: 38px; flex: none; place-items: center; border: 1px solid rgba(201,243,107,.2); border-radius: 12px; background: rgba(201,243,107,.1); color: var(--accent); font-size: 19px; }
+.military-document-entry-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 4px; }
+.military-document-entry-copy strong { color: #f0f3ed; font-size: 11px; }
+.military-document-entry-copy small { color: var(--muted); font-size: 8px; }
 .contact-card { display: flex; align-items: center; gap: 9px; }
 .avatar { display: grid; width: 33px; height: 33px; flex: none; place-items: center; border-radius: 11px; background: rgba(201,243,107,.15); color: var(--accent); font-size: 12px; font-weight: 800; }
 .contact-copy { min-width: 0; flex: 1; }
@@ -295,6 +304,74 @@ button { color: inherit; }
 .number-region small { margin-top: 2px; font-size: 8px; font-weight: 750; }
 .number-flag { width: 21px; height: 8px; margin-top: 2px; border: 1px solid rgba(0,0,0,.18); background: linear-gradient(to bottom,#fff 0 33.3%,#2456a6 33.3% 66.6%,#d52b1e 66.6% 100%); }
 .number-status { flex: 1; color: #444b46; font-size: 9px; line-height: 1.4; text-align: right; }
+.military-id-overlay { position: fixed; z-index: 20; inset: 0; display: grid; place-items: center; padding: 12px; background: rgba(0,0,0,.025); }
+.military-id-window { position: relative; width: min(920px, 85vw, 114.5vh); transform: translateX(-2.4vw); }
+.military-id-sheet {
+  position: relative;
+  display: grid;
+  width: 100%;
+  max-height: calc(100vh - 78px);
+  grid-template-columns: 51.1% 48.9%;
+  overflow: hidden;
+  aspect-ratio: 1.38;
+  border: 1px solid rgba(105,93,83,.36);
+  border-radius: 12px;
+  background:
+    radial-gradient(ellipse at 50% 52%, rgba(214,143,120,.16), transparent 48%),
+    radial-gradient(circle at 17% 23%, rgba(255,255,255,.55), transparent 36%),
+    repeating-linear-gradient(0deg, transparent 0 24px, rgba(94,103,127,.075) 25px),
+    repeating-linear-gradient(90deg, rgba(135,111,94,.018) 0 1px, transparent 1px 4px),
+    linear-gradient(145deg, #fffaf4, #f0e9df);
+  box-shadow: 0 14px 36px rgba(0,0,0,.28);
+  color: #37332f;
+  font-family: Georgia, "Times New Roman", serif;
+}
+.military-id-sheet::before { position: absolute; z-index: 0; top: 14%; left: 15%; width: 70%; height: 72%; background: rgba(218,139,117,.12); clip-path: polygon(50% 0,61% 34%,98% 35%,68% 57%,79% 94%,50% 72%,21% 94%,32% 57%,2% 35%,39% 34%); content: ""; pointer-events: none; }
+.military-id-page { position: relative; z-index: 1; min-width: 0; padding: 3.2% 4.5%; }
+.military-id-page-left { border-right: 1px solid rgba(102,95,85,.24); }
+.military-id-crest { position: relative; display: grid; height: 18%; min-height: 68px; max-height: 112px; place-items: center; }
+.military-id-crest::before { position: absolute; width: 92%; height: 66%; border: 1px solid rgba(125,94,135,.48); border-radius: 50%; background: repeating-radial-gradient(ellipse at center, transparent 0 8px, rgba(142,111,147,.14) 9px 10px), linear-gradient(90deg, #9b82aa, #edc7bf 18%, #e6a18f 50%, #edc7bf 82%, #9b82aa); box-shadow: 0 0 0 3px rgba(201,170,186,.32), inset 0 0 0 3px rgba(255,255,255,.42); content: ""; }
+.military-id-crest::after { position: absolute; width: 46%; height: 91%; border: 2px solid rgba(211,139,116,.74); border-radius: 44%; background: radial-gradient(ellipse, rgba(255,250,231,.96) 0 34%, rgba(238,180,158,.82) 37% 66%, rgba(255,255,255,.25) 69%); box-shadow: 0 0 0 4px rgba(255,240,223,.52), inset 0 0 0 2px rgba(255,255,255,.5); content: ""; }
+.military-id-crest span { position: relative; z-index: 1; color: #e88751; font-family: "Segoe UI Symbol", Georgia, serif; font-size: clamp(36px, 5vw, 58px); line-height: 1; text-shadow: 0 1px 0 #fff0d6, 0 2px 6px rgba(83,48,35,.25); }
+.military-id-page h1 { margin: 0 0 4.8%; color: #37332f; font-size: clamp(15px, 2.4vw, 20px); text-align: center; }
+.military-id-fields { border-top: 1px solid rgba(102,95,85,.16); }
+.military-id-field { display: grid; min-height: clamp(34px, 5.5vw, 48px); grid-template-columns: 39% 1fr; align-items: center; gap: 6px; padding: 1.1% 0; border-bottom: 1px solid rgba(102,95,85,.16); font-size: clamp(11px, 1.6vw, 14px); }
+.military-id-field > span { color: #66615b; }
+.military-id-field strong { overflow-wrap: anywhere; color: #252421; font-family: "Segoe UI", Arial, sans-serif; font-size: clamp(12px, 1.8vw, 16px); text-align: center; }
+.military-id-issuer { min-height: clamp(48px, 6.7vw, 60px); grid-template-columns: 1fr; gap: 2px; padding: 2.3% 0; }
+.military-id-issuer strong { text-align: left; }
+.military-id-signature { position: absolute; right: 4.5%; bottom: 1%; left: 4.5%; height: 22%; color: #57534d; font-family: "Segoe UI", Arial, sans-serif; font-size: clamp(10px, 1.45vw, 13px); }
+.military-id-seal { position: absolute; bottom: 0; left: 14%; display: flex; width: clamp(54px, 11vw, 84px); height: clamp(54px, 11vw, 84px); align-items: center; flex-direction: column; justify-content: center; border: 2px solid rgba(73,119,164,.48); border-radius: 50%; color: rgba(73,119,164,.75); }
+.military-id-seal::before { position: absolute; inset: 4px; border: 1px solid rgba(73,119,164,.43); border-radius: 50%; content: ""; }
+.military-id-seal span { font-size: clamp(24px, 3vw, 34px); }
+.military-id-seal small { margin-top: -3px; font-size: 8px; }
+.military-id-issuer-info { position: absolute; top: 2%; right: 0; left: 0; display: grid; grid-template-columns: 39% 1fr; align-items: center; gap: 2px 6px; }
+.military-id-issuer-info > span { grid-row: 1 / span 2; }
+.military-id-signature strong { color: #292824; font-size: clamp(12px, 2vw, 16px); text-align: center; }
+.military-id-issuer-info strong.is-handwritten { color: #292824; font-family: "Segoe Script", "Comic Sans MS", cursive; font-size: clamp(14px, 2vw, 17px); font-style: italic; font-weight: 600; line-height: 1.15; white-space: nowrap; }
+.military-id-issuer-info > small { color: #292824; font-size: clamp(10px, 1.55vw, 13px); font-weight: 700; text-align: center; }
+.military-id-signature i { display: none; }
+.military-id-signature.is-issued i { position: absolute; right: 23%; bottom: 2%; display: block; width: clamp(58px, 13vw, 100px); height: 33px; }
+.military-id-signature.is-issued i svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.military-id-signature.is-issued i path { fill: none; stroke: #302c27; stroke-linecap: round; stroke-width: 1.35; }
+.military-id-page-right { display: flex; flex-direction: column; align-items: center; padding: 8.5% 3.5% 4.5% .8%; }
+.military-id-page-right h2 { max-width: 96%; margin: 2% 0 8%; color: #514c46; font-size: clamp(11px, 1.65vw, 14px); line-height: 1.3; text-align: center; }
+.military-id-acceptance { display: flex; width: 56%; min-height: 24.8%; align-self: flex-start; align-items: center; flex-direction: column; justify-content: center; gap: 5px; margin-left: 7.5%; padding: 2.5%; border: 2px solid #504d59; color: #45414b; text-align: center; }
+.military-id-acceptance strong { font-family: "Segoe UI", Arial, sans-serif; font-size: clamp(13px, 1.9vw, 17px); }
+.military-id-acceptance span { font-family: "Segoe UI", Arial, sans-serif; font-size: clamp(9px, 1.55vw, 13px); line-height: 1.15; }
+.military-id-acceptance:not(.is-issued) { border-color: rgba(166,62,57,.7); color: #a63e39; }
+.military-id-rank { display: flex; width: 100%; min-height: 22%; align-items: center; flex-direction: column; justify-content: center; gap: 5px; margin-top: 4%; padding: 2.5%; border: 2px solid #5174a6; color: #315d98; text-align: center; }
+.military-id-rank > strong { font-family: "Segoe UI", Arial, sans-serif; font-size: clamp(10px, 1.8vw, 15px); line-height: 1.3; }
+.military-id-rank-line { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 6px; }
+.military-id-rank-copy { display: flex; min-width: 0; flex-direction: column; align-items: center; gap: 2px; font-family: "Segoe UI", Arial, sans-serif; }
+.military-id-rank-copy > span { font-size: clamp(11px, 1.7vw, 15px); font-weight: 700; }
+.military-id-rank-copy b { font-size: clamp(15px, 2.7vw, 22px); }
+.military-id-rank-medal { display: grid; width: clamp(20px, 2.8vw, 28px); height: clamp(20px, 2.8vw, 28px); flex: none; place-items: center; border: 2px solid currentColor; border-radius: 50%; font-size: clamp(10px, 1.4vw, 14px); }
+.military-id-rank:not(.is-issued) { border-color: rgba(166,62,57,.55); color: #a63e39; }
+.military-id-ruled { position: absolute; right: 5%; bottom: 3%; left: 5%; height: 23%; background: repeating-linear-gradient(to bottom, transparent 0 17px, rgba(88,103,127,.1) 18px); }
+.military-id-close-x { position: absolute; z-index: 2; top: 2%; right: 2%; display: grid; width: 25px; height: 25px; place-items: center; border: 0; border-radius: 50%; background: rgba(255,255,255,.48); color: #655f58; cursor: pointer; font-family: "Segoe UI", Arial, sans-serif; font-size: 21px; line-height: 1; }
+.military-id-close { position: absolute; top: calc(100% + 15px); left: calc(50% + 1.6vw); min-width: 122px; min-height: 33px; padding: 0 18px; border: 1px solid rgba(255,255,255,.24); border-radius: 4px; background: rgba(19,22,22,.72); color: #f4f4f2; cursor: pointer; font-size: 12px; transform: translateX(-50%); }
+.military-id-close:hover, .military-id-close-x:hover { filter: brightness(1.12); }
 @media (max-width: 360px) {
   .number-card { gap: 7px; }
   .number-plate { width: 132px; flex-basis: 132px; grid-template-columns: minmax(0,1fr) 36px; }
@@ -324,6 +401,12 @@ button { color: inherit; }
 
 @media (max-width: 760px) {
   .phone-shell { right: 10px; bottom: 10px; width: min(358px, calc(100vw - 20px)); min-width: 0; height: min(750px, calc(100vh - 20px)); min-height: 0; }
+}
+
+@media (max-height: 760px) {
+  .home-date { margin-bottom: 24px; }
+  .app-grid { gap: 16px 7px; }
+  .home-dock { padding-top: 14px; }
 }
 
 @media (max-height: 650px) {

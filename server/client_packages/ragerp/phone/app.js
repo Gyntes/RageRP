@@ -3,6 +3,8 @@
   const homeScreen = document.getElementById('home-screen');
   const appScreen = document.getElementById('app-screen');
   const appContent = document.getElementById('app-content');
+  const militaryIdOverlay = document.getElementById('military-id-overlay');
+  const militaryIdSheet = document.getElementById('military-id-sheet');
   const toast = document.getElementById('toast');
   const phoneTitles = {
     contacts: 'Контакты',
@@ -13,11 +15,14 @@
     ads: 'Объявления',
     settings: 'Настройки',
     vehicle: 'Моя машина',
-    numbers: 'Мои номера'
+    numbers: 'Мои номера',
+    documents: 'Документы'
   };
   const state = {
     staticId: '',
     name: '',
+    firstName: '',
+    lastName: '',
     cash: 0,
     bank: 0,
     online: [],
@@ -26,6 +31,7 @@
     taxiCalls: [],
     starterVehicle: null,
     numbers: [],
+    militaryTicket: null,
     notices: [],
     activeApp: null,
     contacts: loadContacts()
@@ -93,6 +99,7 @@
 
   function setPhoneOpen(open) {
     if (!open) {
+      closeMilitaryId();
       if (typeof mp !== 'undefined' && typeof mp.trigger === 'function') {
         mp.trigger('ragerp:phone:close-request');
       }
@@ -304,6 +311,122 @@
       }).join('')}</div>`;
   }
 
+  function formatDocumentDate(value) {
+    if (typeof value === 'string' && value.trim()) {
+      const parsed = new Date(value);
+      return Number.isNaN(parsed.getTime()) ? value.trim() : parsed.toLocaleDateString('ru-RU');
+    }
+    const timestamp = Number(value);
+    if (!Number.isFinite(timestamp) || timestamp <= 0) return '—';
+    const date = new Date(timestamp);
+    return Number.isNaN(date.getTime()) ? '—' : date.toLocaleDateString('ru-RU');
+  }
+
+  function documentsHtml() {
+    const issued = Boolean(state.militaryTicket && typeof state.militaryTicket === 'object');
+    return `<p class="section-title">Личные документы</p>
+      <button class="military-document-entry card" data-action="open-military-id" type="button">
+        <span class="military-document-entry-icon" aria-hidden="true">★</span>
+        <span class="military-document-entry-copy">
+          <strong>Военный билет</strong>
+          <small>Именной документ персонажа</small>
+        </span>
+        <span class="status-badge${issued ? '' : ' busy'}">${issued ? 'Выдан' : 'Не получен'}</span>
+      </button>
+      <p class="muted">Нажми на документ, чтобы открыть его на весь экран.</p>`;
+  }
+
+  function militaryIdHtml() {
+    const ticket = state.militaryTicket && typeof state.militaryTicket === 'object'
+      ? state.militaryTicket
+      : null;
+    const issued = Boolean(ticket);
+    const nameParts = String(state.name || '').trim().split(/\s+/);
+    const firstName = state.firstName || nameParts[0] || '—';
+    const lastName = state.lastName || nameParts.slice(1).join(' ') || '—';
+    const issuer = ticket && ticket.issuerName != null
+      ? String(ticket.issuerName).trim()
+      : '';
+    const issuerId = issuer && ticket && (ticket.issuerId || ticket.issuerStaticId)
+      ? `(${ticket.issuerId || ticket.issuerStaticId})`
+      : '';
+    const rank = ticket ? String(ticket.rank || '—') : '—';
+    const issueDate = ticket ? formatDocumentDate(ticket.issuedAt) : '—';
+    const commissariat = ticket && ticket.commissariat
+      ? String(ticket.commissariat)
+      : issued ? 'Военный комиссариат' : '—';
+    const office = ticket && ticket.commissariatOffice
+      ? String(ticket.commissariatOffice).toLocaleLowerCase('ru-RU').startsWith('отделом')
+        ? String(ticket.commissariatOffice)
+        : `Отделом военного комиссариата ${String(ticket.commissariatOffice)}`
+      : !ticket || !ticket.commissariat
+        ? commissariat
+        : commissariat.toLocaleLowerCase('ru-RU').startsWith('отделом')
+          ? commissariat
+          : `Отделом военного комиссариата ${commissariat}`;
+    const recordTitle = issued
+      ? ticket.method === 'service' ? 'ОКОНЧИЛ ВОЕННУЮ СЛУЖБУ' : 'ВОИНСКОЕ ЗВАНИЕ'
+      : 'ВОЕННЫЙ БИЛЕТ НЕ ПОЛУЧЕН';
+    const rankCaption = issued ? 'В ЗВАНИИ' : 'ЗВАНИЕ НЕ ПРИСВОЕНО';
+    const registrationHeading = issued ? 'ПРИНЯТ' : 'НЕ ПРИНЯТ';
+    const registrationDetails = issued
+      ? `На воинский учет<br>${escapeHtml(office)}`
+      : 'Военный билет ещё не выдан персонажу.';
+
+    return `<button class="military-id-close-x" data-close-military-id type="button" aria-label="Закрыть военный билет">×</button>
+      <section class="military-id-page military-id-page-left">
+        <div class="military-id-crest" aria-hidden="true"><span>★</span></div>
+        <h1>ВОЕННЫЙ БИЛЕТ</h1>
+        <div class="military-id-fields">
+          <div class="military-id-field"><span>Имя:</span><strong>${escapeHtml(firstName)}</strong></div>
+          <div class="military-id-field"><span>Фамилия:</span><strong>${escapeHtml(lastName)}</strong></div>
+          <div class="military-id-field"><span>ID:</span><strong>${escapeHtml(state.staticId || '--- ---')}</strong></div>
+          <div class="military-id-field military-id-issuer"><span>Выдан военным комиссариатом</span><strong>${escapeHtml(commissariat)}</strong></div>
+          <div class="military-id-field"><span>Дата:</span><strong>${escapeHtml(issueDate)}</strong></div>
+        </div>
+        <div class="military-id-signature${issuer ? ' is-issued' : ''}">
+          <div class="military-id-seal" aria-hidden="true"><span>★</span><small>М.П.</small></div>
+          <div class="military-id-issuer-info">
+            <span>ВЫДАЛ:</span>
+            <strong${issuer ? ' class="is-handwritten"' : ''}>${escapeHtml(issuer)}</strong>
+            ${issuerId ? `<small>${escapeHtml(issuerId)}</small>` : ''}
+          </div>
+          <i aria-label="Подпись"><svg viewBox="0 0 100 34" aria-hidden="true">
+            <path d="M3 27C10 18 13 7 18 8c5 1-7 15-1 16 6 1 11-13 16-13 6 0-5 15 1 15 8 0 10-18 15-19 5-1-2 14 4 14 6 0 12-8 22-9 9-1 13-4 22-10" />
+            <path d="M26 30c16-5 35 0 61-9" />
+          </svg></i>
+        </div>
+      </section>
+      <section class="military-id-page military-id-page-right">
+        <h2>Отметки о приеме на воинский учет и снятии с воинского учета</h2>
+        <div class="military-id-acceptance${issued ? ' is-issued' : ''}">
+          <strong>${registrationHeading}</strong>
+          <span>${registrationDetails}</span>
+        </div>
+        <div class="military-id-rank${issued ? ' is-issued' : ''}">
+          <strong>${recordTitle}</strong>
+          <div class="military-id-rank-line">
+            <span class="military-id-rank-medal" aria-hidden="true">★</span>
+            <span class="military-id-rank-copy"><span>${rankCaption}</span><b>${escapeHtml(rank.toLocaleUpperCase('ru-RU'))}</b></span>
+            <span class="military-id-rank-medal" aria-hidden="true">★</span>
+          </div>
+        </div>
+        <div class="military-id-ruled" aria-hidden="true"></div>
+      </section>`;
+  }
+
+  function openMilitaryId() {
+    militaryIdSheet.innerHTML = militaryIdHtml();
+    militaryIdOverlay.hidden = false;
+    shell.classList.add('is-document-covered');
+  }
+
+  function closeMilitaryId() {
+    if (militaryIdOverlay.hidden) return;
+    militaryIdOverlay.hidden = true;
+    shell.classList.remove('is-document-covered');
+  }
+
   function taxiHtml() {
     const calls = state.taxiCalls.slice().reverse();
     const cards = calls.map(function (call) {
@@ -384,7 +507,8 @@
       ads: adsHtml,
       settings: settingsHtml,
       vehicle: vehicleHtml,
-      numbers: numbersHtml
+      numbers: numbersHtml,
+      documents: documentsHtml
     };
     appContent.innerHTML = renderers[state.activeApp]();
   }
@@ -415,6 +539,12 @@
   document.querySelectorAll('[data-close]').forEach(function (button) {
     button.addEventListener('click', function () { setPhoneOpen(false); });
   });
+  document.getElementById('military-id-close').addEventListener('click', closeMilitaryId);
+  militaryIdOverlay.addEventListener('click', function (event) {
+    if (event.target === militaryIdOverlay || event.target.closest('[data-close-military-id]')) {
+      closeMilitaryId();
+    }
+  });
 
   appContent.addEventListener('change', function (event) {
     if (event.target && event.target.id === 'message-contact') {
@@ -426,6 +556,11 @@
     const button = event.target.closest('[data-action]');
     if (!button || button.disabled) return;
     const action = button.dataset.action;
+
+    if (action === 'open-military-id') {
+      openMilitaryId();
+      return;
+    }
 
     if (action === 'add-contact') {
       const id = validStaticId(button.dataset.id);
@@ -539,6 +674,8 @@
       if (!data || typeof data !== 'object') return;
       state.staticId = validStaticId(data.staticId);
       state.name = String(data.name || '');
+      state.firstName = String(data.firstName || '');
+      state.lastName = String(data.lastName || '');
       state.cash = Number(data.cash) || 0;
       state.bank = Number(data.bank) || 0;
       state.online = Array.isArray(data.online) ? data.online : [];
@@ -546,17 +683,22 @@
       state.ads = Array.isArray(data.ads) ? data.ads : [];
       state.taxiCalls = Array.isArray(data.taxiCalls) ? data.taxiCalls : [];
       state.starterVehicle = data.starterVehicle || null;
+      state.militaryTicket = data.militaryTicket || null;
       state.numbers = Array.isArray(data.numbers)
         ? normalizeNumbers(data.numbers)
         : numbersFromVehicle(state.starterVehicle);
       document.getElementById('home-name').textContent = state.name || 'Мобильная связь';
       renderApp();
+      if (!militaryIdOverlay.hidden) militaryIdSheet.innerHTML = militaryIdHtml();
     },
     update: function (payload) {
       const data = typeof payload === 'string' ? JSON.parse(payload) : payload;
       if (!data || typeof data !== 'object') return;
       if (data.cash !== undefined) state.cash = Number(data.cash) || 0;
       if (data.bank !== undefined) state.bank = Number(data.bank) || 0;
+      if (data.firstName !== undefined) state.firstName = String(data.firstName || '');
+      if (data.lastName !== undefined) state.lastName = String(data.lastName || '');
+      if (data.militaryTicket !== undefined) state.militaryTicket = data.militaryTicket || null;
       if (Array.isArray(data.online)) state.online = data.online;
       if (Array.isArray(data.messages)) state.messages = data.messages;
       if (Array.isArray(data.ads)) state.ads = data.ads;
@@ -569,6 +711,7 @@
       }
       if (data.notice) showToast(data.notice);
       renderApp();
+      if (!militaryIdOverlay.hidden) militaryIdSheet.innerHTML = militaryIdHtml();
     },
     setNotice: showToast,
     close: function () { setPhoneOpen(false); }
@@ -578,6 +721,10 @@
     if (event.key === 'Escape') {
       event.preventDefault();
       event.stopPropagation();
+      if (!militaryIdOverlay.hidden) {
+        closeMilitaryId();
+        return;
+      }
       setPhoneOpen(false);
     }
   });
