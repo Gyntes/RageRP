@@ -12,7 +12,8 @@
     taxi: 'Такси',
     ads: 'Объявления',
     settings: 'Настройки',
-    vehicle: 'Моя машина'
+    vehicle: 'Моя машина',
+    numbers: 'Мои номера'
   };
   const state = {
     staticId: '',
@@ -24,6 +25,7 @@
     ads: [],
     taxiCalls: [],
     starterVehicle: null,
+    numbers: [],
     notices: [],
     activeApp: null,
     contacts: loadContacts()
@@ -124,6 +126,22 @@
   function validStaticId(value) {
     const id = String(value || '');
     return /^\d{3}-\d{3}$/.test(id) ? id : '';
+  }
+
+  function numbersFromVehicle(vehicle) {
+    if (!vehicle || typeof vehicle.plate !== 'string' || !vehicle.plate) return [];
+    return [{
+      plate: vehicle.plate,
+      region: String(vehicle.region || '97'),
+      vehicleName: String(vehicle.name || '')
+    }];
+  }
+
+  function normalizeNumbers(numbers) {
+    if (!Array.isArray(numbers)) return [];
+    return numbers.filter(function (number) {
+      return number && typeof number.plate === 'string' && number.plate.trim();
+    }).slice(0, 100);
   }
 
   function getOnlineById(id) {
@@ -253,12 +271,37 @@
         <div class="vehicle-symbol">◈</div>
         <div class="card-title">${escapeHtml(vehicle.name || 'Компактный автомобиль')}</div>
         <div class="card-subtitle">${escapeHtml(vehicle.model || 'blista')} · ${vehicle.isOut ? 'уже в городе' : 'в гараже'}</div>
-        <div class="vehicle-plate">${escapeHtml(vehicle.plate || '---')}</div>
+        <div class="vehicle-plate">${escapeHtml(`${vehicle.plate || '---'} ${vehicle.region || ''}`.trim())}</div>
         <button class="button primary vehicle-button" data-action="starter-vehicle" type="button">
           ${vehicle.isOut ? 'Отметить машину на GPS' : 'Вызвать машину'}
         </button>
       </article>
       <div class="notice">Автомобиль бесплатный и закреплён за персонажем. Если он уже вызван, кнопка отметит его положение на карте.</div>`;
+  }
+
+  function numbersHtml() {
+    if (!state.numbers.length) {
+      return `<p class="section-title">Регистрационные номера</p>
+        <div class="empty-state">У тебя пока нет автомобильных номеров. Номер появится после получения автомобиля.</div>`;
+    }
+
+    return `<p class="section-title">Регистрационные номера</p>
+      <div class="number-list">${state.numbers.map(function (number) {
+        const status = number.vehicleName
+          ? `Установлен на ${escapeHtml(number.vehicleName)}`
+          : 'Номер свободен';
+        return `<article class="card number-card">
+          <div class="number-plate">
+            <span class="number-plate-main">${escapeHtml(number.plate)}</span>
+            <span class="number-region">
+              <strong>${escapeHtml(number.region || '97')}</strong>
+              <small>RUS</small>
+              <span class="number-flag" aria-label="Флаг России"></span>
+            </span>
+          </div>
+          <span class="number-status">${status}</span>
+        </article>`;
+      }).join('')}</div>`;
   }
 
   function taxiHtml() {
@@ -340,7 +383,8 @@
       taxi: taxiHtml,
       ads: adsHtml,
       settings: settingsHtml,
-      vehicle: vehicleHtml
+      vehicle: vehicleHtml,
+      numbers: numbersHtml
     };
     appContent.innerHTML = renderers[state.activeApp]();
   }
@@ -502,6 +546,9 @@
       state.ads = Array.isArray(data.ads) ? data.ads : [];
       state.taxiCalls = Array.isArray(data.taxiCalls) ? data.taxiCalls : [];
       state.starterVehicle = data.starterVehicle || null;
+      state.numbers = Array.isArray(data.numbers)
+        ? normalizeNumbers(data.numbers)
+        : numbersFromVehicle(state.starterVehicle);
       document.getElementById('home-name').textContent = state.name || 'Мобильная связь';
       renderApp();
     },
@@ -514,7 +561,12 @@
       if (Array.isArray(data.messages)) state.messages = data.messages;
       if (Array.isArray(data.ads)) state.ads = data.ads;
       if (Array.isArray(data.taxiCalls)) state.taxiCalls = data.taxiCalls;
-      if (data.starterVehicle) state.starterVehicle = data.starterVehicle;
+      if (data.starterVehicle !== undefined) state.starterVehicle = data.starterVehicle;
+      if (Array.isArray(data.numbers)) {
+        state.numbers = normalizeNumbers(data.numbers);
+      } else if (data.starterVehicle !== undefined) {
+        state.numbers = numbersFromVehicle(state.starterVehicle);
+      }
       if (data.notice) showToast(data.notice);
       renderApp();
     },
