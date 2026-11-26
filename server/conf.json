@@ -1,0 +1,9 @@
+{
+  "announce": false,
+  "bind": "127.0.0.1",
+  "gamemode": "freeroam",
+  "name": "RageRP Local Test",
+  "maxplayers": 16,
+  "port": 22005,
+  "stream-distance": 500.0
+}
