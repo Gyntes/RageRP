@@ -281,7 +281,10 @@
         <div class="avatar">${escapeHtml(name.slice(0, 1).toUpperCase())}</div>
         <div class="contact-copy"><div class="card-title">${escapeHtml(name)}</div>
           <div class="card-subtitle">ID ${escapeHtml(contact.id)}${online ? ' · в сети' : ' · не в сети'}</div></div>
-        <button class="button small" data-action="open-chat" data-id="${escapeHtml(contact.id)}" type="button">SMS</button>
+        <div class="contact-actions">
+          ${online ? `<button class="button small" data-action="phone-call" data-id="${escapeHtml(contact.id)}" type="button">Звонок</button>` : ''}
+          <button class="button small" data-action="open-chat" data-id="${escapeHtml(contact.id)}" type="button">SMS</button>
+        </div>
       </article>`;
     }).join('');
     const onlineHtml = people.map(function (person) {
@@ -289,7 +292,10 @@
         <div class="avatar">${escapeHtml(person.name.slice(0, 1).toUpperCase())}</div>
         <div class="contact-copy"><div class="card-title">${escapeHtml(personName(person))}</div>
           <div class="card-subtitle">ID ${escapeHtml(person.staticId)}</div></div>
-        <button class="button small" data-action="add-contact" data-id="${escapeHtml(person.staticId)}" data-name="${escapeHtml(personName(person))}" type="button">Добавить</button>
+        <div class="contact-actions">
+          <button class="button small" data-action="phone-call" data-id="${escapeHtml(person.staticId)}" type="button">Звонок</button>
+          <button class="button small" data-action="add-contact" data-id="${escapeHtml(person.staticId)}" data-name="${escapeHtml(personName(person))}" type="button">Добавить</button>
+        </div>
       </article>`;
     }).join('');
 
@@ -297,7 +303,7 @@
       <div class="contact-list">${saved || '<div class="empty-state">Контактов пока нет. Добавь игрока из списка ниже.</div>'}</div>
       <p class="section-title" style="margin-top:16px">Игроки онлайн</p>
       <div class="contact-list">${onlineHtml || '<div class="empty-state">Сейчас нет других игроков в сети.</div>'}</div>
-      <div class="call-note">Голосовые звонки пока отключены на сервере. Сейчас можно написать SMS контакту.</div>`;
+      <div class="call-note">Позвони игроку из списка. Удерживай Z для передачи голоса; звонок работает на любом расстоянии.</div>`;
   }
 
   function getConversation(id) {
@@ -1245,7 +1251,7 @@
         <div class="card-title">Управление</div>
         <div class="card-subtitle">Нажми P или Esc, чтобы закрыть телефон. Кнопка блокировки блокирует экран.</div>
       </article>
-      <div class="call-note">Голосовая связь отключена конфигурацией сервера. SMS и остальные приложения работают независимо.</div>`;
+      <div class="call-note">Голос рядом работает в радиусе 15 м. Звонки через контакты соединяют игроков на любом расстоянии.</div>`;
   }
 
   function renderApp() {
@@ -1511,6 +1517,13 @@
       return;
     }
 
+    if (action === 'phone-call') {
+      const targetId = validStaticId(button.dataset.id);
+      if (!targetId || targetId === state.staticId) return;
+      sendAction('phone-call', { targetId: targetId });
+      return;
+    }
+
     if (action === 'gps-location') {
       sendAction('gps-location', { key: button.dataset.key });
       return;
@@ -1597,6 +1610,23 @@
   });
 
   window.ragerpPhone = {
+    setPreferences: function (preferences) {
+      if (!preferences || typeof preferences !== 'object') return;
+      const scale = Number(preferences.scale);
+      const right = Number(preferences.right);
+      const bottom = Number(preferences.bottom);
+      if (Number.isFinite(scale)) {
+        const scaledValue = .72 * Math.max(75, Math.min(130, scale)) / 100;
+        shell.style.setProperty('--phone-scale', String(scaledValue));
+        shell.style.setProperty('--phone-enter-scale', String(scaledValue * .95));
+      }
+      if (Number.isFinite(right)) {
+        shell.style.setProperty('--phone-offset-right', `${Math.max(0, Math.min(15, right))}vw`);
+      }
+      if (Number.isFinite(bottom)) {
+        shell.style.setProperty('--phone-offset-bottom', `${Math.max(0, Math.min(15, bottom))}vh`);
+      }
+    },
     setBootstrap: function (payload) {
       const data = typeof payload === 'string' ? JSON.parse(payload) : payload;
       if (!data || typeof data !== 'object') return;

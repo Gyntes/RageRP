@@ -36,6 +36,34 @@ button { font: inherit; color: inherit; }
 }
 
 .hud-root.is-hidden { opacity: 0; visibility: hidden; }
+.task-panel, .task-reopen, .wallet { opacity: var(--hud-opacity, 1); }
+
+.custom-crosshair {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 24px;
+  height: 24px;
+  color: var(--crosshair-color, #f0f6f2);
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(var(--crosshair-scale, 1));
+}
+
+.custom-crosshair i {
+  position: absolute;
+  display: block;
+  border-radius: 2px;
+  background: currentColor;
+  box-shadow: 0 0 3px rgba(0,0,0,.8);
+}
+
+.crosshair-top, .crosshair-bottom { left: 11px; width: 2px; height: 5px; }
+.crosshair-top { top: 1px; }
+.crosshair-bottom { bottom: 1px; }
+.crosshair-left, .crosshair-right { top: 11px; width: 5px; height: 2px; }
+.crosshair-left { left: 1px; }
+.crosshair-right { right: 1px; }
+.crosshair-center { top: 10px; left: 10px; width: 4px; height: 4px; border: 1px solid rgba(0,0,0,.75); }
 
 .notification {
   position: absolute;

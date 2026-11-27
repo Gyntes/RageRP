@@ -5,5 +5,7 @@
   "name": "RageRP Local Test",
   "maxplayers": 16,
   "port": 22005,
+  "voice-chat": true,
+  "allow-voice-chat-input": 1,
   "stream-distance": 500.0
 }

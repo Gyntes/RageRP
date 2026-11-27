@@ -4,6 +4,7 @@
   const taskReopen = document.getElementById('show-tasks');
   const notificationPanel = document.getElementById('notification');
   const notificationMessage = document.getElementById('notification-message');
+  const customCrosshair = document.getElementById('custom-crosshair');
   let state = {};
   let activeNotification = null;
 
@@ -94,8 +95,29 @@
       activeNotification = null;
       notificationPanel.hidden = true;
     },
+    setOpacity: function (opacity) {
+      const value = Number(opacity);
+      if (!Number.isFinite(value)) return;
+      root.style.setProperty('--hud-opacity', String(Math.max(.2, Math.min(1, value))));
+    },
+    setCombatOptions: function (options) {
+      if (!options || typeof options !== 'object') return;
+      customCrosshair.hidden = options.showCrosshair !== true;
+      const scale = Number(options.crosshairScale);
+      if (Number.isFinite(scale)) {
+        customCrosshair.style.setProperty(
+          '--crosshair-scale',
+          String(Math.max(.6, Math.min(1.5, scale / 100)))
+        );
+      }
+      if (typeof options.crosshairColor === 'string' &&
+          /^#[0-9a-f]{6}$/i.test(options.crosshairColor)) {
+        customCrosshair.style.setProperty('--crosshair-color', options.crosshairColor);
+      }
+    },
     setVisible: function (visible) {
       root.classList.toggle('is-hidden', !visible);
-    }
+    },
+    focus: function () {}
   };
 })();

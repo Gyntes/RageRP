@@ -1,6 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 const Inventory = require('./inventory');
+const Parking = require('./parking');
+const Voice = require('./voice');
 
 const dataDirectory = path.join(__dirname, 'data');
 const accountsFile = path.join(dataDirectory, 'accounts.json');
@@ -16,12 +18,21 @@ const phoneMessageCooldowns = new Map();
 const phoneAdCooldowns = new Map();
 const taxiRequestCooldowns = new Map();
 const vehicleCallCooldowns = new Map();
+const phoneCallCooldowns = new Map();
+const vehicleLockCooldowns = new Map();
 const spawnedStarterVehicles = new Map();
 const hudNotifications = new Map();
+const playtimeCheckpointAt = new Map();
+const voiceRouteStates = new Map();
+const phoneCalls = new Map();
+const phoneCallByPlayer = new Map();
 const phoneAds = [];
 const taxiCalls = [];
 let taxiCallSequence = 0;
+let phoneCallSequence = 0;
 let hudNotificationSequence = 0;
+const voiceProximityRange = 15;
+const phoneCallTimeoutMs = 30000;
 const starterVehicleModel = 'blista';
 const starterVehicleName = 'Blista';
 const starterVehicleRegion = '97';
@@ -135,6 +146,49 @@ function getAccount(player) {
   }
 
   return accounts[key];
+}
+
+function mediaSettingsFor(account) {
+  if (!account.mediaSettings || typeof account.mediaSettings !== 'object' ||
+      Array.isArray(account.mediaSettings)) {
+    account.mediaSettings = {
+      voiceMuteUnderHours: 0,
+      showCallNotifications: true
+    };
+  }
+
+  const settings = account.mediaSettings;
+  const threshold = Number(settings.voiceMuteUnderHours);
+  settings.voiceMuteUnderHours = Number.isFinite(threshold)
+    ? Math.max(0, Math.min(200, threshold))
+    : 0;
+  if (typeof settings.showCallNotifications !== 'boolean') {
+    settings.showCallNotifications = true;
+  }
+  return settings;
+}
+
+function playtimeMsFor(account, playerId) {
+  const stored = Number(account.playtimeMs);
+  const savedPlaytime = Number.isSafeInteger(stored) && stored >= 0 ? stored : 0;
+  const checkpoint = playtimeCheckpointAt.get(playerId);
+  return savedPlaytime + (checkpoint ? Math.max(0, Date.now() - checkpoint) : 0);
+}
+
+function checkpointPlayerPlaytime(player, now) {
+  const account = getAccount(player);
+  const checkpoint = playtimeCheckpointAt.get(player.id);
+  if (!checkpoint) {
+    playtimeCheckpointAt.set(player.id, now);
+    return false;
+  }
+
+  const elapsed = Math.max(0, now - checkpoint);
+  if (elapsed === 0) return false;
+  const stored = Number(account.playtimeMs);
+  account.playtimeMs = (Number.isSafeInteger(stored) && stored >= 0 ? stored : 0) + elapsed;
+  playtimeCheckpointAt.set(player.id, now);
+  return true;
 }
 
 function characterFor(player) {
@@ -476,36 +530,59 @@ function summonStarterVehicle(player) {
   }
 
   vehicleCallCooldowns.set(player.id, Date.now());
-  const starterVehicle = ensureStarterVehicle(account);
-  const heading = Number.isFinite(player.heading) ? player.heading : 0;
-  const angle = heading * Math.PI / 180;
-  const position = new mp.Vector3(
-    player.position.x + Math.sin(angle) * 3.5,
-    player.position.y - Math.cos(angle) * 3.5,
-    player.position.z + 0.25
-  );
-  const vehicle = mp.vehicles.new(mp.joaat(starterVehicle.model), position, {
-    heading,
-    dimension: player.dimension,
-    numberPlate: `${starterVehicle.plate}${starterVehicle.region}`,
-    locked: false,
-    engine: true
+  const occupants = [];
+  mp.vehicles.forEach((vehicle) => {
+    if (vehicle.dimension !== player.dimension || !isValidPosition(vehicle.position)) return;
+    occupants.push({
+      x: Number(vehicle.position.x),
+      y: Number(vehicle.position.y),
+      z: Number(vehicle.position.z),
+      dimension: vehicle.dimension
+    });
   });
+  mp.players.forEach((otherPlayer) => {
+    if (otherPlayer.dimension !== player.dimension || !isValidPosition(otherPlayer.position)) return;
+    occupants.push({
+      x: Number(otherPlayer.position.x),
+      y: Number(otherPlayer.position.y),
+      z: Number(otherPlayer.position.z),
+      dimension: otherPlayer.dimension
+    });
+  });
+  const parkingSpot = Parking.nearestFreeParkingSpot(player.position, occupants, player.dimension);
+  if (!parkingSpot) {
+    phoneNotice(player, 'Свободных мест на парковках нет. Попробуй вызвать машину позже.');
+    return;
+  }
+
+  const starterVehicle = ensureStarterVehicle(account);
+  const vehicle = mp.vehicles.new(
+    mp.joaat(starterVehicle.model),
+    new mp.Vector3(parkingSpot.x, parkingSpot.y, parkingSpot.z),
+    {
+      heading: parkingSpot.heading,
+      dimension: player.dimension,
+      numberPlate: `${starterVehicle.plate}${starterVehicle.region}`,
+      locked: false,
+      engine: false
+    }
+  );
   if (!vehicle) {
     phoneNotice(player, 'Не удалось создать автомобиль. Попробуй ещё раз.');
     return;
   }
 
-  vehicle.setVariable('ragerp:ownerStaticId', account.staticId);
-  vehicle.setVariable('ragerp:starterVehicle', true);
   spawnedStarterVehicles.set(key, vehicle);
-  player.putIntoVehicle(vehicle, -1);
+  player.call('ragerp:phone:waypoint', [JSON.stringify({
+    x: parkingSpot.x,
+    y: parkingSpot.y
+  })]);
   const plateLabel = `${starterVehicle.plate} ${starterVehicle.region}`;
   const vehicleState = starterVehicleState(player);
   updatePhone(player, {
     starterVehicle: vehicleState,
     numbers: phoneNumbersFor(vehicleState),
-    notice: `Твоя ${starterVehicleName} готова. Номер: ${plateLabel}.`
+    notice: `Твоя ${starterVehicleName} припаркована. Метка GPS добавлена. Номер: ${plateLabel}.`
   });
 }
 
@@ -584,6 +661,182 @@ function updateOpenPhones(update) {
 
 function phoneNotice(player, text) {
   if (openPhones.has(player.id)) player.call('ragerp:phone:notice', [text]);
+}
+
+function phoneCallState(player, call, state, partnerName, text) {
+  if (!player || !mp.players.exists(player)) return;
+  const partner = player.id === call.caller.id ? call.receiver : call.caller;
+  player.call('ragerp:phone:call:state', [JSON.stringify({
+    callId: call.id,
+    state,
+    partnerId: partner.id,
+    partnerName,
+    message: text || ''
+  })]);
+}
+
+function finishPhoneCall(call, text) {
+  if (!call || phoneCalls.get(call.id) !== call) return;
+  if (call.timeout) {
+    clearTimeout(call.timeout);
+    call.timeout = null;
+  }
+  phoneCalls.delete(call.id);
+  if (phoneCallByPlayer.get(call.caller.id) === call) phoneCallByPlayer.delete(call.caller.id);
+  if (phoneCallByPlayer.get(call.receiver.id) === call) phoneCallByPlayer.delete(call.receiver.id);
+
+  phoneCallState(call.caller, call, 'ended', call.receiverName, text);
+  if (call.receiverNotified || call.status === 'active') {
+    phoneCallState(call.receiver, call, 'ended', call.callerName, text);
+  }
+}
+
+function startPhoneCall(player, targetStaticId) {
+  const account = getAccount(player);
+  const character = account.character;
+  if (!character || player.dimension !== 0 || !openPhones.has(player.id)) return;
+  if (phoneCallByPlayer.has(player.id)) {
+    phoneNotice(player, 'У тебя уже есть активный вызов.');
+    return;
+  }
+
+  const now = Date.now();
+  if (now - (phoneCallCooldowns.get(player.id) || 0) < 1500) {
+    phoneNotice(player, 'Подожди немного перед следующим вызовом.');
+    return;
+  }
+  phoneCallCooldowns.set(player.id, now);
+
+  const validTargetId = String(targetStaticId || '');
+  if (!/^\d{3}-\d{3}$/.test(validTargetId) || validTargetId === account.staticId) {
+    phoneNotice(player, 'Укажи корректный ID игрока.');
+    return;
+  }
+
+  const target = onlinePhonePlayers().find((person) => person.staticId === validTargetId);
+  if (!target || target.player === player) {
+    phoneNotice(player, 'Абонент не в сети.');
+    return;
+  }
+  if (phoneCallByPlayer.has(target.player.id)) {
+    phoneNotice(player, 'Абонент уже разговаривает.');
+    return;
+  }
+
+  const call = {
+    id: `${Date.now()}-${++phoneCallSequence}`,
+    caller: player,
+    receiver: target.player,
+    callerName: `${character.firstName} ${character.lastName}`,
+    receiverName: target.name,
+    status: 'ringing',
+    receiverNotified: false,
+    timeout: null
+  };
+  phoneCalls.set(call.id, call);
+  phoneCallByPlayer.set(call.caller.id, call);
+  phoneCallByPlayer.set(call.receiver.id, call);
+  phoneCallState(call.caller, call, 'ringing', call.receiverName);
+
+  if (mediaSettingsFor(getAccount(call.receiver)).showCallNotifications) {
+    call.receiverNotified = true;
+    phoneCallState(call.receiver, call, 'incoming', call.callerName);
+  }
+
+  call.timeout = setTimeout(() => {
+    finishPhoneCall(call, 'Нет ответа.');
+  }, phoneCallTimeoutMs);
+}
+
+function answerPhoneCall(player, callId, accepted) {
+  const call = phoneCalls.get(callId);
+  if (!call || call.receiver.id !== player.id || call.status !== 'ringing') return;
+  if (accepted !== true) {
+    finishPhoneCall(call, 'Звонок отклонён.');
+    return;
+  }
+  if (!mp.players.exists(call.caller) || !mp.players.exists(call.receiver) ||
+      !characterFor(call.caller) || !characterFor(call.receiver)) {
+    finishPhoneCall(call, 'Абонент недоступен.');
+    return;
+  }
+
+  if (call.timeout) {
+    clearTimeout(call.timeout);
+    call.timeout = null;
+  }
+  call.status = 'active';
+  phoneCallState(call.caller, call, 'active', call.receiverName);
+  phoneCallState(call.receiver, call, 'active', call.callerName);
+}
+
+function endPhoneCall(player) {
+  const call = phoneCallByPlayer.get(player.id);
+  if (!call || (call.caller.id !== player.id && call.receiver.id !== player.id)) return;
+  finishPhoneCall(call, 'Звонок завершён.');
+}
+
+function updateVoiceRoute(listener, speaker, allowed) {
+  let speakerStates = voiceRouteStates.get(listener.id);
+  if (!speakerStates) {
+    speakerStates = new Map();
+    voiceRouteStates.set(listener.id, speakerStates);
+  }
+  if (speakerStates.get(speaker.id) === allowed) return;
+
+  const method = allowed ? listener.enableVoiceTo : listener.disableVoiceTo;
+  if (typeof method !== 'function') {
+    console.error('[RageRP voice] The server runtime does not support voice routing.');
+    return;
+  }
+  method.call(listener, speaker);
+  speakerStates.set(speaker.id, allowed);
+}
+
+function updateVoiceRoutes() {
+  const players = [];
+  mp.players.forEach((player) => players.push(player));
+  const playerIds = new Set(players.map((player) => player.id));
+
+  players.forEach((listener) => {
+    const listenerAccount = getAccount(listener);
+    const listenerCharacter = listenerAccount.character;
+    const listenerSettings = mediaSettingsFor(listenerAccount);
+
+    players.forEach((speaker) => {
+      if (speaker === listener) return;
+      const speakerAccount = getAccount(speaker);
+      const dx = Number(listener.position.x) - Number(speaker.position.x);
+      const dy = Number(listener.position.y) - Number(speaker.position.y);
+      const dz = Number(listener.position.z) - Number(speaker.position.z);
+      const distanceSquared = dx * dx + dy * dy + dz * dz;
+      const listenerCall = phoneCallByPlayer.get(listener.id);
+      const speakerCall = phoneCallByPlayer.get(speaker.id);
+      const phoneCall = Boolean(listenerCall && listenerCall === speakerCall &&
+        listenerCall.status === 'active');
+      const allowed = Boolean(listenerCharacter && speakerAccount.character) &&
+        Voice.canReceiveVoice({
+          listenerDimension: listener.dimension,
+          speakerDimension: speaker.dimension,
+          distanceSquared,
+          range: voiceProximityRange,
+          speakerPlaytimeMs: playtimeMsFor(speakerAccount, speaker.id),
+          muteUnderHours: listenerSettings.voiceMuteUnderHours,
+          phoneCall
+        });
+      updateVoiceRoute(listener, speaker, allowed);
+    });
+  });
+
+  voiceRouteStates.forEach((speakerStates, listenerId) => {
+    if (!playerIds.has(listenerId)) {
+      voiceRouteStates.delete(listenerId);
+      return;
+    }
+    speakerStates.forEach((_, speakerId) => {
+      if (!playerIds.has(speakerId)) speakerStates.delete(speakerId);
+    });
+  });
 }
 
 function accountByStaticId(staticId) {
@@ -1242,6 +1495,11 @@ function handleCommand(player, command) {
 mp.events.add('playerJoin', (player) => {
   const account = getAccount(player);
   ensureStaticId(account);
+  if (!Number.isSafeInteger(account.playtimeMs) || account.playtimeMs < 0) {
+    account.playtimeMs = 0;
+  }
+  mediaSettingsFor(account);
+  playtimeCheckpointAt.set(player.id, Date.now());
   console.log(`[RageRP] ${player.name} connected.`);
   broadcastHudOnlineCount();
 });
@@ -1372,6 +1630,85 @@ mp.events.add('ragerp:phone:close', (player) => {
   openPhones.delete(player.id);
 });
 
+mp.events.add('ragerp:phone:call:answer', (player, callId, accepted) => {
+  if (typeof callId !== 'string' || callId.length > 64 || typeof accepted !== 'boolean') return;
+  answerPhoneCall(player, callId, accepted);
+});
+
+mp.events.add('ragerp:phone:call:end', (player) => {
+  endPhoneCall(player);
+});
+
+mp.events.add('ragerp:media:settings', (player, payload) => {
+  if (typeof payload !== 'string' || payload.length > 1024) return;
+  let settings;
+  try {
+    settings = JSON.parse(payload);
+  } catch (error) {
+    console.error('[RageRP media] Could not parse media settings:', error);
+    return;
+  }
+  if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return;
+
+  const account = getAccount(player);
+  const mediaSettings = mediaSettingsFor(account);
+  let changed = false;
+  if (typeof settings.voiceMuteUnderHours === 'number' &&
+      Number.isFinite(settings.voiceMuteUnderHours)) {
+    const threshold = Math.round(Math.max(0, Math.min(200, settings.voiceMuteUnderHours)));
+    if (mediaSettings.voiceMuteUnderHours !== threshold) {
+      mediaSettings.voiceMuteUnderHours = threshold;
+      changed = true;
+    }
+  }
+  if (typeof settings.showCallNotifications === 'boolean' &&
+      mediaSettings.showCallNotifications !== settings.showCallNotifications) {
+    mediaSettings.showCallNotifications = settings.showCallNotifications;
+    changed = true;
+  }
+  if (changed) saveAccounts();
+});
+
+mp.events.add('ragerp:vehicle:toggle-lock', (player) => {
+  if (player.dimension !== 0 || !characterFor(player) ||
+      openPhones.has(player.id) || openInventories.has(player.id)) {
+    return;
+  }
+
+  const lastToggle = vehicleLockCooldowns.get(player.id) || 0;
+  if (Date.now() - lastToggle < 500) return;
+  vehicleLockCooldowns.set(player.id, Date.now());
+
+  const key = sessions.get(player.id);
+  const vehicle = spawnedStarterVehicles.get(key);
+  if (!vehicle || !mp.vehicles.exists(vehicle)) {
+    spawnedStarterVehicles.delete(key);
+    message(player, 'Твоя личная машина сейчас не находится в городе.');
+    return;
+  }
+
+  vehicle.locked = !vehicle.locked;
+  message(player, vehicle.locked
+    ? 'Твоя личная машина закрыта.'
+    : 'Твоя личная машина открыта.');
+});
+
+mp.events.add('ragerp:vehicle:toggle-engine', (player) => {
+  if (!characterFor(player) || openPhones.has(player.id) || openInventories.has(player.id)) {
+    return;
+  }
+
+  const vehicle = player.vehicle;
+  if (!vehicle) return;
+  if (player.seat !== -1) {
+    message(player, 'Завести или заглушить двигатель может только водитель.');
+    return;
+  }
+
+  vehicle.engine = !vehicle.engine;
+  message(player, vehicle.engine ? 'Двигатель запущен.' : 'Двигатель заглушён.');
+});
+
 mp.events.add('ragerp:phone:action', (player, action, payload) => {
   if (!openPhones.has(player.id) || typeof action !== 'string' ||
       typeof payload !== 'string' || payload.length > 4096 ||
@@ -1397,6 +1734,11 @@ mp.events.add('ragerp:phone:action', (player, action, payload) => {
 
   if (action === 'refresh') {
     updatePhone(player, phoneStateFor(player));
+    return;
+  }
+
+  if (action === 'phone-call') {
+    startPhoneCall(player, data.targetId);
     return;
   }
 
@@ -1736,17 +2078,18 @@ mp.events.add('ragerp:hud:demo-response', (player, accepted) => {
     : 'Демо-уведомление отклонено.');
 });
 
-mp.events.add('playerEnterVehicle', (player, vehicle) => {
-  if (!vehicle.getVariable('ragerp:starterVehicle')) return;
-
-  const account = getAccount(player);
-  if (ensureStaticId(account) !== vehicle.getVariable('ragerp:ownerStaticId')) {
-    player.removeFromVehicle();
-    message(player, 'Этот автомобиль закреплён за другим персонажем.');
-  }
-});
-
 mp.events.add('playerQuit', (player) => {
+  const playtimeUpdated = checkpointPlayerPlaytime(player, Date.now());
+  if (playtimeUpdated) {
+    try {
+      saveAccounts();
+    } catch (error) {
+      console.error('[RageRP media] Could not save playtime on disconnect:', error);
+    }
+  }
+  const phoneCall = phoneCallByPlayer.get(player.id);
+  if (phoneCall) finishPhoneCall(phoneCall, 'Абонент отключился.');
+
   const key = sessions.get(player.id);
   openPhones.delete(player.id);
   openInventories.delete(player.id);
@@ -1754,8 +2097,11 @@ mp.events.add('playerQuit', (player) => {
   phoneMessageCooldowns.delete(player.id);
   phoneAdCooldowns.delete(player.id);
   taxiRequestCooldowns.delete(player.id);
+  phoneCallCooldowns.delete(player.id);
   vehicleCallCooldowns.delete(player.id);
+  vehicleLockCooldowns.delete(player.id);
   hudNotifications.delete(player.id);
+  playtimeCheckpointAt.delete(player.id);
   broadcastHudOnlineCount(player.id);
   if (!key) return;
 
@@ -1808,3 +2154,20 @@ mp.events.add('playerQuit', (player) => {
 });
 
 console.log('[RageRP] RP mechanics loaded.');
+
+setInterval(() => {
+  const now = Date.now();
+  let changed = false;
+  mp.players.forEach((player) => {
+    if (checkpointPlayerPlaytime(player, now)) changed = true;
+  });
+  if (changed) {
+    try {
+      saveAccounts();
+    } catch (error) {
+      console.error('[RageRP media] Could not save playtime:', error);
+    }
+  }
+}, 60000);
+
+setInterval(updateVoiceRoutes, 1000);

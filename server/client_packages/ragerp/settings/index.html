@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Настройки | Tula RP</title>
+  <link rel="stylesheet" href="style.css?v=20261127-3">
+</head>
+<body>
+  <main class="settings-screen">
+    <div class="settings-backdrop" aria-hidden="true"></div>
+    <section class="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <header class="settings-header">
+        <div>
+          <p class="eyebrow">TULA ROLEPLAY <span>•</span> ПЕРСОНАЛИЗАЦИЯ</p>
+          <h1 id="settings-title">Настройки</h1>
+        </div>
+        <span class="save-state" id="save-state">Сохранение на устройстве</span>
+        <button class="close-button" id="close-settings" type="button" aria-label="Закрыть настройки">×</button>
+      </header>
+
+      <nav class="settings-tabs" aria-label="Разделы настроек">
+        <button class="tab-button is-active" type="button" data-tab="general">Общие</button>
+        <button class="tab-button" type="button" data-tab="controls">Управление</button>
+        <button class="tab-button" type="button" data-tab="graphics">Графика</button>
+        <button class="tab-button" type="button" data-tab="media">Медиа</button>
+        <button class="tab-button" type="button" data-tab="combat">Бой</button>
+      </nav>
+
+      <div class="settings-content">
+        <section class="tab-panel is-active" data-tab-panel="general">
+          <div class="settings-columns four-columns">
+            <section class="settings-group">
+              <h2><span class="group-mark">01</span> HUD</h2>
+              <label class="setting-row toggle-row">
+                <span><strong>Пользовательский HUD</strong><small>Показывать интерфейс Tula RP</small></span>
+                <input type="checkbox" data-setting="general.showHud">
+                <i class="toggle"></i>
+              </label>
+              <label class="setting-row toggle-row">
+                <span><strong>Мини-карта</strong><small>Показывать радар в игре</small></span>
+                <input type="checkbox" data-setting="general.showRadar">
+                <i class="toggle"></i>
+              </label>
+              <label class="setting-row range-row">
+                <span class="row-title"><strong>Прозрачность HUD</strong><output data-output="general.hudOpacity"></output></span>
+                <input type="range" min="20" max="100" step="1" data-setting="general.hudOpacity">
+                <span class="range-scale"><small>20%</small><small>100%</small></span>
+              </label>
+              <label class="setting-row range-row">
+                <span class="row-title"><strong>Дистанция отображения ID</strong><output data-output="general.nametagDistance"></output></span>
+                <input type="range" min="50" max="170" step="5" data-setting="general.nametagDistance">
+                <span class="range-scale"><small>50%</small><small>170%</small></span>
+              </label>
+              <label class="setting-row range-row">
+                <span class="row-title"><strong>Масштаб панели</strong><output data-output="general.panelScale"></output></span>
+                <input type="range" min="90" max="105" step="1" data-setting="general.panelScale">
+                <span class="range-scale"><small>90%</small><small>105%</small></span>
+              </label>
+            </section>
+
+            <section class="settings-group">
+              <h2><span class="group-mark">02</span> Телефон</h2>
+              <label class="setting-row range-row">
+                <span class="row-title"><strong>Масштаб телефона</strong><output data-output="general.phoneScale"></output></span>
+                <input type="range" min="75" max="130" step="1" data-setting="general.phoneScale">
+                <span class="range-scale"><small>75%</small><small>130%</small></span>
+              </label>
+              <label class="setting-row range-row">
+                <span class="row-title"><strong>Отступ справа</strong><output data-output="general.phoneRight"></output></span>
+                <input type="range" min="0" max="15" step="1" data-setting="general.phoneRight">
+                <span class="range-scale"><small>0%</small><small>15%</small></span>
+              </label>
+              <label class="setting-row range-row">
+                <span class="row-title"><strong>Отступ снизу</strong><output data-output="general.phoneBottom"></output></span>
+                <input type="range" min="0" max="15" step="1" data-setting="general.phoneBottom">
+                <span class="range-scale"><small>0%</small><small>15%</small></span>
+              </label>
+              <div class="info-note"><span>i</span><p>Положение и размер применяются при следующем открытии телефона.</p></div>
+            </section>
+
+            <section class="settings-group">
+              <h2><span class="group-mark">03</span> Чат</h2>
+              <div class="setting-row unavailable">
+                <span><strong>Ширина и высота чата</strong><small>Размеры игрового чата</small></span>
+                <b>СКОРО</b>
+              </div>
+              <div class="setting-row unavailable">
+                <span><strong>Размер шрифта</strong><small>Масштаб текста чата</small></span>
+                <b>СКОРО</b>
+              </div>
+              <div class="setting-row unavailable">
+                <span><strong>Прозрачность чата</strong><small>Пока настраивается клиентом RAGE MP</small></span>
+                <b>СКОРО</b>
+              </div>
+            </section>
+
+            <section class="settings-group">
+              <h2><span class="group-mark">04</span> Интерфейс</h2>
+              <div class="setting-row status-row">
+                <span><strong>Сохранение</strong><small>Настройки хранятся локально</small></span>
+                <span class="status-dot">АКТИВНО</span>
+              </div>
+              <div class="setting-row unavailable">
+                <span><strong>Беззвучный режим телефона</strong><small>Звуки телефона ещё не подключены</small></span>
+                <b>СКОРО</b>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section class="tab-panel" data-tab-panel="controls" hidden>
+          <div class="settings-columns four-columns controls-columns">
+            <section class="settings-group control-group">
+              <h2><span class="group-mark">01</span> Основное</h2>
+              <div class="controls-list">
+                <div class="binding-row unavailable-control" title="Действие пока не подключено"><span><strong>Взаимодействие с игроком</strong></span><kbd>E</kbd></div>
+                <div class="binding-row unavailable-control" title="Действие пока не подключено"><span><strong>Взаимодействие с автомобилем</strong></span><kbd>E</kbd></div>
+                <div class="binding-row unavailable-control" title="Действие пока не подключено"><span><strong>Взаимодействие с предметом</strong></span><kbd>E</kbd></div>
+                <div class="binding-row"><span><strong>Телефон</strong><small>Основная клавиша</small></span><button type="button" class="key-button" data-bind="phoneUp">↑</button></div>
+                <div class="binding-row"><span><strong>Телефон</strong><small>Альтернативная клавиша</small></span><button type="button" class="key-button" data-bind="phoneTab">TAB</button></div>
+                <div class="binding-row"><span><strong>Инвентарь</strong><small>Открыть / закрыть</small></span><button type="button" class="key-button" data-bind="inventory">I</button></div>
+                <div class="binding-row fixed-binding"><span><strong>Настройки</strong><small>Открыть / закрыть</small></span><kbd>F10</kbd></div>
+                <div class="binding-row unavailable-control" title="Таблица счёта пока не реализована"><span><strong>Таблица счёта</strong></span><kbd>TAB</kbd></div>
+                <div class="binding-row unavailable-control" title="Таблица событий пока не реализована"><span><strong>Таблица счёта события</strong></span><kbd>TAB</kbd></div>
+                <div class="binding-row unavailable-control" title="Планшет пока не реализован"><span><strong>Планшет</strong></span><kbd>↓</kbd></div>
+                <div class="binding-row unavailable-control"><span><strong>Глушить полицейский радар</strong></span><kbd>H</kbd></div>
+                <div class="binding-row unavailable-control" title="Список анимаций пока не реализован"><span><strong>Список анимаций</strong></span><kbd>U</kbd></div>
+                <div class="binding-row unavailable-control" title="Управление анимациями пока не реализовано"><span><strong>Остановить анимацию</strong></span><kbd>SPACE</kbd></div>
+                <div class="binding-row unavailable-control"><span><strong>Включить / выключить HUD</strong></span><span class="unassigned-key">Не назначено</span></div>
+                <div class="binding-row unavailable-control"><span><strong>Убрать оружие</strong></span><span class="unassigned-key">Не назначено</span></div>
+                <div class="binding-row unavailable-control" title="Функция фракции пока не реализована"><span><strong>Потребовать паспорт</strong></span><span class="unassigned-key">Не назначено</span></div>
+                <div class="binding-row unavailable-control" title="Функция медика пока не реализована"><span><strong>Дать таблетки</strong></span><span class="unassigned-key">Не назначено</span></div>
+                <div class="binding-row unavailable-control"><span><strong>Надеть / снять наручники</strong></span><span class="unassigned-key">Не назначено</span></div>
+                <div class="binding-row unavailable-control"><span><strong>Надеть / снять маску</strong></span><kbd>-</kbd></div>
+                <div class="binding-row unavailable-control"><span><strong>Надеть / снять головной убор</strong></span><kbd>0</kbd></div>
+                <div class="binding-row unavailable-control"><span><strong>Вести за собой в наручниках</strong></span><kbd>3</kbd></div>
+                <div class="binding-row unavailable-control"><span><strong>Оставить здесь в наручниках</strong></span><kbd>4</kbd></div>
+                <div class="binding-row unavailable-control"><span><strong>Посадить в машину</strong></span><kbd>6</kbd></div>
+                <div class="binding-row unavailable-control"><span><strong>Достать из машины</strong></span><span class="unassigned-key">Не назначено</span></div>
+                <div class="binding-row unavailable-control"><span><strong>Выписать штраф</strong></span><kbd>8</kbd></div>
+                <div class="binding-row unavailable-control"><span><strong>Взять на руки</strong></span><span class="unassigned-key">Не назначено</span></div>
+                <div class="binding-row unavailable-control"><span><strong>Обыск</strong></span><span class="unassigned-key">Не назначено</span></div>
+                <div class="binding-row fixed-binding"><span><strong>Быстрый слот 1</strong><small>Использовать предмет</small></span><kbd>1</kbd></div>
+                <div class="binding-row fixed-binding"><span><strong>Быстрый слот 2</strong><small>Предмет вне машины</small></span><kbd>2</kbd></div>
+                <div class="binding-row fixed-binding"><span><strong>Быстрый слот 3</strong><small>Использовать предмет</small></span><kbd>3</kbd></div>
+                <div class="binding-row fixed-binding"><span><strong>Быстрый слот 4</strong><small>Использовать предмет</small></span><kbd>4</kbd></div>
+                <div class="binding-row unavailable-control"><span><strong>Запросить помощь фракции</strong></span><span class="unassigned-key">Не назначено</span></div>
+                <div class="binding-row unavailable-control"><span><strong>Присесть</strong></span><span class="unassigned-key">Не назначено</span></div>
+                <div class="binding-row unavailable-control"><span><strong>Сменить плечо при прицеливании</strong></span><span class="unassigned-key">Не назначено</span></div>
+                <div class="binding-row unavailable-control"><span><strong>Выкопать клад</strong></span><kbd>ALT</kbd></div>
+                <div class="binding-row unavailable-control"><span><strong>Бодикамера: пауза / продолжить</strong></span><kbd>I</kbd></div>
+                <div class="binding-row unavailable-control"><span><strong>Бодикамера: закончить запись</strong></span><kbd>I</kbd></div>
+                <div class="binding-row unavailable-control"><span><strong>Кинозал: вид на экран</strong></span><kbd>V</kbd></div>
+                <div class="binding-row unavailable-control"><span><strong>Выбрать документ</strong></span><kbd>CTRL</kbd></div>
+                <div class="binding-row unavailable-control"><span><strong>Быстрый слот 16</strong></span><span class="unassigned-key">Не назначено</span></div>
+              </div>
+            </section>
+            <section class="settings-group control-group">
+              <h2><span class="group-mark">02</span> Автомобиль</h2>
+              <div class="controls-list">
+                <div class="binding-row unavailable-control"><span><strong>Ручной тормоз</strong></span><kbd>M</kbd></div>
+                <div class="binding-row unavailable-control"><span><strong>Переключение стабилизации</strong></span><span class="unassigned-key">Не назначено</span></div>
+                <div class="binding-row unavailable-control"><span><strong>Переключение дрифт-мода</strong></span><span class="unassigned-key">Не назначено</span></div>
+                <div class="binding-row unavailable-control"><span><strong>Электронная блокировка</strong></span><span class="unassigned-key">Не назначено</span></div>
+                <div class="binding-row unavailable-control"><span><strong>Повысить плотность электроники</strong></span><span class="unassigned-key">Не назначено</span></div>
+                <div class="binding-row unavailable-control"><span><strong>Понизить плотность электроники</strong></span><span class="unassigned-key">Не назначено</span></div>
+                <div class="binding-row unavailable-control"><span><strong>Ограничитель скорости</strong></span><kbd>K</kbd></div>
+                <div class="binding-row unavailable-control"><span><strong>Анимация ТС</strong></span><kbd>H</kbd></div>
+                <div class="binding-row unavailable-control"><span><strong>Открыть меню автомобиля</strong></span><kbd>G</kbd></div>
+                <div class="binding-row unavailable-control"><span><strong>Сесть на пассажирское место</strong></span><span class="unassigned-key">Не назначено</span></div>
+                <div class="binding-row unavailable-control"><span><strong>Проблесковые маячки</strong></span><kbd>;</kbd></div>
+                <div class="binding-row unavailable-control"><span><strong>Уборочная машина: щётки</strong></span><kbd>;</kbd></div>
+                <div class="binding-row unavailable-control"><span><strong>Уборочная машина: полив</strong></span><span class="unassigned-key">Не назначено</span></div>
+                <div class="binding-row"><span><strong>Завести / заглушить</strong><small>С места водителя</small></span><button type="button" class="key-button" data-bind="engine">2</button></div>
+                <div class="binding-row"><span><strong>Закрыть / открыть машину</strong><small>Личная машина</small></span><button type="button" class="key-button" data-bind="vehicleLock">L</button></div>
+                <div class="info-note"><span>i</span><p>На цифре 2 вне автомобиля остаётся быстрый слот 2.</p></div>
+              </div>
+            </section>
+            <section class="settings-group control-group">
+              <h2><span class="group-mark">03</span> Общение</h2>
+              <div class="controls-list">
+                <div class="binding-row unavailable-control" title="Система рации пока не подключена"><span><strong>Говорить в рацию</strong></span><kbd>X</kbd></div>
+                <div class="binding-row unavailable-control"><span><strong>Говорить в мегафон</strong></span><kbd>H</kbd></div>
+                <div class="binding-row unavailable-control"><span><strong>Мегафон: выбор фразы</strong></span><kbd>F4</kbd></div>
+                <div class="binding-row"><span><strong>Говорить в голосовой чат</strong><small>Удерживать для передачи голоса</small></span><kbd>Z</kbd></div>
+                <div class="binding-row"><span><strong>Переключить голосовой чат</strong><small>Полностью включить или отключить</small></span><kbd>F6</kbd></div>
+                <div class="binding-row unavailable-control" title="Отдельный перезапуск голосового модуля не требуется"><span><strong>Перезагрузка голосового чата</strong><small>Подключение управляется клиентом RAGE MP</small></span><kbd>F7</kbd></div>
+                <div class="binding-row unavailable-control"><span><strong>Показать пальцем</strong></span><kbd>B</kbd></div>
+                <div class="binding-row unavailable-control"><span><strong>Открыть чат</strong></span><kbd>T</kbd></div>
+                <div class="binding-row unavailable-control"><span><strong>Проголосовать ДА</strong></span><kbd>Y</kbd></div>
+                <div class="binding-row unavailable-control"><span><strong>Проголосовать НЕТ</strong></span><kbd>N</kbd></div>
+                <div class="binding-row unavailable-control"><span><strong>Сменить канал текстового чата</strong></span><kbd>TAB</kbd></div>
+              </div>
+            </section>
+            <section class="settings-group control-group">
+              <h2><span class="group-mark">04</span> Метки</h2>
+              <div class="controls-list">
+                <div class="binding-row unavailable-control"><span><strong>Меню меток</strong></span><span class="unassigned-key">Не назначено</span></div>
+                <div class="binding-row unavailable-control"><span><strong>Внимание</strong></span><span class="unassigned-key">Не назначено</span></div>
+                <div class="binding-row unavailable-control"><span><strong>Враг</strong></span><span class="unassigned-key">Не назначено</span></div>
+                <div class="binding-row unavailable-control"><span><strong>Помощь</strong></span><span class="unassigned-key">Не назначено</span></div>
+                <div class="binding-row unavailable-control"><span><strong>Движение</strong></span><span class="unassigned-key">Не назначено</span></div>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section class="tab-panel" data-tab-panel="graphics" hidden>
+          <div class="settings-columns three-columns">
+            <section class="settings-group">
+              <h2><span class="group-mark">01</span> Детализация</h2>
+              <label class="setting-row range-row">
+                <span class="row-title"><strong>Дальность прорисовки</strong><output data-output="graphics.lodScale"></output></span>
+                <input type="range" min="50" max="150" step="5" data-setting="graphics.lodScale">
+                <span class="range-scale"><small>50%</small><small>150%</small></span>
+              </label>
+              <p class="group-description">Изменяет масштаб детализации мира. Более высокие значения могут снизить производительность.</p>
+            </section>
+            <section class="settings-group">
+              <h2><span class="group-mark">02</span> Тени</h2>
+              <div class="setting-row unavailable">
+                <span><strong>Качество теней</strong><small>Настраивается в параметрах GTA V</small></span>
+                <b>ИГРА</b>
+              </div>
+              <div class="setting-row unavailable">
+                <span><strong>Дальние тени</strong><small>Настраивается в параметрах GTA V</small></span>
+                <b>ИГРА</b>
+              </div>
+            </section>
+            <section class="settings-group">
+              <h2><span class="group-mark">03</span> Освещение</h2>
+              <div class="setting-row unavailable">
+                <span><strong>Источники освещения</strong><small>Настраивается в параметрах GTA V</small></span>
+                <b>ИГРА</b>
+              </div>
+              <div class="info-note"><span>i</span><p>Изменения игровых пресетов графики выполняются через настройки GTA V, чтобы не подменять драйверные параметры.</p></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="tab-panel" data-tab-panel="media" hidden>
+          <div class="settings-columns four-columns">
+            <section class="settings-group">
+              <h2><span class="group-mark">01</span> Основное</h2>
+              <label class="setting-row range-row">
+                <span class="row-title"><strong>Отключать звук у игроков, чьё время в игре меньше</strong><output data-output="media.voiceMuteUnderHours"></output></span>
+                <input type="range" min="0" max="200" step="1" data-setting="media.voiceMuteUnderHours" aria-label="Минимальное время в игре для голосового чата">
+                <span class="range-scale"><small>0ч</small><small>200ч</small></span>
+              </label>
+              <label class="setting-row toggle-row">
+                <span><strong>Показывать уведомления о новых вызовах</strong><small>Входящие звонки игроков</small></span>
+                <input type="checkbox" data-setting="media.showCallNotifications">
+                <i class="toggle"></i>
+              </label>
+              <label class="setting-row toggle-row">
+                <span><strong>Звук уведомлений о вызовах</strong><small>Сигнал при входящем звонке</small></span>
+                <input type="checkbox" data-setting="media.callNotificationSound">
+                <i class="toggle"></i>
+              </label>
+              <label class="setting-row toggle-row">
+                <span><strong>Показывать чат</strong><small>Отображать игровой чат</small></span>
+                <input type="checkbox" data-setting="media.showChat">
+                <i class="toggle"></i>
+              </label>
+              <div class="info-note"><span>i</span><p>Голос поблизости работает в радиусе 15 м. Телефонные звонки соединяют игроков независимо от расстояния.</p></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="tab-panel" data-tab-panel="combat" hidden>
+          <div class="settings-columns three-columns">
+            <section class="settings-group">
+              <h2><span class="group-mark">01</span> Прицел</h2>
+              <label class="setting-row toggle-row">
+                <span><strong>Показывать прицел</strong><small>Собственный прицел Tula RP</small></span>
+                <input type="checkbox" data-setting="combat.showCrosshair">
+                <i class="toggle"></i>
+              </label>
+              <label class="setting-row range-row">
+                <span class="row-title"><strong>Размер прицела</strong><output data-output="combat.crosshairScale"></output></span>
+                <input type="range" min="60" max="150" step="5" data-setting="combat.crosshairScale">
+                <span class="range-scale"><small>60%</small><small>150%</small></span>
+              </label>
+              <label class="setting-row color-row">
+                <span><strong>Цвет прицела</strong><small>Настрой оттенок под себя</small></span>
+                <input type="color" data-setting="combat.crosshairColor" aria-label="Цвет прицела">
+              </label>
+            </section>
+            <section class="settings-group">
+              <h2><span class="group-mark">02</span> Патроны</h2>
+              <label class="setting-row toggle-row">
+                <span><strong>Счётчик патронов</strong><small>Показывать боезапас оружия</small></span>
+                <input type="checkbox" data-setting="combat.showAmmo">
+                <i class="toggle"></i>
+              </label>
+              <div class="setting-row unavailable">
+                <span><strong>Размер счётчика</strong><small>Используется стандартный интерфейс игры</small></span>
+                <b>ИГРА</b>
+              </div>
+            </section>
+            <section class="settings-group">
+              <h2><span class="group-mark">03</span> Попадания</h2>
+              <div class="setting-row unavailable">
+                <span><strong>Звуки попадания</strong><small>Обратная связь по попаданию не подключена</small></span>
+                <b>СКОРО</b>
+              </div>
+              <div class="setting-row unavailable">
+                <span><strong>Метка попадания</strong><small>Система hit-marker не реализована</small></span>
+                <b>СКОРО</b>
+              </div>
+            </section>
+          </div>
+        </section>
+      </div>
+
+      <footer class="settings-footer">
+        <span class="footer-hint"><kbd>F10</kbd> или <kbd>ESC</kbd> закрыть</span>
+        <span class="footer-message" id="footer-message" role="status">Изменения сохраняются на этом устройстве</span>
+        <button class="reset-button" id="reset-settings" type="button">Сбросить настройки</button>
+      </footer>
+    </section>
+    <div class="settings-toast" id="settings-toast" role="status" aria-live="polite"></div>
+  </main>
+  <script src="app.js?v=20261127-3"></script>
+</body>
+</html>

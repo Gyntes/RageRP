@@ -4,10 +4,15 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>RageRP HUD</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=20261127-1">
 </head>
 <body>
   <main class="hud-root" id="hud-root">
+    <div class="custom-crosshair" id="custom-crosshair" aria-hidden="true" hidden>
+      <i class="crosshair-top"></i><i class="crosshair-right"></i>
+      <i class="crosshair-bottom"></i><i class="crosshair-left"></i>
+      <i class="crosshair-center"></i>
+    </div>
     <section class="notification" id="notification" role="alertdialog" aria-labelledby="notification-title" hidden>
       <header class="notification-header">
         <span class="notification-bell" aria-hidden="true">
@@ -76,6 +81,6 @@
       </article>
     </section>
   </main>
-  <script src="app.js"></script>
+  <script src="app.js?v=20261127-1"></script>
 </body>
 </html>
