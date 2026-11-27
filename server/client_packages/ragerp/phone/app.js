@@ -63,6 +63,7 @@
   let activeHomePage = 0;
   let homeSwipeStartX = null;
   let suppressHomeClick = false;
+  const phonePreferences = { scale: 100, right: 0, bottom: 0 };
 
   function loadContacts() {
     try {
@@ -1615,17 +1616,22 @@
       const scale = Number(preferences.scale);
       const right = Number(preferences.right);
       const bottom = Number(preferences.bottom);
-      if (Number.isFinite(scale)) {
-        const scaledValue = .72 * Math.max(75, Math.min(130, scale)) / 100;
-        shell.style.setProperty('--phone-scale', String(scaledValue));
-        shell.style.setProperty('--phone-enter-scale', String(scaledValue * .95));
-      }
-      if (Number.isFinite(right)) {
-        shell.style.setProperty('--phone-offset-right', `${Math.max(0, Math.min(15, right))}vw`);
-      }
-      if (Number.isFinite(bottom)) {
-        shell.style.setProperty('--phone-offset-bottom', `${Math.max(0, Math.min(15, bottom))}vh`);
-      }
+      if (Number.isFinite(scale)) phonePreferences.scale = Math.max(75, Math.min(130, scale));
+      if (Number.isFinite(right)) phonePreferences.right = Math.max(0, Math.min(15, right));
+      if (Number.isFinite(bottom)) phonePreferences.bottom = Math.max(0, Math.min(15, bottom));
+
+      shell.style.setProperty('--phone-offset-right', `${phonePreferences.right}vw`);
+      shell.style.setProperty('--phone-offset-bottom', `${phonePreferences.bottom}vh`);
+      const horizontalMargin = (3.2 + phonePreferences.right) * window.innerWidth / 100 + 12;
+      const verticalMargin = (3.4 + phonePreferences.bottom) * window.innerHeight / 100 + 12;
+      const fitScale = Math.min(
+        (window.innerWidth - horizontalMargin) / shell.offsetWidth,
+        (window.innerHeight - verticalMargin) / shell.offsetHeight,
+        1.3
+      );
+      const scaledValue = Math.max(0.4, Math.min(phonePreferences.scale / 100, fitScale));
+      shell.style.setProperty('--phone-scale', String(scaledValue));
+      shell.style.setProperty('--phone-enter-scale', String(scaledValue * .95));
     },
     setBootstrap: function (payload) {
       const data = typeof payload === 'string' ? JSON.parse(payload) : payload;
@@ -1690,6 +1696,10 @@
     setNotice: showToast,
     close: function () { setPhoneOpen(false); }
   };
+
+  window.addEventListener('resize', function () {
+    window.ragerpPhone.setPreferences(phonePreferences);
+  });
 
   document.addEventListener('keydown', function (event) {
     if (event.key === 'Escape') {
