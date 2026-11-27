@@ -27,6 +27,13 @@
     document.getElementById(id).textContent = String(value == null ? '' : value);
   }
 
+  function roleLabel(data) {
+    if (data.job === 'courier') return 'Курьер';
+    if (data.faction === 'Mechanic') return 'Механик';
+    if (data.faction === 'Civilian') return 'Гражданин';
+    return String(data.faction || 'Гражданин');
+  }
+
   function updateDateTime() {
     const now = new Date();
     const date = now.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
@@ -36,6 +43,8 @@
 
   function renderState() {
     setText('hud-static-id', state.staticId || '---');
+    setText('hud-character-name', state.name || 'Персонаж');
+    setText('hud-character-role', roleLabel(state));
     setText('hud-cash', formatMoney(state.cash));
     setText('hud-bank', formatMoney(state.bank));
     const onlineCount = Number(state.onlineCount);

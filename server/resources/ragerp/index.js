@@ -1163,6 +1163,9 @@ function hudStateFor(player) {
 
   return {
     staticId: ensureStaticId(account),
+    name: `${character.firstName} ${character.lastName}`,
+    faction: String(character.faction || 'Civilian'),
+    job: String(character.job || 'unemployed'),
     cash: Number(character.cash) || 0,
     bank: Number(character.bank) || 0,
     onlineCount: onlinePlayerCount()

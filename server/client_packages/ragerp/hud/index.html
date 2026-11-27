@@ -71,13 +71,23 @@
     <button class="task-reopen" id="show-tasks" type="button" hidden>ЗАДАНИЯ <span>›</span></button>
 
     <section class="wallet" aria-label="Деньги персонажа">
+      <article class="voice-card">
+        <span class="voice-mic" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M12 14.5a4 4 0 0 0 4-4v-5a4 4 0 1 0-8 0v5a4 4 0 0 0 4 4Zm-7-4h2a5 5 0 0 0 10 0h2a7 7 0 0 1-6 6.82V20h3v2H8v-2h3v-2.68A7 7 0 0 1 5 10.5Z"/></svg>
+        </span>
+        <span class="voice-level" id="hud-voice-level">2</span>
+      </article>
+      <article class="character-card">
+        <span class="character-name" id="hud-character-name">Персонаж</span>
+        <strong id="hud-character-role">Гражданин</strong>
+      </article>
       <article class="money-card cash-card">
         <span class="money-icon">₽</span>
-        <span class="money-details"><small>НАЛИЧНЫЕ</small><strong id="hud-cash">0 ₽</strong></span>
+        <span class="money-details"><strong id="hud-cash">0 ₽</strong></span>
       </article>
       <article class="money-card bank-card">
         <span class="money-icon">▤</span>
-        <span class="money-details"><small>БАНК</small><strong id="hud-bank">0 ₽</strong></span>
+        <span class="money-details"><strong id="hud-bank">0 ₽</strong></span>
       </article>
     </section>
   </main>
