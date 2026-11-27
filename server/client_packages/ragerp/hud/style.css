@@ -50,11 +50,13 @@ button { font: inherit; color: inherit; }
   box-shadow: 0 12px 35px rgba(0, 0, 0, .35);
   pointer-events: auto;
   animation: notice-in .2s ease-out both;
+  transform: scale(.72);
+  transform-origin: top left;
 }
 
 @keyframes notice-in {
-  from { opacity: 0; transform: translateY(-8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(-8px) scale(.72); }
+  to { opacity: 1; transform: scale(.72); }
 }
 
 .notification-header {
@@ -109,11 +111,13 @@ button { font: inherit; color: inherit; }
   box-shadow: 0 16px 45px rgba(0, 0, 0, .34);
   pointer-events: auto;
   animation: panel-in .24s ease-out both;
+  transform: scale(.72);
+  transform-origin: top right;
 }
 
 @keyframes panel-in {
-  from { opacity: 0; transform: translateX(9px); }
-  to { opacity: 1; transform: translateX(0); }
+  from { opacity: 0; transform: translateX(9px) scale(.72); }
+  to { opacity: 1; transform: scale(.72); }
 }
 
 .task-topline, .account-mark, .player-status, .online-status, .task-heading, .task-card-top,
@@ -190,16 +194,20 @@ button { font: inherit; color: inherit; }
   font-weight: 800;
   letter-spacing: .06em;
   pointer-events: auto;
+  transform: scale(.72);
+  transform-origin: top right;
 }
 .task-reopen span { margin-left: 8px; color: var(--green-light); font-size: 14px; }
 
 .wallet {
   position: absolute;
-  left: clamp(280px, 20vw, 360px);
+  left: clamp(280px, 16vw, 330px);
   bottom: clamp(20px, 4vh, 38px);
   display: flex;
   gap: 7px;
   pointer-events: none;
+  transform: scale(.72);
+  transform-origin: bottom left;
 }
 
 .money-card { min-width: 143px; gap: 8px; padding: 8px 10px; border: 1px solid rgba(225, 238, 230, .13); border-radius: 5px; background: rgba(12, 17, 16, .87); box-shadow: 0 7px 22px rgba(0, 0, 0, .25); }
@@ -213,7 +221,7 @@ button { font: inherit; color: inherit; }
 
 @media (max-width: 900px) {
   .task-panel { right: 16px; width: 276px; }
-  .wallet { left: 280px; }
+  .wallet { left: 240px; }
   .money-card { min-width: 120px; padding: 7px; }
   .money-details strong { font-size: 9px; }
 }
