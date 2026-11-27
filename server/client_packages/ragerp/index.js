@@ -5,6 +5,9 @@ let registrationStaticId = '';
 let phoneBrowser = null;
 let phoneOpen = false;
 let phoneBootstrap = null;
+let inventoryBrowser = null;
+let inventoryOpen = false;
+let inventoryBootstrap = null;
 let hudBrowser = null;
 let hudBootstrap = null;
 let hudBrowserReady = false;
@@ -35,7 +38,7 @@ function mergeHudState(update) {
 function setHudVisible(visible) {
   hudVisible = Boolean(visible);
   executeHud('setVisible', hudVisible);
-  if (phoneOpen || registrationOpen) return;
+  if (phoneOpen || inventoryOpen || registrationOpen) return;
 
   if (hudVisible) {
     mp.game.ui.displayHud(false);
@@ -61,7 +64,7 @@ function openHud(payload) {
 }
 
 function answerHudNotification(answer) {
-  if (!hudNotificationOpen || phoneOpen || registrationOpen) return;
+  if (!hudNotificationOpen || phoneOpen || inventoryOpen || registrationOpen) return;
   const notificationId = hudNotificationId;
   hudNotificationOpen = false;
   hudNotificationId = '';
@@ -147,7 +150,7 @@ function closeRegistration() {
 }
 
 function openPhone(payload) {
-  if (registrationOpen || phoneOpen || hudNotificationOpen) return;
+  if (registrationOpen || phoneOpen || inventoryOpen || hudNotificationOpen) return;
 
   phoneBootstrap = typeof payload === 'string' ? payload : JSON.stringify(payload || {});
   phoneBrowser = mp.browsers.new('package://ragerp/phone/index.html');
@@ -202,16 +205,78 @@ function executePhone(method, payload) {
   );
 }
 
+function openInventory(payload) {
+  if (registrationOpen || phoneOpen || inventoryOpen || hudNotificationOpen) return;
+
+  inventoryBootstrap = typeof payload === 'string' ? payload : JSON.stringify(payload || {});
+  inventoryBrowser = mp.browsers.new('package://ragerp/inventory/index.html');
+  inventoryOpen = true;
+  setHudVisible(false);
+  mp.gui.cursor.show(true, true);
+  mp.gui.chat.show(false);
+  mp.game.ui.displayHud(false);
+  mp.game.ui.displayRadar(false);
+  if (mp.players.local) mp.players.local.freezePosition(true);
+}
+
+function closeInventory(notifyServer) {
+  if (inventoryBrowser) {
+    inventoryBrowser.destroy();
+    inventoryBrowser = null;
+  }
+
+  if (mp.players.local) mp.players.local.freezePosition(false);
+  inventoryOpen = false;
+  inventoryBootstrap = null;
+  mp.gui.cursor.show(false, false);
+  mp.gui.chat.show(true);
+  mp.game.ui.displayHud(true);
+  mp.game.ui.displayRadar(true);
+  if (hudBrowser) setHudVisible(true);
+  if (hudNotificationOpen && hudNotificationPayload) {
+    mp.gui.cursor.show(true, true);
+    executeHud('showNotification', hudNotificationPayload);
+  }
+  if (notifyServer !== false) mp.events.callRemote('ragerp:inventory:close');
+}
+
+function executeInventory(method, payload) {
+  if (!inventoryBrowser || !inventoryOpen) return;
+  inventoryBrowser.execute(
+    `window.ragerpInventory && window.ragerpInventory.${method}(${JSON.stringify(payload)})`
+  );
+}
+
 mp.nametags.enabled = false;
 
-mp.keys.bind(0x50, false, () => {
-  if (registrationOpen || hudNotificationOpen) return;
+function togglePhone() {
+  if (registrationOpen || inventoryOpen || hudNotificationOpen) return;
   if (phoneOpen) {
     closePhone(true);
     return;
   }
   mp.events.callRemote('ragerp:phone:request-open');
+}
+
+[0x26, 0x09].forEach((keyCode) => {
+  mp.keys.bind(keyCode, false, togglePhone);
 });
+
+mp.keys.bind(0x49, false, () => {
+  if (registrationOpen || phoneOpen || hudNotificationOpen) return;
+  if (inventoryOpen) {
+    closeInventory(true);
+    return;
+  }
+  mp.events.callRemote('ragerp:inventory:request-open');
+});
+
+for (let quickSlot = 0; quickSlot < 4; quickSlot += 1) {
+  mp.keys.bind(0x31 + quickSlot, false, () => {
+    if (registrationOpen || phoneOpen || inventoryOpen || hudNotificationOpen) return;
+    mp.events.callRemote('ragerp:inventory:quick-use', quickSlot);
+  });
+}
 
 mp.keys.bind(0x59, false, () => answerHudNotification('accept'));
 mp.keys.bind(0x4E, false, () => answerHudNotification('decline'));
@@ -232,6 +297,8 @@ mp.events.add('browserDomReady', (browser) => {
     syncRegistrationBrowser();
   } else if (browser === phoneBrowser) {
     executePhone('setBootstrap', phoneBootstrap);
+  } else if (browser === inventoryBrowser) {
+    executeInventory('setBootstrap', inventoryBootstrap);
   } else if (browser === hudBrowser) {
     hudBrowserReady = true;
     executeHud('setBootstrap', hudBootstrap);
@@ -277,6 +344,7 @@ mp.events.add('ragerp:hud:notification', (payload) => {
   hudNotificationPayload = notification;
   hudNotificationId = notification.id;
   hudNotificationOpen = true;
+  if (inventoryOpen) return;
   mp.gui.cursor.show(true, true);
   executeHud('showNotification', notification);
 });
@@ -350,6 +418,28 @@ mp.events.add('ragerp:phone:action', (action, payload) => {
   mp.events.callRemote('ragerp:phone:action', action, payload);
 });
 
+mp.events.add('ragerp:inventory:open', (payload) => {
+  openInventory(payload);
+});
+
+mp.events.add('ragerp:inventory:update', (payload) => {
+  executeInventory('update', payload);
+});
+
+mp.events.add('ragerp:inventory:notice', (text) => {
+  executeInventory('setNotice', String(text || ''));
+});
+
+mp.events.add('ragerp:inventory:close-request', () => {
+  if (inventoryOpen) closeInventory(true);
+});
+
+mp.events.add('ragerp:inventory:action', (action, payload) => {
+  if (!inventoryOpen || typeof action !== 'string' || typeof payload !== 'string' ||
+      payload.length > 512) return;
+  mp.events.callRemote('ragerp:inventory:action', action, payload);
+});
+
 function setPhoneWaypoint(payload) {
   if (typeof payload !== 'string' || payload.length > 256) return;
   let destination;
@@ -375,7 +465,7 @@ setTimeout(() => {
 }, 1500);
 
 mp.events.add('render', () => {
-  if (phoneOpen || hudNotificationOpen) {
+  if (phoneOpen || inventoryOpen || hudNotificationOpen) {
     mp.game.controls.disableAllControlActions(0);
   }
 

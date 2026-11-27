@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
   <title>Телефон</title>
-  <link rel="stylesheet" href="style.css?v=20261127-18">
+  <link rel="stylesheet" href="style.css?v=20261127-29">
 </head>
 <body>
   <main class="phone-shell" id="phone-shell" data-wallpaper="night">
@@ -12,31 +12,52 @@
       <section class="phone-screen">
         <div class="screen-wallpaper"></div>
         <header class="status-bar">
+          <span class="network-label"><i aria-hidden="true"></i>RMRP · ТУЛА</span>
           <span id="clock">09:41</span>
           <span class="status-icons"><span>●●●</span><span>◖</span><span class="battery">▰</span></span>
         </header>
 
         <section class="home-screen" id="home-screen">
           <div class="home-date">
-            <p id="date-label">СРЕДА, 12 ИЮНЯ</p>
-            <h1 id="home-clock">09:41</h1>
-            <span id="home-name">Мобильная связь</span>
+            <div class="home-time-copy">
+              <p id="date-label">СРЕДА, 12 ИЮНЯ</p>
+              <h1 id="home-clock">09:41</h1>
+              <span id="home-name">Мобильная связь</span>
+            </div>
+            <div class="home-clock-widget" aria-hidden="true"><span></span></div>
           </div>
-          <div class="app-grid">
-            <button class="app-icon app-contacts" data-open-app="contacts" type="button"><span>◎</span><small>Контакты</small></button>
-            <button class="app-icon app-messages" data-open-app="messages" type="button"><span>▤</span><small>Сообщения</small></button>
-            <button class="app-icon app-gps" data-open-app="gps" type="button"><span>⌖</span><small>Навигация</small></button>
-            <button class="app-icon app-bank" data-open-app="bank" type="button"><span>₽</span><small>Один Банк</small></button>
-            <button class="app-icon app-taxi" data-open-app="taxi" type="button"><span>↗</span><small>Такси</small></button>
-            <button class="app-icon app-ads" data-open-app="ads" type="button"><span>▧</span><small>Объявления</small></button>
-            <button class="app-icon app-settings" data-open-app="settings" type="button"><span>⚙</span><small>Настройки</small></button>
-            <button class="app-icon app-vehicle" data-open-app="vehicle" type="button"><span>◈</span><small>Машина</small></button>
-            <button class="app-icon app-numbers" data-open-app="numbers" type="button"><span>№</span><small>Мои номера</small></button>
-            <button class="app-icon app-documents" data-open-app="documents" type="button"><span>✦</span><small>Документы</small></button>
+          <div class="app-pages-viewport" id="home-apps-viewport">
+            <div class="app-pages-rail" id="home-apps-rail">
+              <section class="app-grid app-page is-active" data-app-page="0" aria-label="Страница приложений 1">
+                <button class="app-icon app-contacts" data-open-app="contacts" type="button"><span>◎</span><small>Контакты</small></button>
+                <button class="app-icon app-messages" data-open-app="messages" type="button"><span>▤</span><small>Сообщения</small></button>
+                <button class="app-icon app-gps" data-open-app="gps" type="button"><span>⌖</span><small>Навигация</small></button>
+                <button class="app-icon app-bank" data-open-app="bank" type="button"><span>₽</span><small>Один Банк</small></button>
+                <button class="app-icon app-taxi" data-open-app="taxi" type="button"><span>↗</span><small>Такси</small></button>
+              </section>
+              <section class="app-grid app-page" data-app-page="1" aria-label="Страница приложений 2" aria-hidden="true">
+                <button class="app-icon app-ads" data-open-app="ads" type="button" tabindex="-1"><span>▧</span><small>Объявления</small></button>
+                <button class="app-icon app-settings" data-open-app="settings" type="button" tabindex="-1"><span>⚙</span><small>Настройки</small></button>
+                <button class="app-icon app-vehicle" data-open-app="vehicle" type="button" tabindex="-1"><span>◈</span><small>Машина</small></button>
+                <button class="app-icon app-numbers" data-open-app="numbers" type="button" tabindex="-1"><span>№</span><small>Мои номера</small></button>
+                <button class="app-icon app-documents" data-open-app="documents" type="button" tabindex="-1"><span>✦</span><small>Документы</small></button>
+              </section>
+            </div>
           </div>
-          <div class="home-dock">
-            <div class="dock-pill"><span>●</span><span>●</span><span>●</span><span>●</span></div>
-            <small>Нажми P, чтобы закрыть</small>
+          <nav class="home-page-indicator" id="home-page-indicator" aria-label="Страницы приложений">
+            <button class="home-page-dot is-active" data-home-page="0" type="button" aria-label="Страница 1" aria-current="page"></button>
+            <button class="home-page-dot" data-home-page="1" type="button" aria-label="Страница 2"></button>
+          </nav>
+          <div class="home-dock" id="home-dock">
+            <button type="button" data-home-action="quick" aria-label="Быстрые действия">
+              <span class="dock-icon dock-actions" aria-hidden="true">★</span><small>Действия</small>
+            </button>
+            <button type="button" data-home-action="vehicle" aria-label="Вызвать личную машину">
+              <span class="dock-icon dock-vehicle" aria-hidden="true">◈</span><small>Моя машина</small>
+            </button>
+            <button type="button" data-home-action="lock" aria-label="Блокировка экрана">
+              <span class="dock-icon dock-lock" aria-hidden="true">▣</span><small>Блокировка</small>
+            </button>
           </div>
         </section>
 
@@ -49,11 +70,23 @@
           <div class="app-content" id="app-content"></div>
         </section>
 
-        <nav class="bottom-nav" aria-label="Управление телефоном">
+        <nav class="bottom-nav" id="bottom-nav" aria-label="Управление телефоном" hidden>
           <button type="button" data-phone-back="true" aria-label="Назад"><span>◀</span><b>Назад</b></button>
           <button type="button" data-home="true" aria-label="Меню телефона"><span>⌂</span><b>Меню</b></button>
           <button type="button" data-lock="true" aria-label="Блокировка экрана"><span>▣</span><b>Блокировка<br>экрана</b></button>
         </nav>
+
+        <section class="quick-actions-overlay" id="quick-actions-overlay" hidden role="dialog" aria-modal="true" aria-label="Быстрые действия">
+          <div class="quick-actions-panel">
+            <header><strong>Быстрые действия</strong><button type="button" data-close-quick-actions aria-label="Закрыть">×</button></header>
+            <div class="quick-actions-grid">
+              <button type="button" data-quick-app="gps"><span>⌖</span>Навигация</button>
+              <button type="button" data-quick-app="messages"><span>▤</span>Сообщения</button>
+              <button type="button" data-quick-app="contacts"><span>◎</span>Контакты</button>
+              <button type="button" data-quick-action="vehicle"><span>◈</span>Моя машина</button>
+            </div>
+          </div>
+        </section>
 
         <section class="phone-lock-screen" id="phone-lock-screen" hidden role="dialog" aria-modal="true" aria-label="Экран блокировки">
           <div class="phone-lock-status">RMRP <span>●●●　▰</span></div>
@@ -78,9 +111,18 @@
   <section class="driver-license-overlay" id="driver-license-overlay" hidden role="dialog" aria-modal="true" aria-label="Водительское удостоверение">
     <article class="driver-license-sheet" id="driver-license-sheet"></article>
   </section>
+  <section class="medical-book-overlay" id="medical-book-overlay" hidden role="dialog" aria-modal="true" aria-label="Медицинская книжка">
+    <article class="medical-book-sheet" id="medical-book-sheet"></article>
+  </section>
+  <section class="police-id-overlay" id="police-id-overlay" hidden role="dialog" aria-modal="true" aria-label="Служебное удостоверение МВД">
+    <article class="police-id-sheet" id="police-id-sheet"></article>
+  </section>
+  <section class="official-document-overlay" id="official-document-overlay" hidden role="dialog" aria-modal="true" aria-label="Документ персонажа">
+    <div class="official-document-container" id="official-document-sheet"></div>
+  </section>
   <section class="prisoner-file-overlay" id="prisoner-file-overlay" hidden role="dialog" aria-modal="true" aria-label="Личное дело заключённого">
     <article class="prisoner-file-sheet" id="prisoner-file-sheet"></article>
   </section>
-  <script src="app.js?v=20261127-18"></script>
+  <script src="app.js?v=20261127-29"></script>
 </body>
 </html>

@@ -143,11 +143,47 @@ button { color: inherit; }
   z-index: -1;
   inset: 0;
   background:
-    radial-gradient(ellipse at 70% 22%, rgba(201,243,107,.21), transparent 38%),
-    radial-gradient(ellipse at 15% 67%, rgba(41,107,93,.25), transparent 42%),
-    linear-gradient(155deg, #182520 0%, #111815 54%, #0c1110 100%);
+    radial-gradient(circle at 12% 13%, rgba(255,255,255,.82) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 78% 12%, rgba(203,225,255,.72) 0 1px, transparent 1.7px),
+    radial-gradient(circle at 57% 29%, rgba(255,255,255,.55) 0 1px, transparent 1.6px),
+    radial-gradient(circle at 28% 42%, rgba(164,193,245,.5) 0 1px, transparent 1.6px),
+    radial-gradient(ellipse at 45% 37%, rgba(49,111,161,.32), transparent 40%),
+    linear-gradient(155deg, #071327 0%, #14203d 47%, #19233d 68%, #09121e 100%);
   transition: background .2s ease;
 }
+
+.screen-wallpaper::before {
+  position: absolute;
+  top: 16%;
+  right: 9%;
+  width: 112px;
+  aspect-ratio: 1;
+  border: 1px solid rgba(218,231,255,.55);
+  border-radius: 50%;
+  background: radial-gradient(circle at 31% 28%, #f5f7ff, #b2c2e6 52%, #6578a6 100%);
+  box-shadow: 0 0 26px rgba(130,163,235,.35), inset -10px -8px 18px rgba(24,38,77,.35);
+  content: "";
+  opacity: .8;
+}
+
+.screen-wallpaper::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 38%;
+  background:
+    linear-gradient(180deg, rgba(14,29,49,.15), #08121e 72%),
+    linear-gradient(90deg, rgba(20,41,58,.65), rgba(25,48,66,.2), rgba(13,29,43,.75));
+  clip-path: polygon(0 100%,0 43%,5% 43%,10% 3%,15% 44%,21% 28%,27% 55%,33% 12%,39% 57%,45% 34%,50% 62%,57% 5%,63% 55%,69% 25%,75% 55%,81% 0,87% 45%,93% 27%,100% 51%,100% 100%);
+  content: "";
+  opacity: .9;
+}
+
+.phone-shell[data-wallpaper="ocean"] .screen-wallpaper::before,
+.phone-shell[data-wallpaper="ocean"] .screen-wallpaper::after,
+.phone-shell[data-wallpaper="sunset"] .screen-wallpaper::before,
+.phone-shell[data-wallpaper="sunset"] .screen-wallpaper::after { opacity: 0; }
 
 .phone-shell[data-wallpaper="ocean"] .screen-wallpaper {
   background: radial-gradient(ellipse at 70% 25%, rgba(89,191,203,.3), transparent 42%), linear-gradient(155deg,#17313b,#14202a 60%,#0d141b);
@@ -159,17 +195,19 @@ button { color: inherit; }
 
 .status-bar {
   display: flex;
-  height: 39px;
+  height: 36px;
   flex: none;
   align-items: center;
   justify-content: space-between;
-  padding: 0 21px 0 23px;
+  padding: 0 17px;
   color: rgba(255,255,255,.92);
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
+.network-label { display: flex; align-items: center; gap: 5px; font-size: 8px; letter-spacing: .03em; }
+.network-label i { width: 6px; height: 6px; border-radius: 50%; background: #d3f67c; box-shadow: 0 0 8px rgba(211,246,124,.8); }
 .status-icons { display: flex; align-items: center; gap: 7px; font-size: 9px; }
 .battery { font-size: 14px; color: var(--accent); }
 
@@ -178,41 +216,58 @@ button { color: inherit; }
   flex: 1;
 }
 
-.home-screen { display: flex; flex-direction: column; padding: 24px 21px 20px; }
+.home-screen { display: flex; flex-direction: column; padding: 14px 18px 13px; }
 .home-screen[hidden], .app-screen[hidden] { display: none; }
 
-.home-date { margin: 11px 1px 32px; }
+.home-date { display: flex; min-height: 120px; align-items: center; justify-content: space-between; gap: 8px; margin: 2px 2px 12px; }
+.home-time-copy { min-width: 0; }
 .home-date p, .eyebrow {
-  margin: 0 0 5px;
-  color: rgba(232,239,231,.72);
+  margin: 0 0 3px;
+  color: rgba(232,239,247,.76);
   font-size: 8px;
   font-weight: 800;
-  letter-spacing: .15em;
+  letter-spacing: .12em;
 }
 
 .home-date h1 {
   margin: 0;
-  font-size: 54px;
+  color: rgba(246,249,255,.08);
+  -webkit-text-stroke: 1px rgba(241,246,255,.9);
+  font-size: 52px;
   line-height: 1.05;
   font-weight: 350;
   letter-spacing: -.06em;
   font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 18px rgba(174,199,255,.24);
 }
 
-.home-date span { display: inline-block; margin-top: 7px; color: #c0c9c1; font-size: 11px; }
+.home-time-copy > span { display: inline-block; max-width: 175px; overflow: hidden; margin-top: 5px; color: rgba(225,234,248,.72); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.home-clock-widget { position: relative; display: grid; width: 68px; height: 68px; flex: none; place-items: center; border: 1px solid rgba(197,175,255,.72); border-radius: 50%; background: radial-gradient(circle at 35% 30%,rgba(196,170,255,.34),rgba(67,66,133,.18) 58%,rgba(16,25,55,.38)); box-shadow: 0 0 22px rgba(133,92,233,.28),inset 0 0 16px rgba(161,136,255,.16); }
+.home-clock-widget::before { position: absolute; inset: -5px; border: 1px dotted rgba(199,131,255,.55); border-radius: 50%; content: ""; }
+.home-clock-widget::after { position: absolute; top: 17px; left: 50%; width: 2px; height: 18px; border-radius: 2px; background: #f0e9ff; content: ""; transform: rotate(0deg); transform-origin: bottom; }
+.home-clock-widget span { position: absolute; top: 50%; left: 50%; width: 19px; height: 2px; border-radius: 2px; background: #f0e9ff; transform: translateY(-50%); }
 
+.app-pages-viewport { min-height: 0; flex: 1; overflow: hidden; touch-action: pan-y; }
+.app-pages-rail { display: flex; width: 200%; height: 100%; transition: transform .28s cubic-bezier(.2,.8,.2,1); will-change: transform; }
 .app-grid {
   display: grid;
+  min-height: 0;
+  align-content: space-evenly;
   grid-template-columns: repeat(3, 1fr);
-  gap: 23px 9px;
-  padding: 0 3px;
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  flex: 0 0 50%;
+  gap: 12px 7px;
+  padding: 4px 1px;
 }
-
+.app-page { pointer-events: none; }
+.app-page.is-active { pointer-events: auto; }
 .app-icon {
   display: flex;
+  min-width: 0;
   align-items: center;
   flex-direction: column;
-  gap: 6px;
+  justify-content: center;
+  gap: 5px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -223,13 +278,13 @@ button { color: inherit; }
 .app-icon:hover { transform: translateY(-2px); }
 .app-icon > span {
   display: grid;
-  width: 57px;
-  height: 57px;
+  width: 58px;
+  height: 58px;
   place-items: center;
   border: 1px solid rgba(255,255,255,.14);
-  border-radius: 17px;
+  border-radius: 16px;
   background: linear-gradient(145deg, rgba(255,255,255,.21), rgba(255,255,255,.055));
-  box-shadow: 0 7px 15px rgba(0,0,0,.2), inset 0 1px rgba(255,255,255,.11);
+  box-shadow: 0 7px 15px rgba(0,0,0,.24), inset 0 1px rgba(255,255,255,.13);
   color: white;
   font-size: 25px;
   font-weight: 650;
@@ -245,29 +300,51 @@ button { color: inherit; }
 .app-vehicle > span { background: linear-gradient(145deg,#7ccab0,#397e6b); }
 .app-numbers > span { background: linear-gradient(145deg,#86b9e8,#4d77aa); }
 .app-documents > span { background: linear-gradient(145deg,#e8c878,#a67735); }
-.app-icon small { color: rgba(255,255,255,.94); font-size: 9px; text-shadow: 0 1px 5px #000; }
+.app-icon small { max-width: 80px; color: rgba(255,255,255,.96); font-size: 9px; font-weight: 650; line-height: 1.15; text-align: center; text-shadow: 0 1px 5px #000; }
 
 .home-dock {
-  display: flex;
-  align-items: center;
-  flex-direction: column;
-  gap: 9px;
+  display: grid;
+  flex: none;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
   margin-top: auto;
-  padding-top: 22px;
+  padding: 10px 8px 5px;
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 19px;
+  background: rgba(13,19,34,.5);
+  box-shadow: 0 8px 24px rgba(0,0,0,.2),inset 0 1px rgba(255,255,255,.045);
+  backdrop-filter: blur(12px);
 }
 
-.dock-pill {
+.home-dock button {
   display: flex;
-  width: 100%;
-  justify-content: space-evenly;
-  padding: 13px 10px;
-  border: 1px solid rgba(255,255,255,.08);
-  border-radius: 19px;
-  background: rgba(218,231,219,.1);
-  color: rgba(255,255,255,.82);
-  font-size: 7px;
+  min-width: 0;
+  align-items: center;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 2px 2px;
+  border: 0;
+  background: transparent;
+  color: rgba(255,255,255,.92);
+  cursor: pointer;
 }
-.home-dock small { color: rgba(230,237,230,.58); font-size: 8px; }
+.dock-icon { display: grid; width: 42px; height: 42px; place-items: center; border: 1px solid rgba(255,255,255,.17); border-radius: 13px; box-shadow: 0 5px 12px rgba(0,0,0,.25),inset 0 1px rgba(255,255,255,.16); font-size: 22px; }
+.dock-actions { background: linear-gradient(145deg,#65539c,#342c62); }
+.dock-vehicle { background: linear-gradient(145deg,#e85f56,#b73137); }
+.dock-lock { background: linear-gradient(145deg,#3b475c,#202838); }
+.home-dock small { font-size: 8px; font-weight: 650; text-shadow: 0 1px 4px #000; }
+
+.home-page-indicator { display: flex; flex: none; justify-content: center; gap: 9px; padding: 9px 0 10px; }
+.home-page-dot { width: 7px; height: 7px; padding: 0; border: 0; border-radius: 50%; background: rgba(226,234,249,.4); cursor: pointer; transition: background .18s ease, transform .18s ease; }
+.home-page-dot.is-active { background: #f2f5ff; box-shadow: 0 0 8px rgba(234,241,255,.55); transform: scale(1.16); }
+
+.quick-actions-overlay { position: absolute; z-index: 7; inset: 0; display: grid; align-items: end; padding: 15px 12px 18px; background: rgba(4,8,18,.58); backdrop-filter: blur(7px); }
+.quick-actions-panel { padding: 14px; border: 1px solid rgba(208,219,245,.17); border-radius: 17px; background: rgba(17,25,43,.94); box-shadow: 0 16px 36px rgba(0,0,0,.4); }
+.quick-actions-panel header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; color: #f2f5ff; font-size: 12px; }
+.quick-actions-panel header button { width: 26px; height: 26px; border: 0; border-radius: 50%; background: rgba(255,255,255,.1); color: #e7ebf7; cursor: pointer; font-size: 18px; line-height: 1; }
+.quick-actions-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 8px; }
+.quick-actions-grid button { display: flex; min-height: 46px; align-items: center; gap: 9px; padding: 7px; border: 1px solid rgba(255,255,255,.08); border-radius: 10px; background: rgba(255,255,255,.055); color: #ecf1ff; cursor: pointer; font-size: 9px; text-align: left; }
+.quick-actions-grid button > span { display: grid; width: 30px; height: 30px; flex: none; place-items: center; border-radius: 9px; background: rgba(147,171,235,.2); color: #dce5ff; font-size: 17px; }
 
 .app-screen { display: flex; flex-direction: column; }
 .app-header {
@@ -353,7 +430,10 @@ button { color: inherit; }
 .number-list { display: flex; flex-direction: column; gap: 8px; }
 .military-document-entry { display: flex; width: 100%; align-items: center; gap: 10px; color: inherit; text-align: left; cursor: pointer; }
 .military-document-entry:hover { border-color: rgba(201,243,107,.35); background: rgba(201,243,107,.08); }
-.military-document-entry-icon { display: grid; width: 38px; height: 38px; flex: none; place-items: center; border: 1px solid rgba(201,243,107,.2); border-radius: 12px; background: rgba(201,243,107,.1); color: var(--accent); font-size: 19px; }
+.military-document-entry-icon { display: grid; width: 38px; height: 38px; flex: none; place-items: center; border: 1px solid rgba(201,243,107,.2); border-radius: 10px; background: rgba(201,243,107,.1); color: var(--accent); box-shadow: inset 0 0 0 1px rgba(255,255,255,.025); }
+.military-document-entry-icon svg { display: block; width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.65; stroke-linecap: round; stroke-linejoin: round; }
+.military-ticket-icon { border-color: rgba(197,92,91,.3); background: rgba(197,92,91,.14); color: #d77f7e; }
+.medical-book-entry-icon { border-color: rgba(91,151,184,.3); background: rgba(91,151,184,.14); color: #8fc5e1; }
 .military-document-entry-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 4px; }
 .military-document-entry-copy strong { color: #f0f3ed; font-size: 11px; }
 .military-document-entry-copy small { color: var(--muted); font-size: 8px; }
@@ -532,6 +612,164 @@ button { color: inherit; }
 .driver-license-categories span { display: grid; width: clamp(23px,3.8vw,34px); height: clamp(23px,3.8vw,34px); place-items: center; border: 2px solid #25262c; background: rgba(255,255,255,.2); color: #25262c; font-size: clamp(12px,1.8vw,16px); font-weight: 800; }
 .driver-license-entry-icon { border-color: rgba(158,55,92,.24); background: rgba(158,55,92,.1); color: #a33a61; font-size: 15px; }
 .driver-license-overlay .driver-license-close:hover { background: rgba(255,255,255,.85); }
+.medical-book-overlay { position: fixed; z-index: 23; inset: 0; display: grid; place-items: center; padding: 12px; background: rgba(0,0,0,.035); }
+.medical-book-sheet {
+  position: relative;
+  width: min(920px, 88vw, 116vh);
+  aspect-ratio: 1.38;
+  overflow: hidden;
+  border: 1px solid rgba(75,111,161,.45);
+  background:
+    repeating-linear-gradient(0deg, transparent 0 24px, rgba(89,130,177,.055) 25px),
+    linear-gradient(110deg, #f8fbfc, #eaf3f8 49.8%, #dcebf4 50%, #f6f9fa);
+  box-shadow: 0 18px 48px rgba(0,0,0,.35), inset 0 0 0 5px rgba(255,255,255,.6);
+  color: #202a35;
+  font-family: "Segoe UI", Arial, sans-serif;
+}
+.medical-book-sheet::before { position: absolute; z-index: 1; inset: 8px; border: 1px solid rgba(76,124,170,.2); content: ""; pointer-events: none; }
+.medical-book-close { position: absolute; z-index: 3; top: 2%; right: 2%; display: grid; width: 28px; height: 28px; place-items: center; border: 0; border-radius: 50%; background: rgba(255,255,255,.75); color: #536578; cursor: pointer; font: 22px/1 "Segoe UI",Arial,sans-serif; }
+.medical-book-close:hover { background: #fff; }
+.medical-book-spread { position: relative; z-index: 2; display: grid; height: 100%; grid-template-columns: 1fr 1fr; }
+.medical-book-page { position: relative; display: flex; min-width: 0; flex-direction: column; padding: 4%; }
+.medical-book-page-details { align-items: flex-end; border-left: 1px solid rgba(64,105,149,.25); box-shadow: inset 8px 0 16px -16px rgba(18,42,66,.5); }
+.medical-book-page-owner h1 { margin: 0; color: #263547; font: 800 clamp(16px,2.6vw,27px)/1.08 Georgia,"Times New Roman",serif; text-align: center; }
+.medical-book-caption { margin: 5% 0 1%; color: #435163; font: clamp(9px,1.45vw,14px) Georgia,"Times New Roman",serif; }
+.medical-book-owner-fields { border-top: 1px solid rgba(74,105,142,.17); }
+.medical-book-owner-fields > div { display: grid; min-height: clamp(28px,4.2vw,42px); grid-template-columns: 35% 1fr; align-items: center; gap: 5px; border-bottom: 1px solid rgba(74,105,142,.17); font: clamp(10px,1.7vw,16px) Georgia,"Times New Roman",serif; }
+.medical-book-owner-fields span { color: #536477; }
+.medical-book-owner-fields strong { color: #172331; font: 750 clamp(13px,2.2vw,20px) "Segoe UI",Arial,sans-serif; text-align: center; }
+.medical-book-examination { display: flex; flex: 0 0 auto; flex-direction: column; justify-content: center; margin-top: 4%; padding: 3.5%; border: 2px solid #416fb3; color: #315d9f; }
+.medical-book-oms { display: flex; align-items: center; gap: 6px; margin-bottom: 2%; font-size: clamp(8px,1.35vw,13px); }
+.medical-book-oms span { display: grid; width: clamp(20px,3.2vw,30px); height: clamp(20px,3.2vw,30px); place-items: center; border: 2px solid currentColor; border-radius: 50%; font-size: 14px; font-weight: 800; }
+.medical-book-exam-field { display: grid; min-height: clamp(21px,3.5vw,36px); grid-template-columns: 43% 1fr; align-items: center; border-bottom: 1px solid rgba(54,94,153,.65); color: #405f8b; font: clamp(8px,1.3vw,13px) "Segoe UI",Arial,sans-serif; }
+.medical-book-exam-field strong { color: #202c3a; font: 500 clamp(11px,1.8vw,17px) "Segoe UI",Arial,sans-serif; text-align: center; white-space: nowrap; }
+.medical-book-status { margin-top: clamp(6px,1vw,10px); padding-top: 1%; color: #15509c; font: 900 clamp(16px,3.2vw,30px)/1 "Segoe UI",Arial,sans-serif; text-align: center; white-space: nowrap; }
+.medical-book-code { display: grid; width: min(96%,260px); height: clamp(90px,20%,162px); grid-template-columns: 1fr .38fr 18px; align-items: center; gap: 4%; margin: 3% 2% 0 0; padding: 4%; border: 1px solid rgba(51,143,194,.35); background: linear-gradient(90deg,rgba(236,249,253,.95),rgba(189,228,242,.85)); box-shadow: 0 2px 7px rgba(47,93,124,.12); }
+.medical-book-qr { width: min(100%,112px); max-height: 100%; justify-self: center; shape-rendering: crispEdges; }
+.medical-book-barcode { width: 100%; max-height: 100%; padding: 3px; background: rgba(255,255,255,.75); }
+.medical-book-serial { align-self: stretch; justify-self: center; color: #33475b; font: 700 clamp(7px,.9vw,10px) "Segoe UI",Arial,sans-serif; letter-spacing: .04em; writing-mode: vertical-rl; }
+.medical-book-seal { display: grid; width: clamp(58px,9vw,92px); height: clamp(58px,9vw,92px); flex: none; place-items: center; margin: auto 1% 2% 0; border: 3px double rgba(41,94,164,.74); border-radius: 50%; color: rgba(39,87,154,.8); text-align: center; transform: rotate(-15deg); }
+.medical-book-seal span { max-width: 75%; font: 700 clamp(5px,.75vw,8px)/1.1 "Segoe UI",Arial,sans-serif; letter-spacing: .05em; }
+.medical-book-seal strong { font: 800 clamp(19px,3vw,29px)/.8 "Segoe UI",Arial,sans-serif; }
+.medical-book-agency { max-width: 90%; margin: 0 0 1%; color: #455462; font: clamp(7px,1.1vw,11px)/1.2 Georgia,"Times New Roman",serif; text-align: right; }
+.police-id-overlay { position: fixed; z-index: 24; inset: 0; display: grid; place-items: center; padding: 12px; background: rgba(0,0,0,.04); }
+.police-id-sheet { position: relative; width: min(980px,90vw,140vh); aspect-ratio: 3.05; overflow: hidden; border: 8px solid #6d2830; border-radius: 7px; background: linear-gradient(135deg,#812e37,#501a23); box-shadow: 0 18px 48px rgba(0,0,0,.4),inset 0 0 0 2px rgba(255,230,218,.35); color: #292a2d; font-family: "Segoe UI",Arial,sans-serif; }
+.police-id-close { position: absolute; z-index: 4; top: 1%; right: 1%; display: grid; width: 26px; height: 26px; place-items: center; border: 0; border-radius: 50%; background: rgba(255,255,255,.82); color: #5b3135; cursor: pointer; font: 22px/1 "Segoe UI",Arial,sans-serif; }
+.police-id-spread { display: grid; height: 100%; grid-template-columns: 1fr 1fr; gap: 5px; padding: 5px; }
+.police-id-page { position: relative; min-width: 0; overflow: hidden; border: 1px solid rgba(151,134,119,.4); background: linear-gradient(145deg,#fffefa,#f5f2eb); }
+.police-id-front { display: grid; grid-template-columns: 36% 1fr; grid-template-rows: 1fr auto; gap: 3% 6%; padding: 4%; }
+.police-id-photo { display: flex; width: 100%; height: 84%; max-height: 180px; align-self: center; flex-direction: column; justify-content: flex-end; overflow: hidden; border: 1px solid rgba(85,82,73,.3); background: linear-gradient(150deg,#e1e2de,#b9bdbb); color: #60605d; text-align: center; }
+.police-id-photo svg { width: 90%; height: 88%; align-self: center; fill: #3d4142; }
+.police-id-photo span { padding: 2px; background: rgba(255,255,255,.6); font-size: 7px; letter-spacing: .1em; }
+.police-id-emblem { position: absolute; top: 7%; left: 55%; width: clamp(35px,6vw,65px); height: clamp(30px,5vw,54px); }
+.police-id-emblem svg { width: 100%; height: 100%; fill: #c3a04d; stroke: #e1cc86; stroke-width: 1.5; }
+.police-id-front-title { display: flex; min-width: 0; align-self: center; flex-direction: column; gap: 3px; padding-top: 15%; }
+.police-id-front-title h2 { margin: 0 0 7%; color: #a44c50; font: 800 clamp(15px,2.4vw,25px) Georgia,"Times New Roman",serif; text-align: center; }
+.police-id-front-title span { color: #55504a; font: clamp(8px,1.15vw,12px) Georgia,"Times New Roman",serif; }
+.police-id-front-title strong { color: #7d272e; font: 800 clamp(14px,2vw,21px) Georgia,"Times New Roman",serif; }
+.police-id-issued { display: grid; grid-column: 1 / -1; grid-template-columns: 34% 1fr; align-items: center; gap: 8px; padding: 1% 0 2px; border-bottom: 1px solid rgba(83,79,72,.5); font: clamp(8px,1.1vw,12px) Georgia,"Times New Roman",serif; }
+.police-id-issued strong { color: #202329; font: 800 clamp(13px,1.9vw,20px) "Segoe UI",Arial,sans-serif; text-align: center; }
+.police-id-back { display: flex; align-items: center; flex-direction: column; padding: 3% 8% 3% 5%; text-align: center; }
+.police-id-back header { width: 100%; padding: 0 2% 2%; border-bottom: 1px solid rgba(104,87,73,.45); color: #87373c; font: 800 clamp(8px,1.25vw,13px)/1.08 Georgia,"Times New Roman",serif; }
+.police-id-back > p { margin: 2% 0; color: #34363a; font: 700 clamp(7px,1vw,10px)/1.1 Georgia,"Times New Roman",serif; }
+.police-id-document-number { width: 100%; margin: 1% 0; padding: 1.5% 0; border-top: 1px solid rgba(83,79,72,.45); border-bottom: 1px solid rgba(83,79,72,.45); color: #4a4641; font: 700 clamp(7px,1vw,10px)/1.1 Georgia,"Times New Roman",serif; }
+.police-id-rank { margin-top: 1%; color: #45413d; font: 700 clamp(9px,1.35vw,14px) "Segoe UI",Arial,sans-serif; }
+.police-id-name { margin-top: 1%; color: #1d2228; font: 900 clamp(12px,2vw,21px)/1.05 "Segoe UI",Arial,sans-serif; text-transform: uppercase; }
+.police-id-position { display: flex; max-width: 94%; flex-wrap: wrap; justify-content: center; gap: 4px; margin-top: 1.5%; font: clamp(7px,1vw,10px) Georgia,"Times New Roman",serif; }
+.police-id-position strong { color: #393734; text-decoration: underline; text-underline-offset: 2px; }
+.police-id-note { margin-top: auto; padding-top: 2%; color: #625e58; font: clamp(6px,.8vw,8px)/1.1 Georgia,"Times New Roman",serif; }
+.police-id-barcode { position: absolute; top: 13%; right: 2%; width: clamp(11px,1.8vw,19px); height: 70%; fill: #38383a; }
+.police-id-seal { position: absolute; right: 7%; bottom: 7%; display: flex; width: clamp(43px,7vw,72px); height: clamp(43px,7vw,72px); align-items: center; flex-direction: column; justify-content: center; border: 3px double rgba(159,47,50,.72); border-radius: 50%; color: rgba(153,45,49,.78); transform: rotate(-17deg); }
+.police-id-seal span, .police-id-seal small { font: 700 clamp(4px,.6vw,7px)/1 "Segoe UI",Arial,sans-serif; letter-spacing: .04em; }
+.police-id-seal strong { font: 800 clamp(15px,2.4vw,25px)/.9 Georgia,serif; }
+.police-id-entry-icon { border-color: rgba(197,92,91,.25); background: rgba(197,92,91,.12); color: #c86464; font-size: 16px; }
+.police-id-overlay .police-id-close:hover { background: #fff; }
+.official-document-fsin-entry .military-document-entry-icon { border-color: rgba(184,69,75,.3); background: rgba(184,69,75,.12); color: #db8084; }
+.official-document-fsb-entry .military-document-entry-icon { border-color: rgba(76,101,142,.3); background: rgba(76,101,142,.14); color: #91a9d2; }
+.official-document-health-entry .military-document-entry-icon { border-color: rgba(91,151,184,.3); background: rgba(91,151,184,.14); color: #8fc5e1; }
+.official-document-government-entry .military-document-entry-icon { border-color: rgba(190,164,92,.3); background: rgba(190,164,92,.12); color: #dec77e; }
+.official-document-weapon-entry .military-document-entry-icon { border-color: rgba(111,145,194,.3); background: rgba(111,145,194,.14); color: #a4bee5; }
+.official-document-registration-entry .military-document-entry-icon { border-color: rgba(197,92,91,.25); background: rgba(197,92,91,.12); color: #d78a8c; }
+.official-document-overlay { position: fixed; z-index: 26; inset: 0; display: grid; place-items: center; padding: 18px; background: rgba(0,0,0,.2); }
+.official-document-container { position: relative; width: min(940px,94vw,132vh); }
+.official-document-container[data-document="fsin"],
+.official-document-container[data-document="fsb"],
+.official-document-container[data-document="health"],
+.official-document-container[data-document="government"] { width: min(980px,90vw,140vh); }
+.official-document-container[data-document="fsin"] .official-document-service,
+.official-document-container[data-document="fsb"] .official-document-service,
+.official-document-container[data-document="health"] .official-document-service,
+.official-document-container[data-document="government"] .official-document-service { aspect-ratio: 3.05; }
+.official-document-container[data-document="registration"] { width: min(620px,86vw,62vh); }
+.official-document-close { position: absolute; z-index: 5; top: 10px; right: 10px; display: grid; width: 30px; height: 30px; place-items: center; border: 1px solid rgba(54,48,42,.22); border-radius: 50%; background: rgba(255,255,255,.82); color: #423c35; cursor: pointer; font: 22px/1 "Segoe UI",Arial,sans-serif; }
+.official-document-sheet { position: relative; width: 100%; aspect-ratio: 1.72; overflow: hidden; border: 7px solid #6d2830; background: #752b34; box-shadow: 0 18px 48px rgba(0,0,0,.42),inset 0 0 0 2px rgba(255,255,255,.24); color: #25272a; font-family: "Segoe UI",Arial,sans-serif; }
+.official-document-service-spread { display: grid; height: 100%; grid-template-columns: 1fr 1fr; gap: 5px; padding: 5px; background: linear-gradient(135deg,#812e37,#501a23); }
+.official-document-service-page { position: relative; min-width: 0; overflow: hidden; border: 1px solid rgba(151,134,119,.4); background: linear-gradient(145deg,#fffefa,#f5f2eb); }
+.official-document-service-front { display: grid; grid-template-columns: 34% 1fr; grid-template-rows: 1fr auto; gap: 3% 6%; padding: 4%; }
+.official-document-portrait { display: flex; width: 100%; height: 82%; max-height: 220px; align-self: center; align-items: center; flex-direction: column; justify-content: flex-end; overflow: hidden; border: 1px solid rgba(85,82,73,.3); background: linear-gradient(150deg,#e1e2de,#b9bdbb); color: #66625d; }
+.official-document-portrait svg { width: 90%; height: 88%; fill: #3d4142; }
+.official-document-portrait span { padding: 2px 4px; background: rgba(255,255,255,.7); font-size: clamp(6px,.75vw,9px); letter-spacing: .1em; }
+.official-document-emblem { position: absolute; top: 7%; left: 52%; display: grid; width: clamp(34px,6vw,66px); height: clamp(34px,6vw,66px); place-items: center; color: #c3a04d; font-size: clamp(28px,4vw,47px); text-shadow: 0 1px 0 #f3e5b3; }
+.official-document-brand { display: flex; min-width: 0; align-self: center; flex-direction: column; gap: 4px; padding-top: 15%; }
+.official-document-brand > strong { margin-bottom: 7%; color: var(--official-accent,#a44c50); font: 800 clamp(12px,1.9vw,22px)/1.08 Georgia,"Times New Roman",serif; text-align: center; }
+.official-document-brand > span { color: #55504a; font: clamp(8px,1.05vw,12px) Georgia,"Times New Roman",serif; }
+.official-document-brand > b { color: #7d272e; font: 800 clamp(12px,1.75vw,20px) Georgia,"Times New Roman",serif; }
+.official-document-issued { display: grid; grid-column: 1 / -1; grid-template-columns: 34% 1fr; align-items: center; gap: 8px; padding: 1% 0 2px; border-bottom: 1px solid rgba(83,79,72,.5); font: clamp(8px,1.1vw,12px) Georgia,"Times New Roman",serif; }
+.official-document-issued strong { color: #202329; font: 800 clamp(12px,1.8vw,20px) "Segoe UI",Arial,sans-serif; text-align: center; }
+.official-document-service-back { display: flex; align-items: center; flex-direction: column; padding: 3% 9% 3% 5%; text-align: center; }
+.official-document-service-back header { width: 100%; padding: 0 2% 2%; border-bottom: 1px solid rgba(104,87,73,.45); color: var(--official-accent,#87373c); font: 800 clamp(7px,1.05vw,12px)/1.1 Georgia,"Times New Roman",serif; }
+.official-document-number { width: 100%; margin: 2% 0; padding: 1.5% 0; border-top: 1px solid rgba(83,79,72,.45); border-bottom: 1px solid rgba(83,79,72,.45); color: #4a4641; font: 700 clamp(6px,.9vw,10px)/1.1 Georgia,"Times New Roman",serif; }
+.official-document-rank { margin-top: 1%; color: #45413d; font: 700 clamp(8px,1.2vw,14px) "Segoe UI",Arial,sans-serif; }
+.official-document-name { margin-top: 1%; color: #1d2228; font: 900 clamp(11px,1.8vw,20px)/1.05 "Segoe UI",Arial,sans-serif; overflow-wrap: anywhere; }
+.official-document-position { display: flex; max-width: 94%; flex-wrap: wrap; justify-content: center; gap: 4px; margin-top: 1.5%; font: clamp(6px,.9vw,10px) Georgia,"Times New Roman",serif; }
+.official-document-position strong { color: #393734; text-decoration: underline; text-underline-offset: 2px; }
+.official-document-valid { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; margin-top: 2%; font: clamp(6px,.85vw,9px) Georgia,"Times New Roman",serif; }
+.official-document-service-back > small { width: calc(100% - 25px); margin-top: auto; padding-top: 2%; color: #625e58; font: clamp(5px,.7vw,8px)/1.1 Georgia,"Times New Roman",serif; }
+.official-document-barcode { position: absolute; top: 14%; right: 2%; width: clamp(9px,1.4vw,16px); height: 65%; background: repeating-linear-gradient(90deg,#28292a 0 1px,transparent 1px 3px,#28292a 3px 5px,transparent 5px 7px); }
+.official-document-stamp { position: absolute; right: 7%; bottom: 6%; display: flex; width: clamp(38px,6vw,66px); height: clamp(38px,6vw,66px); align-items: center; flex-direction: column; justify-content: center; border: 3px double rgba(159,47,50,.72); border-radius: 50%; color: rgba(153,45,49,.78); font-size: clamp(14px,2vw,24px); transform: rotate(-17deg); }
+.official-document-stamp small { font: 700 clamp(4px,.55vw,7px)/1 "Segoe UI",Arial,sans-serif; letter-spacing: .04em; }
+.official-document-fsin { --official-accent: #a14349; }
+.official-document-fsb { --official-accent: #4d658d; }
+.official-document-health { --official-accent: #397898; border-color: #244b64; }
+.official-document-government { --official-accent: #8c7441; border-color: #70603f; }
+.official-document-fsb .official-document-stamp, .official-document-health .official-document-stamp { border-color: rgba(55,105,159,.75); color: rgba(48,96,152,.8); }
+.official-document-government .official-document-service-spread { background: linear-gradient(135deg,#857044,#51442b); }
+.official-document-health .official-document-service-spread { background: linear-gradient(135deg,#416e85,#254457); }
+.official-document-fsb .official-document-service-spread { background: linear-gradient(135deg,#475b7a,#28374f); }
+.official-document-weapon { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid rgba(70,102,148,.38); background: repeating-radial-gradient(ellipse at 60% 40%,transparent 0 17px,rgba(74,114,169,.06) 18px 19px,transparent 20px 25px),linear-gradient(120deg,#f8fbff,#e6eef7); }
+.weapon-permit-page { position: relative; display: flex; min-width: 0; flex-direction: column; padding: 5%; color: #283548; }
+.weapon-permit-page + .weapon-permit-page { border-left: 1px solid rgba(70,102,148,.35); }
+.weapon-permit-page header { color: #344b6c; font: 800 clamp(11px,1.7vw,19px)/1.15 Georgia,"Times New Roman",serif; text-align: center; }
+.weapon-permit-fields { margin-top: 5%; border-top: 1px solid rgba(65,92,129,.35); }
+.weapon-permit-fields > div, .residency-profile > div > div { display: grid; min-height: clamp(30px,4.5vw,47px); grid-template-columns: 32% 1fr; align-items: center; gap: 6px; border-bottom: 1px solid rgba(65,92,129,.35); }
+.weapon-permit-fields span, .residency-profile span { color: #52657e; font: clamp(9px,1.2vw,13px) Georgia,"Times New Roman",serif; }
+.weapon-permit-fields strong, .residency-profile strong { color: #1e2a39; font: 750 clamp(12px,1.8vw,19px) "Segoe UI",Arial,sans-serif; text-align: center; overflow-wrap: anywhere; }
+.weapon-permit-page > p { width: calc(100% - 82px); margin: auto 0 0; color: #526174; font: clamp(7px,1vw,11px)/1.4 Georgia,"Times New Roman",serif; }
+.weapon-permit-seal, .weapon-permit-stamp { display: flex; width: clamp(46px,7vw,76px); height: clamp(46px,7vw,76px); align-items: center; flex-direction: column; justify-content: center; border: 3px double rgba(51,99,164,.72); border-radius: 50%; color: rgba(45,91,157,.8); font-size: clamp(17px,2.4vw,27px); transform: rotate(-14deg); }
+.weapon-permit-seal { position: absolute; right: 8%; bottom: 7%; }
+.weapon-permit-seal small { font: 700 clamp(5px,.7vw,8px) "Segoe UI",Arial,sans-serif; }
+.weapon-permit-issued { gap: 6%; }
+.weapon-permit-issued header { margin: 4% 0; }
+.weapon-permit-issued > div:not(.weapon-permit-stamp) { display: grid; min-width: 0; grid-template-columns: 40% 1fr; align-items: center; gap: 6px; padding: 3% 0; border-bottom: 1px solid rgba(65,92,129,.42); font: clamp(8px,1.15vw,13px) Georgia,"Times New Roman",serif; }
+.weapon-permit-issued > div strong { color: #202a37; font: 750 clamp(10px,1.5vw,16px) "Segoe UI",Arial,sans-serif; text-align: center; }
+.weapon-permit-issued .weapon-permit-signature { display: flex; max-width: 62%; align-items: flex-start; flex-direction: column; gap: 4px; margin-top: auto; color: #526174; }
+.weapon-permit-issued .weapon-permit-signature strong { width: 100%; font: 500 clamp(8px,1vw,11px) "Segoe Script",cursive; text-align: left; overflow-wrap: anywhere; }
+.weapon-permit-stamp { position: absolute; right: 7%; bottom: 7%; }
+.weapon-permit-issued .weapon-permit-stamp { font: 800 clamp(6px,.75vw,9px)/1.15 "Segoe UI",Arial,sans-serif; letter-spacing: .03em; text-align: center; }
+.official-document-container[data-document="registration"] .official-document-sheet { aspect-ratio: .72; border: 1px solid rgba(151,105,105,.42); border-radius: 17px; background: repeating-linear-gradient(0deg,transparent 0 25px,rgba(135,91,91,.07) 26px),linear-gradient(150deg,#fffdf9,#f2e8e2); box-shadow: 0 18px 48px rgba(0,0,0,.42),inset 0 0 0 7px rgba(168,86,98,.12); color: #49353a; }
+.residency-heading { margin: 6% 6% 4%; color: #945463; font: 800 clamp(15px,2.4vw,25px) Georgia,"Times New Roman",serif; letter-spacing: .28em; text-align: center; }
+.residency-issued { display: grid; grid-template-columns: 35% 1fr; align-items: center; gap: 8px; margin: 0 6%; padding: 3% 0; border-bottom: 1px solid rgba(142,90,102,.45); font: clamp(10px,1.45vw,15px) Georgia,"Times New Roman",serif; }
+.residency-issued strong, .residency-dates strong { color: #28252a; font: 800 clamp(13px,1.8vw,19px) "Segoe UI",Arial,sans-serif; text-align: center; }
+.residency-dates { display: flex; flex-direction: column; gap: 3%; margin: 2% 6%; }
+.residency-dates > div { display: grid; min-height: clamp(32px,5vw,53px); grid-template-columns: 45% 1fr; align-items: center; gap: 6px; border-bottom: 1px solid rgba(142,90,102,.4); font: clamp(9px,1.25vw,13px) Georgia,"Times New Roman",serif; }
+.residency-seal { position: absolute; top: 37%; left: 36%; display: flex; width: clamp(56px,8vw,82px); height: clamp(56px,8vw,82px); align-items: center; flex-direction: column; justify-content: center; border: 3px double rgba(162,68,85,.7); border-radius: 50%; color: rgba(162,68,85,.72); font-size: 25px; transform: rotate(-18deg); }
+.residency-seal small { font: 700 clamp(5px,.7vw,8px) "Segoe UI",Arial,sans-serif; }
+.residency-profile { display: grid; grid-template-columns: 31% 1fr; gap: 5%; margin: 5% 6% 0; }
+.residency-profile .official-document-portrait { height: clamp(110px,21vh,190px); }
+.residency-profile > div:last-child { align-self: end; }
+.residency-profile > div > div { grid-template-columns: 25% 1fr; min-height: clamp(31px,4.4vw,46px); }
+.residency-profile strong { text-align: left; }
+.official-document-container[data-document="registration"] .official-document-sheet footer { position: absolute; right: 6%; bottom: 3%; left: 6%; color: #835460; font: 700 clamp(7px,.9vw,10px) "Segoe UI",Arial,sans-serif; letter-spacing: .15em; text-align: center; }
 .prisoner-file-overlay { position: fixed; z-index: 21; inset: 0; display: grid; place-items: center; padding: 18px; background: rgba(5,9,7,.18); }
 .prisoner-file-sheet {
   position: relative;
@@ -642,6 +880,104 @@ button { color: inherit; }
   .driver-license-categories { gap: 3px; }
   .driver-license-categories > b { margin-right: 2px; }
   .driver-license-categories span { width: clamp(20px,5vw,27px); height: clamp(20px,5vw,27px); border-width: 1px; }
+  .medical-book-overlay { padding: 8px; }
+  .medical-book-sheet { width: min(94vw,94vh); max-height: calc(100vh - 16px); aspect-ratio: 1; }
+  .medical-book-page { padding: 5% 4%; }
+  .medical-book-page-owner h1 { font-size: clamp(10px,2.8vw,15px); }
+  .medical-book-caption { margin-top: 4%; font-size: clamp(7px,1.9vw,9px); }
+  .medical-book-owner-fields > div { min-height: clamp(22px,6vw,29px); grid-template-columns: 32% 1fr; gap: 2px; font-size: clamp(8px,2.2vw,10px); }
+  .medical-book-owner-fields strong { font-size: clamp(10px,2.8vw,13px); }
+  .medical-book-examination { margin-top: 4%; padding: 3%; border-width: 1px; }
+  .medical-book-oms { gap: 3px; margin-bottom: 2%; font-size: clamp(6px,1.8vw,8px); white-space: nowrap; }
+  .medical-book-oms span { width: 17px; height: 17px; border-width: 1px; font-size: 10px; }
+  .medical-book-exam-field { min-height: clamp(17px,4.6vw,21px); grid-template-columns: 43% 1fr; font-size: clamp(6px,1.8vw,8px); }
+  .medical-book-exam-field strong { font-size: clamp(8px,2.2vw,10px); }
+  .medical-book-status { margin-top: 4px; padding-top: 1%; font-size: clamp(9px,2.8vw,12px); }
+  .medical-book-code { width: 100%; height: 27%; grid-template-columns: 1fr .35fr 12px; gap: 3%; margin: 4% 0 0; padding: 4% 3%; }
+  .medical-book-qr { width: min(100%,56px); }
+  .medical-book-barcode { padding: 2px; }
+  .medical-book-serial { font-size: 6px; }
+  .medical-book-seal { width: clamp(40px,11vw,49px); height: clamp(40px,11vw,49px); margin-bottom: 4%; border-width: 2px; }
+  .medical-book-seal span { font-size: 4px; }
+  .medical-book-seal strong { font-size: 15px; }
+  .medical-book-agency { font-size: clamp(5px,1.55vw,6px); }
+  .police-id-overlay { padding: 8px; }
+  .police-id-sheet { width: min(94vw,94vh); max-height: calc(100vh - 16px); aspect-ratio: 2.5; border-width: 5px; }
+  .police-id-close { width: 22px; height: 22px; font-size: 18px; }
+  .police-id-spread { gap: 3px; padding: 3px; }
+  .police-id-front { grid-template-columns: 35% 1fr; gap: 2% 5%; padding: 4%; }
+  .police-id-photo { height: 78%; max-height: 120px; }
+  .police-id-photo span { padding: 1px; font-size: 5px; }
+  .police-id-emblem { top: 6%; left: 54%; width: 34px; height: 28px; }
+  .police-id-front-title { gap: 2px; padding-top: 16%; }
+  .police-id-front-title h2 { margin-bottom: 5%; font-size: clamp(10px,2.8vw,12px); }
+  .police-id-front-title span { font-size: clamp(6px,1.8vw,8px); }
+  .police-id-front-title strong { font-size: clamp(8px,2.5vw,11px); }
+  .police-id-issued { grid-template-columns: 34% 1fr; gap: 3px; font-size: clamp(6px,1.8vw,8px); }
+  .police-id-issued strong { font-size: clamp(9px,2.7vw,12px); }
+  .police-id-back { padding: 4% 9% 4% 4%; }
+  .police-id-back header { font-size: clamp(6px,1.8vw,8px); }
+  .police-id-back > p { font-size: clamp(5px,1.5vw,7px); }
+  .police-id-document-number { font-size: clamp(5px,1.5vw,7px); }
+  .police-id-rank { font-size: clamp(7px,2vw,9px); }
+  .police-id-name { max-width: 100%; font-size: clamp(8px,2.7vw,11px); overflow-wrap: anywhere; }
+  .police-id-position { max-width: 100%; gap: 2px; font-size: clamp(5px,1.5vw,7px); }
+  .police-id-note { font-size: 5px; }
+  .police-id-barcode { width: 10px; }
+  .police-id-note { width: calc(100% - 30px); align-self: flex-start; font-size: 5px; }
+  .police-id-seal { right: 5%; bottom: 5%; width: 30px; height: 30px; border-width: 2px; }
+  .police-id-seal span, .police-id-seal small { font-size: 4px; }
+  .police-id-seal strong { font-size: 15px; }
+  .official-document-overlay { padding: 8px; }
+  .official-document-container { width: min(96vw,94vh); }
+  .official-document-container[data-document="registration"] { width: min(90vw,64vh); }
+  .official-document-close { top: 5px; right: 5px; width: 23px; height: 23px; font-size: 18px; }
+  .official-document-sheet { aspect-ratio: 1; border-width: 4px; }
+  .official-document-service-spread { gap: 3px; padding: 3px; }
+  .official-document-service-front { grid-template-columns: 31% 1fr; gap: 2% 4%; padding: 4%; }
+  .official-document-portrait { height: 76%; }
+  .official-document-portrait span { font-size: 5px; }
+  .official-document-emblem { width: 30px; height: 30px; font-size: 25px; }
+  .official-document-brand { gap: 2px; padding-top: 16%; }
+  .official-document-brand > strong { font-size: clamp(8px,2.2vw,11px); }
+  .official-document-brand > span { font-size: clamp(6px,1.6vw,8px); }
+  .official-document-brand > b { font-size: clamp(8px,2vw,11px); }
+  .official-document-issued { grid-template-columns: 34% 1fr; gap: 3px; font-size: clamp(6px,1.5vw,8px); }
+  .official-document-issued strong { font-size: clamp(8px,2vw,11px); }
+  .official-document-service-back { padding: 4% 9% 4% 4%; }
+  .official-document-service-back header { font-size: clamp(7px,1.8vw,9px); }
+  .official-document-number { font-size: clamp(6px,1.6vw,8px); }
+  .official-document-rank { font-size: clamp(7px,1.9vw,9px); }
+  .official-document-name { font-size: clamp(9px,2.4vw,12px); }
+  .official-document-position, .official-document-valid { gap: 2px; font-size: clamp(6px,1.6vw,8px); }
+  .official-document-service-back > small { font-size: 4px; }
+  .official-document-barcode { width: 8px; }
+  .official-document-stamp { right: 5%; bottom: 5%; width: 30px; height: 30px; border-width: 2px; font-size: 13px; }
+  .official-document-stamp small { font-size: 4px; }
+  .official-document-weapon { aspect-ratio: 1.05; }
+  .weapon-permit-page { padding: 5% 4%; }
+  .weapon-permit-page header { font-size: clamp(10px,2.5vw,13px); }
+  .weapon-permit-fields > div, .residency-profile > div > div { min-height: clamp(22px,6vw,29px); }
+  .weapon-permit-fields span, .residency-profile span { font-size: clamp(8px,2vw,10px); }
+  .weapon-permit-fields strong, .residency-profile strong { font-size: clamp(10px,2.5vw,13px); }
+  .weapon-permit-page > p { width: calc(100% - 46px); font-size: clamp(6px,1.5vw,8px); }
+  .weapon-permit-seal, .weapon-permit-stamp { width: 39px; height: 39px; border-width: 2px; font-size: 16px; }
+  .weapon-permit-seal small { font-size: 4px; }
+  .weapon-permit-issued { gap: 3%; }
+  .weapon-permit-issued header { margin: 3% 0; }
+  .weapon-permit-issued > div:not(.weapon-permit-stamp) { grid-template-columns: 39% 1fr; gap: 3px; font-size: clamp(7px,1.8vw,9px); }
+  .weapon-permit-issued > div strong { font-size: clamp(8px,2vw,10px); }
+  .weapon-permit-issued .weapon-permit-signature { max-width: 59%; }
+  .weapon-permit-issued .weapon-permit-signature strong { font-size: 6px; }
+  .weapon-permit-issued .weapon-permit-stamp { font-size: 5px; }
+  .residency-heading { font-size: clamp(12px,3vw,16px); }
+  .residency-issued { grid-template-columns: 34% 1fr; font-size: clamp(8px,2vw,10px); }
+  .residency-issued strong, .residency-dates strong { font-size: clamp(10px,2.4vw,13px); }
+  .residency-dates > div { min-height: clamp(27px,7vw,36px); font-size: clamp(7px,1.8vw,9px); }
+  .residency-profile { grid-template-columns: 29% 1fr; gap: 4%; margin-top: 4%; }
+  .residency-profile .official-document-portrait { height: clamp(90px,18vh,130px); }
+  .residency-profile > div > div { grid-template-columns: 24% 1fr; }
+  .official-document-container[data-document="registration"] .official-document-sheet footer { font-size: 6px; }
   .prisoner-file-overlay { padding: 8px; }
   .prisoner-file-sheet { width: 94vw; max-height: calc(100vh - 16px); grid-template-columns: 1fr; aspect-ratio: auto; overflow-y: auto; }
   .prisoner-file-page { min-height: 390px; padding: 18px; }
@@ -969,16 +1305,23 @@ button { color: inherit; }
 }
 
 @media (max-height: 760px) {
-  .home-date { margin-bottom: 24px; }
-  .app-grid { gap: 16px 7px; }
-  .home-dock { padding-top: 14px; }
+  .home-date { min-height: 104px; margin-bottom: 7px; }
+  .app-grid { gap: 8px 7px; }
+  .home-page-indicator { padding-top: 7px; padding-bottom: 8px; }
+  .home-dock { gap: 7px; padding: 8px 6px 4px; }
+  .dock-icon { width: 38px; height: 38px; }
 }
 
 @media (max-height: 650px) {
   .home-screen { padding-top: 14px; }
-  .home-date { margin-top: 4px; margin-bottom: 19px; }
+  .home-date { min-height: 84px; margin-top: 3px; margin-bottom: 5px; }
   .home-date h1 { font-size: 45px; }
-  .app-grid { gap: 15px 7px; }
+  .home-clock-widget { width: 54px; height: 54px; }
+  .home-clock-widget::after { top: 13px; height: 15px; }
+  .app-grid { gap: 6px 7px; }
   .app-icon > span { width: 49px; height: 49px; border-radius: 15px; }
-  .home-dock { padding-top: 12px; }
+  .app-icon small { font-size: 8px; }
+  .home-page-indicator { padding: 5px 0 6px; }
+  .home-dock { gap: 5px; padding: 6px 5px 3px; }
+  .dock-icon { width: 34px; height: 34px; }
 }

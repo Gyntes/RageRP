@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const Inventory = require('./inventory');
 
 const dataDirectory = path.join(__dirname, 'data');
 const accountsFile = path.join(dataDirectory, 'accounts.json');
@@ -9,6 +10,8 @@ const previewUpdates = new Map();
 const previewGenders = new Map();
 const rotationUpdates = new Map();
 const openPhones = new Set();
+const openInventories = new Set();
+const inventoryActionCooldowns = new Map();
 const phoneMessageCooldowns = new Map();
 const phoneAdCooldowns = new Map();
 const taxiRequestCooldowns = new Map();
@@ -37,6 +40,12 @@ const allowedFactions = new Map([
 ]);
 const justiceAdminStaticIds = new Set(
   String(process.env.RAGERP_JUSTICE_ADMIN_IDS || '')
+    .split(',')
+    .map((staticId) => staticId.trim())
+    .filter((staticId) => /^\d{3}-\d{3}$/.test(staticId))
+);
+const inventoryAdminStaticIds = new Set(
+  String(process.env.RAGERP_INVENTORY_ADMIN_IDS || '')
     .split(',')
     .map((staticId) => staticId.trim())
     .filter((staticId) => /^\d{3}-\d{3}$/.test(staticId))
@@ -130,6 +139,240 @@ function getAccount(player) {
 
 function characterFor(player) {
   return getAccount(player).character;
+}
+
+function ensureCharacterInventory(character) {
+  const previous = JSON.stringify(character.inventory);
+  const inventory = Inventory.normalizeInventory(character.inventory);
+  character.inventory = inventory;
+  if (previous !== JSON.stringify(inventory)) saveAccounts();
+  return inventory;
+}
+
+function inventoryStateFor(player) {
+  const account = getAccount(player);
+  const character = account.character;
+  if (!character) return null;
+
+  const inventory = ensureCharacterInventory(character);
+  const previousEquipment = JSON.stringify(inventory.equipment);
+  updateEquippedWeaponAmmo(player, inventory);
+  if (previousEquipment !== JSON.stringify(inventory.equipment)) saveAccounts();
+  return {
+    staticId: ensureStaticId(account),
+    name: `${character.firstName} ${character.lastName}`,
+    health: Math.max(0, Math.min(100, Number(player.health) || 0)),
+    armour: Math.max(0, Math.min(100, Number(player.armour) || 0)),
+    weight: Inventory.inventoryWeight(inventory),
+    capacity: Inventory.MAX_WEIGHT,
+    inventory: Inventory.inventoryForClient(inventory),
+    catalog: Object.keys(Inventory.ITEM_DEFINITIONS).map((itemId) => {
+      const item = Inventory.ITEM_DEFINITIONS[itemId];
+      return {
+        id: item.id,
+        name: item.name,
+        description: item.description,
+        type: item.type,
+        equipSlot: item.equipSlot || '',
+        weight: item.weight,
+        maxStack: item.maxStack,
+        icon: item.icon
+      };
+    })
+  };
+}
+
+function updateInventoryClient(player) {
+  if (!openInventories.has(player.id)) return;
+  const state = inventoryStateFor(player);
+  if (state) player.call('ragerp:inventory:update', [JSON.stringify(state)]);
+}
+
+function inventoryNotice(player, text) {
+  if (openInventories.has(player.id)) {
+    player.call('ragerp:inventory:notice', [text]);
+  } else {
+    message(player, text);
+  }
+}
+
+function equippedItemId(equipment) {
+  return typeof equipment === 'string'
+    ? equipment
+    : equipment && typeof equipment.itemId === 'string' ? equipment.itemId : null;
+}
+
+function equippedAmmo(equipment, definition) {
+  const ammo = Number(equipment && equipment.ammo);
+  return Number.isInteger(ammo) && ammo >= 0 && ammo <= 999 ? ammo : definition.ammo;
+}
+
+function applyWeaponChange(player, previousEquipment, nextEquipment) {
+  const previousItemId = equippedItemId(previousEquipment);
+  const nextItemId = equippedItemId(nextEquipment);
+  if (previousItemId === nextItemId) return;
+  if ((previousItemId && typeof player.removeWeapon !== 'function') ||
+      (nextItemId && (typeof player.giveWeapon !== 'function' ||
+        typeof player.setWeaponAmmo !== 'function'))) {
+    throw new Error('RAGE MP weapon APIs are unavailable.');
+  }
+
+  const previous = previousItemId && Inventory.ITEM_DEFINITIONS[previousItemId];
+  const next = nextItemId && Inventory.ITEM_DEFINITIONS[nextItemId];
+  if (previous && previous.weaponName) player.removeWeapon(mp.joaat(previous.weaponName));
+  if (next && next.weaponName) {
+    const weaponHash = mp.joaat(next.weaponName);
+    player.giveWeapon(weaponHash, 0);
+    player.setWeaponAmmo(weaponHash, equippedAmmo(nextEquipment, next));
+  }
+}
+
+function updateEquippedWeaponAmmo(player, inventory) {
+  Inventory.EQUIPMENT_SLOTS.forEach((slot) => {
+    const equipment = inventory.equipment[slot];
+    const itemId = equippedItemId(equipment);
+    if (!itemId) return;
+
+    const item = Inventory.ITEM_DEFINITIONS[itemId];
+    if (typeof player.getWeaponAmmo !== 'function') {
+      throw new Error('RAGE MP weapon ammo API is unavailable.');
+    }
+    const ammo = Number(player.getWeaponAmmo(mp.joaat(item.weaponName)));
+    if (Number.isFinite(ammo)) {
+      inventory.equipment[slot].ammo = Math.max(0, Math.min(999, Math.trunc(ammo)));
+    }
+  });
+}
+
+function restoreInventoryWeapons(player, inventory) {
+  Inventory.EQUIPMENT_SLOTS.forEach((slot) => {
+    const equipment = inventory.equipment[slot];
+    if (equipment) applyWeaponChange(player, null, equipment);
+  });
+}
+
+function inventoryActionError(error) {
+  const messages = {
+    'already-equipped': 'Это оружие уже экипировано.',
+    'armour-full': 'Броня уже полностью восстановлена.',
+    'cannot-use': 'Этот предмет сейчас нельзя использовать.',
+    'empty-slot': 'В этом слоте нет предмета.',
+    'health-full': 'Здоровье уже полностью восстановлено.',
+    'invalid-action': 'Неизвестное действие инвентаря.',
+    'invalid-item': 'Неизвестный предмет.',
+    'invalid-slot': 'Указан неверный слот.',
+    'no-character': 'Для этого действия нужен персонаж.',
+    'no-space': 'В инвентаре нет свободного места.',
+    'not-consumable': 'Этот предмет нельзя использовать.',
+    'slot-occupied': 'Сначала освободи выбранный слот.',
+    'stack-full': 'В целевом слоте недостаточно места.',
+    'too-heavy': 'Превышена грузоподъёмность инвентаря.',
+    'wrong-equipment-slot': 'Этот предмет нельзя поместить в выбранный слот.'
+  };
+  return messages[error] || 'Не удалось выполнить действие с предметом.';
+}
+
+function useInventorySlot(player, inventory, slotIndex) {
+  if (!Number.isInteger(slotIndex) || slotIndex < 0 || slotIndex >= Inventory.SLOT_COUNT) {
+    return { error: 'invalid-slot' };
+  }
+  const stack = inventory.slots[slotIndex];
+  if (!stack) return { error: 'empty-slot' };
+  const item = Inventory.ITEM_DEFINITIONS[stack.itemId];
+  if (!item) return { error: 'invalid-item' };
+
+  if (item.type === 'weapon') {
+    const result = Inventory.equipItem(inventory, slotIndex, item.equipSlot);
+    if (result.error) return result;
+    return {
+      inventory: result.inventory,
+      weaponChange: {
+        previous: inventory.equipment[item.equipSlot],
+        next: result.inventory.equipment[item.equipSlot]
+      },
+      notice: `${item.name} экипирован.`
+    };
+  }
+
+  const currentValue = item.effect === 'health'
+    ? Number(player.health) || 0
+    : Number(player.armour) || 0;
+  if (currentValue >= 100) return { error: item.effect === 'health' ? 'health-full' : 'armour-full' };
+  if (item.effect === 'health' && currentValue <= 0) return { error: 'cannot-use' };
+
+  const result = Inventory.consumeItem(inventory, slotIndex);
+  if (result.error) return result;
+  return {
+    inventory: result.inventory,
+    effect: result.effect,
+    notice: `${item.name} использован.`
+  };
+}
+
+function performInventoryAction(player, action, data) {
+  const character = characterFor(player);
+  if (!character) return { error: 'no-character' };
+  const inventory = ensureCharacterInventory(character);
+  if (['equip', 'unequip', 'use', 'use-quick'].includes(action)) {
+    updateEquippedWeaponAmmo(player, inventory);
+  }
+  let result;
+
+  if (action === 'move') {
+    result = Inventory.moveSlot(inventory, data.from, data.to);
+  } else if (action === 'assign-quick') {
+    result = Inventory.assignQuickSlot(inventory, data.quickSlot, data.slot);
+  } else if (action === 'equip') {
+    result = Inventory.equipItem(inventory, data.slot, data.equipmentSlot);
+    if (!result.error) {
+      result.weaponChange = {
+        previous: inventory.equipment[data.equipmentSlot],
+        next: result.inventory.equipment[data.equipmentSlot]
+      };
+      result.notice = 'Оружие экипировано.';
+    }
+  } else if (action === 'unequip') {
+    const previous = inventory.equipment[data.equipmentSlot];
+    result = Inventory.unequipItem(inventory, data.equipmentSlot, data.to);
+    if (!result.error) {
+      result.weaponChange = { previous, next: null };
+      result.notice = 'Оружие убрано в инвентарь.';
+    }
+  } else if (action === 'use') {
+    result = useInventorySlot(player, inventory, data.slot);
+  } else if (action === 'use-quick') {
+    if (!Number.isInteger(data.quickSlot) ||
+        data.quickSlot < 0 || data.quickSlot >= Inventory.QUICK_SLOT_COUNT) {
+      return { error: 'invalid-slot' };
+    }
+    const slotIndex = inventory.quickSlots[data.quickSlot];
+    result = slotIndex === null
+      ? { error: 'empty-slot' }
+      : useInventorySlot(player, inventory, slotIndex);
+  } else {
+    return { error: 'invalid-action' };
+  }
+
+  if (!result || result.error) return { error: result && result.error || 'invalid-action' };
+  if (result.weaponChange) {
+    applyWeaponChange(player, result.weaponChange.previous, result.weaponChange.next);
+  }
+
+  character.inventory = result.inventory;
+  saveAccounts();
+  if (result.effect && result.effect.type === 'health') {
+    player.health = Math.min(100, (Number(player.health) || 0) + result.effect.amount);
+  } else if (result.effect && result.effect.type === 'armour') {
+    player.armour = Math.min(100, (Number(player.armour) || 0) + result.effect.amount);
+  }
+
+  if (openInventories.has(player.id)) {
+    updateInventoryClient(player);
+    if (result.notice) player.call('ragerp:inventory:notice', [result.notice]);
+  } else if (result.notice) {
+    message(player, result.notice);
+  }
+  return { success: true };
 }
 
 function russianPlateForStaticId(staticId) {
@@ -552,12 +795,14 @@ function spawnPlayer(player, character) {
 
   player.spawn(new mp.Vector3(position.x, position.y, position.z));
   player.health = 100;
+  if (character) restoreInventoryWeapons(player, ensureCharacterInventory(character));
   if (character) publishNameTag(player);
 }
 
 function showHelp(player) {
   message(player, '/register <Имя> <Фамилия> <возраст> [male|female] — резервное создание персонажа');
   message(player, '/stats, /bank, /deposit <сумма>, /withdraw <сумма>');
+  message(player, 'Инвентарь: I; быстрые слоты: 1–4. Предметы выдаются разрешённым администраторам через /inventorygive.');
   message(player, '/job [courier|unemployed], /work, /faction, /joinfaction <civilian|mechanic>, /me <текст>');
   message(player, '/conviction <статик ID> <месяцев> <причина> — добавить приговор (для разрешённых ID)');
   message(player, 'Телефон: клавиша P. Доступны SMS, банк, GPS, такси и объявления.');
@@ -682,6 +927,7 @@ function createCharacter(player, firstNameValue, lastNameValue, ageValue, appear
     faction: 'Civilian',
     job: 'unemployed',
     militaryTicket: null,
+    inventory: Inventory.createEmptyInventory(),
     position: spawnPoint
   };
   saveAccounts();
@@ -733,6 +979,53 @@ function handleCommand(player, command) {
 
   if (name === 'help') {
     showHelp(player);
+    return;
+  }
+
+  if (name === 'inventorygive') {
+    if (!requireCharacter(player)) return;
+    const issuerAccount = getAccount(player);
+    const issuerStaticId = ensureStaticId(issuerAccount);
+    if (!inventoryAdminStaticIds.size) {
+      message(player, 'Команда отключена: задай RAGERP_INVENTORY_ADMIN_IDS перед запуском сервера.');
+      return;
+    }
+    if (!inventoryAdminStaticIds.has(issuerStaticId)) {
+      message(player, 'У тебя нет прав выдавать предметы.');
+      return;
+    }
+
+    const targetStaticId = String(args[0] || '');
+    const itemId = String(args[1] || '').toLowerCase();
+    const quantity = /^\d{1,3}$/.test(String(args[2] || '')) ? Number(args[2]) : 0;
+    if (!/^\d{3}-\d{3}$/.test(targetStaticId) ||
+        !Inventory.ITEM_DEFINITIONS[itemId] ||
+        !Number.isInteger(quantity) || quantity < 1 || quantity > 100) {
+      message(player, 'Использование: /inventorygive <статик ID> <medkit|armor_vest|pistol|carbine> <1–100>.');
+      return;
+    }
+
+    const target = accountByStaticId(targetStaticId);
+    if (!target || !target.account.character) {
+      message(player, 'Персонаж с таким статик ID не найден.');
+      return;
+    }
+    const targetCharacter = target.account.character;
+    const result = Inventory.addItems(ensureCharacterInventory(targetCharacter), itemId, quantity);
+    if (result.error) {
+      inventoryNotice(player, inventoryActionError(result.error));
+      return;
+    }
+
+    targetCharacter.inventory = result.inventory;
+    saveAccounts();
+    const targetPlayer = playerByAccountKey(target.key);
+    if (targetPlayer) {
+      updateInventoryClient(targetPlayer);
+      message(targetPlayer, `Получен предмет: ${Inventory.ITEM_DEFINITIONS[itemId].name} ×${quantity}.`);
+    }
+    console.info(`[RageRP inventory] ${issuerStaticId} granted ${itemId} x${quantity} to ${targetStaticId}.`);
+    message(player, `Выдано: ${Inventory.ITEM_DEFINITIONS[itemId].name} ×${quantity}; получатель ${targetStaticId}.`);
     return;
   }
 
@@ -978,9 +1271,92 @@ mp.events.add('ragerp:client:ui-ready', (player) => {
   player.call('ragerp:hud:show', [JSON.stringify(hudStateFor(player))]);
 });
 
+mp.events.add('ragerp:inventory:request-open', (player) => {
+  const character = characterFor(player);
+  if (!character || player.dimension !== 0 || openPhones.has(player.id) ||
+      hudNotifications.has(player.id)) {
+    message(player, 'Инвентарь сейчас недоступен.');
+    return;
+  }
+
+  try {
+    const state = inventoryStateFor(player);
+    openInventories.add(player.id);
+    player.call('ragerp:inventory:open', [JSON.stringify(state)]);
+  } catch (error) {
+    openInventories.delete(player.id);
+    console.error('[RageRP inventory] Could not open inventory:', error);
+    message(player, 'Не удалось открыть инвентарь.');
+  }
+});
+
+mp.events.add('ragerp:inventory:close', (player) => {
+  openInventories.delete(player.id);
+});
+
+mp.events.add('ragerp:inventory:action', (player, action, payload) => {
+  if (!openInventories.has(player.id) || typeof action !== 'string' ||
+      typeof payload !== 'string' || payload.length > 512 ||
+      player.dimension !== 0 || !characterFor(player)) {
+    return;
+  }
+  const now = Date.now();
+  if (now - (inventoryActionCooldowns.get(player.id) || 0) < 120) {
+    inventoryNotice(player, 'Подожди немного перед следующим действием.');
+    return;
+  }
+  inventoryActionCooldowns.set(player.id, now);
+
+  let data;
+  try {
+    data = JSON.parse(payload);
+  } catch (error) {
+    inventoryNotice(player, 'Не удалось прочитать действие инвентаря.');
+    return;
+  }
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    inventoryNotice(player, 'Некорректное действие инвентаря.');
+    return;
+  }
+
+  try {
+    const result = performInventoryAction(player, action, data);
+    if (result.error) inventoryNotice(player, inventoryActionError(result.error));
+  } catch (error) {
+    console.error('[RageRP inventory] Action failed:', error);
+    inventoryNotice(player, 'Не удалось сохранить инвентарь. Попробуй позже.');
+  }
+});
+
+mp.events.add('ragerp:inventory:quick-use', (player, quickSlot) => {
+  if (openInventories.has(player.id) || openPhones.has(player.id) ||
+      player.dimension !== 0 || !characterFor(player)) {
+    return;
+  }
+  if (!Number.isInteger(quickSlot) || quickSlot < 0 ||
+      quickSlot >= Inventory.QUICK_SLOT_COUNT) {
+    return;
+  }
+  const now = Date.now();
+  if (now - (inventoryActionCooldowns.get(player.id) || 0) < 120) return;
+  inventoryActionCooldowns.set(player.id, now);
+
+  try {
+    const result = performInventoryAction(player, 'use-quick', { quickSlot });
+    if (result.error) inventoryNotice(player, inventoryActionError(result.error));
+  } catch (error) {
+    console.error('[RageRP inventory] Quick-slot use failed:', error);
+    inventoryNotice(player, 'Не удалось использовать предмет. Попробуй позже.');
+  }
+});
+
+mp.events.add('playerDamage', (player) => {
+  updateInventoryClient(player);
+});
+
 mp.events.add('ragerp:phone:request-open', (player) => {
   const character = characterFor(player);
-  if (!character || player.dimension !== 0) {
+  if (!character || player.dimension !== 0 || openInventories.has(player.id)) {
     player.call('ragerp:phone:notice', ['Сначала создай персонажа, чтобы пользоваться телефоном.']);
     return;
   }
@@ -1373,6 +1749,8 @@ mp.events.add('playerEnterVehicle', (player, vehicle) => {
 mp.events.add('playerQuit', (player) => {
   const key = sessions.get(player.id);
   openPhones.delete(player.id);
+  openInventories.delete(player.id);
+  inventoryActionCooldowns.delete(player.id);
   phoneMessageCooldowns.delete(player.id);
   phoneAdCooldowns.delete(player.id);
   taxiRequestCooldowns.delete(player.id);
@@ -1387,6 +1765,16 @@ mp.events.add('playerQuit', (player) => {
 
   const account = accounts[key];
   const character = account && account.character;
+  if (character) {
+    try {
+      const inventory = ensureCharacterInventory(character);
+      const previousEquipment = JSON.stringify(inventory.equipment);
+      updateEquippedWeaponAmmo(player, inventory);
+      if (previousEquipment !== JSON.stringify(inventory.equipment)) saveAccounts();
+    } catch (error) {
+      console.error('[RageRP inventory] Could not save weapon ammo on disconnect:', error);
+    }
+  }
   if (character && isValidPosition(player.position)) {
     character.position = {
       x: player.position.x,

@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Инвентарь | Tula RP</title>
+  <link rel="stylesheet" href="style.css?v=20261127-3">
+</head>
+<body>
+  <main class="inventory-screen" id="inventory-screen">
+    <div class="screen-backdrop" aria-hidden="true"></div>
+    <section class="inventory-panel" role="dialog" aria-modal="true" aria-labelledby="inventory-title">
+      <header class="inventory-header">
+        <div class="character-identity">
+          <div class="identity-mark" aria-hidden="true">T</div>
+          <div class="identity-copy">
+            <p class="eyebrow">TULA ROLEPLAY <span>•</span> CHARACTER</p>
+            <h1 id="character-name">Персонаж</h1>
+            <p class="static-id">ID <strong id="character-static-id">--- ---</strong></p>
+          </div>
+        </div>
+        <div class="inventory-heading">
+          <p class="eyebrow">PERSONAL STORAGE</p>
+          <h2 id="inventory-title">Инвентарь</h2>
+        </div>
+        <button class="close-button" id="close-inventory" type="button" aria-label="Закрыть инвентарь">×</button>
+      </header>
+
+      <div class="inventory-layout">
+        <aside class="character-column" aria-label="Состояние персонажа">
+          <section class="condition-card panel-card">
+            <div class="section-heading">
+              <span class="section-index">01</span>
+              <h3>Состояние</h3>
+            </div>
+            <div class="condition-row">
+              <div class="condition-label"><span class="health-icon" aria-hidden="true">+</span><span>Здоровье</span><strong id="health-value">100%</strong></div>
+              <div class="meter"><span id="health-meter"></span></div>
+            </div>
+            <div class="condition-row">
+              <div class="condition-label"><span class="armour-icon" aria-hidden="true">⬡</span><span>Броня</span><strong id="armour-value">0%</strong></div>
+              <div class="meter armour-meter"><span id="armour-meter"></span></div>
+            </div>
+          </section>
+
+          <section class="equipment-card panel-card">
+            <div class="section-heading">
+              <span class="section-index">02</span>
+              <h3>Экипировка</h3>
+            </div>
+            <button class="equipment-slot" type="button" data-equipment-slot="primary" aria-label="Основное оружие">
+              <span class="equipment-art" aria-hidden="true">⌁</span>
+              <span class="equipment-copy"><small>ОСНОВНОЕ ОРУЖИЕ</small><strong data-equipment-name="primary">Пусто</strong></span>
+              <span class="equipment-hint">1</span>
+            </button>
+            <button class="equipment-slot" type="button" data-equipment-slot="secondary" aria-label="Вторичное оружие">
+              <span class="equipment-art secondary-art" aria-hidden="true">⌖</span>
+              <span class="equipment-copy"><small>ВТОРИЧНОЕ ОРУЖИЕ</small><strong data-equipment-name="secondary">Пусто</strong></span>
+              <span class="equipment-hint">2</span>
+            </button>
+            <div class="armour-status">
+              <span class="armour-plate" aria-hidden="true">⬡</span>
+              <span><small>ЗАЩИТА</small><strong>Бронежилет</strong></span>
+              <b id="armour-status-value">0%</b>
+            </div>
+          </section>
+
+          <section class="quickbar-card panel-card">
+            <div class="section-heading">
+              <span class="section-index">03</span>
+              <h3>Быстрые слоты</h3>
+              <span class="quickbar-hint">Перетащи сюда предмет</span>
+            </div>
+            <div class="quickbar" id="quickbar">
+              <button class="quick-slot" type="button" data-quick-slot="0" aria-label="Быстрый слот 1"><kbd>1</kbd></button>
+              <button class="quick-slot" type="button" data-quick-slot="1" aria-label="Быстрый слот 2"><kbd>2</kbd></button>
+              <button class="quick-slot" type="button" data-quick-slot="2" aria-label="Быстрый слот 3"><kbd>3</kbd></button>
+              <button class="quick-slot" type="button" data-quick-slot="3" aria-label="Быстрый слот 4"><kbd>4</kbd></button>
+            </div>
+          </section>
+        </aside>
+
+        <section class="storage-column" aria-label="Предметы">
+          <header class="storage-header">
+            <div>
+              <div class="section-heading">
+                <span class="section-index">04</span>
+                <h3>Рюкзак</h3>
+              </div>
+              <p>Перетаскивай предметы, чтобы разложить их по слотам.</p>
+            </div>
+            <div class="capacity" aria-label="Занятый вес">
+              <div class="capacity-label"><span>ВЕС</span><strong id="weight-value">0.0 <small>/ 30 кг</small></strong></div>
+              <div class="meter capacity-meter"><span id="capacity-meter"></span></div>
+            </div>
+          </header>
+
+          <div class="inventory-grid-wrap">
+            <div class="inventory-grid" id="inventory-grid" aria-label="Сетка инвентаря"></div>
+            <div class="empty-inventory" id="empty-inventory">
+              <span class="empty-mark" aria-hidden="true">＋</span>
+              <strong>Пока пусто</strong>
+              <span>Предметы появятся здесь</span>
+            </div>
+          </div>
+
+          <footer class="item-inspector" id="item-inspector" aria-live="polite">
+            <div class="inspector-icon" id="inspector-icon" aria-hidden="true">?</div>
+            <div class="inspector-copy">
+              <small id="inspector-type">ВЫБЕРИ ПРЕДМЕТ</small>
+              <strong id="inspector-name">Информация о предмете</strong>
+              <span id="inspector-description">Нажми на предмет, чтобы посмотреть его описание и доступные действия.</span>
+            </div>
+            <button class="primary-action" id="item-action" type="button" disabled>Использовать</button>
+          </footer>
+        </section>
+      </div>
+
+      <footer class="inventory-footer">
+        <span><kbd>I</kbd> открыть / закрыть</span>
+        <span><kbd>ESC</kbd> закрыть</span>
+        <span class="footer-note">Предметы сохраняются на персонаже</span>
+      </footer>
+    </section>
+    <div class="inventory-toast" id="inventory-toast" role="status" aria-live="polite"></div>
+  </main>
+  <script src="app.js?v=20261127-3"></script>
+</body>
+</html>
