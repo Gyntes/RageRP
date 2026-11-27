@@ -484,6 +484,54 @@ button { color: inherit; }
 .military-id-close-x { position: absolute; z-index: 2; top: 2%; right: 2%; display: grid; width: 25px; height: 25px; place-items: center; border: 0; border-radius: 50%; background: rgba(255,255,255,.48); color: #655f58; cursor: pointer; font-family: "Segoe UI", Arial, sans-serif; font-size: 21px; line-height: 1; }
 .military-id-close { position: absolute; top: calc(100% + 15px); left: calc(50% + 1.6vw); min-width: 122px; min-height: 33px; padding: 0 18px; border: 1px solid rgba(255,255,255,.24); border-radius: 4px; background: rgba(19,22,22,.72); color: #f4f4f2; cursor: pointer; font-size: 12px; transform: translateX(-50%); }
 .military-id-close:hover, .military-id-close-x:hover { filter: brightness(1.12); }
+.driver-license-overlay { position: fixed; z-index: 22; inset: 0; display: grid; place-items: center; padding: 12px; background: rgba(0,0,0,.035); }
+.driver-license-sheet {
+  position: relative;
+  width: min(920px, 88vw, 116vh);
+  aspect-ratio: 1.38;
+  overflow: hidden;
+  border: 2px solid rgba(103,91,99,.48);
+  border-radius: 8px;
+  background:
+    repeating-linear-gradient(142deg, transparent 0 42px, rgba(102,136,183,.12) 43px 44px, transparent 45px 52px),
+    radial-gradient(ellipse at 18% 22%, rgba(119,168,204,.24), transparent 38%),
+    radial-gradient(ellipse at 85% 13%, rgba(198,126,164,.18), transparent 40%),
+    repeating-linear-gradient(0deg, transparent 0 23px, rgba(89,103,127,.045) 24px),
+    linear-gradient(120deg, #f8f6f1, #f6f0f3 54%, #f5f4ed);
+  box-shadow: 0 18px 48px rgba(0,0,0,.35), inset 0 0 0 5px rgba(255,255,255,.55);
+  color: #24252b;
+  font-family: "Segoe UI", Arial, sans-serif;
+}
+.driver-license-sheet::before { position: absolute; inset: 8px; border: 1px solid rgba(84,101,132,.3); border-radius: 5px; background: repeating-radial-gradient(ellipse at 65% 45%, transparent 0 18px, rgba(87,125,170,.07) 19px 20px, transparent 21px 26px); content: ""; pointer-events: none; }
+.driver-license-card { position: relative; z-index: 1; height: 100%; padding: 2.4% 4.5%; }
+.driver-license-close { position: absolute; z-index: 2; top: 2%; right: 2%; display: grid; width: 28px; height: 28px; place-items: center; border: 0; border-radius: 50%; background: rgba(255,255,255,.55); color: #655f68; cursor: pointer; font: 22px/1 "Segoe UI",Arial,sans-serif; }
+.driver-license-header { display: flex; height: 15%; align-items: center; gap: 5%; }
+.driver-license-region-mark { display: grid; width: clamp(66px,12vw,98px); height: clamp(38px,7vw,58px); flex: none; place-items: center; border: 4px double #9b375d; border-radius: 50%; color: #9b375d; font-size: clamp(17px,2.7vw,24px); font-weight: 850; letter-spacing: .04em; }
+.driver-license-header h1 { flex: 1; margin: 0; color: #9c3159; font-size: clamp(12px,2.55vw,27px); font-weight: 850; letter-spacing: .015em; white-space: nowrap; }
+.driver-license-content { display: grid; height: 83%; grid-template-columns: 25% 1fr; gap: 5%; }
+.driver-license-left { display: flex; min-width: 0; flex-direction: column; justify-content: space-between; padding: 3% 0 2%; }
+.driver-license-photo { display: grid; width: 100%; height: 63%; max-height: 290px; place-items: center; overflow: hidden; border: 3px solid rgba(109,120,125,.65); border-radius: 12px; background: linear-gradient(145deg,#d2d3d0,#aeb3b1); box-shadow: inset 0 0 0 3px rgba(255,255,255,.45); }
+.driver-license-photo svg { width: 82%; height: 91%; align-self: end; fill: #34383a; }
+.driver-license-signature { display: flex; min-height: 23%; align-items: center; gap: 5px; color: #a1385e; font-size: clamp(12px,1.8vw,16px); font-weight: 800; }
+.driver-license-signature svg { width: calc(100% - 24px); height: 72%; overflow: visible; }
+.driver-license-signature path { fill: none; stroke: #20232a; stroke-linecap: round; stroke-width: 2; }
+.driver-license-fields { display: grid; min-width: 0; grid-template-rows: repeat(8, minmax(0, 1fr)); }
+.driver-license-field { display: grid; min-width: 0; min-height: 0; grid-template-columns: 38px 1fr; grid-template-rows: 1fr auto; align-content: center; align-items: end; gap: 0 5px; padding: 2px 0; border-bottom: 1px solid rgba(73,78,91,.18); }
+.driver-license-field b, .driver-license-date-row b, .driver-license-categories > b { grid-row: 1 / span 2; align-self: center; color: #9b375d; font-size: clamp(11px,1.8vw,16px); }
+.driver-license-field strong, .driver-license-date-row strong { overflow: hidden; color: #25262c; font-size: clamp(12px,1.85vw,17px); font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
+.driver-license-field small { align-self: start; color: #605d62; font: clamp(9px,1.35vw,13px) Georgia,"Times New Roman",serif; }
+.driver-license-city { grid-template-rows: 1fr; align-items: center; }
+.driver-license-city b { grid-row: auto; }
+.driver-license-date-row { display: grid; min-height: 0; grid-template-columns: max-content max-content; align-items: center; justify-content: start; gap: clamp(8px,1vw,14px); border-bottom: 1px solid rgba(73,78,91,.18); }
+.driver-license-date-row > div { display: grid; min-width: 0; grid-template-columns: 38px max-content; align-items: center; gap: 5px; }
+.driver-license-date-row strong { font-size: clamp(11px,1.7vw,16px); }
+.driver-license-issued-by { grid-template-rows: 1fr auto; }
+.driver-license-static-id strong { font-size: clamp(14px,2vw,18px); letter-spacing: .03em; }
+.driver-license-categories { display: flex; align-items: center; gap: 5px; border-bottom: 1px solid rgba(73,78,91,.18); }
+.driver-license-categories > b { margin-right: 5px; }
+.driver-license-categories span { display: grid; width: clamp(23px,3.8vw,34px); height: clamp(23px,3.8vw,34px); place-items: center; border: 2px solid #25262c; background: rgba(255,255,255,.2); color: #25262c; font-size: clamp(12px,1.8vw,16px); font-weight: 800; }
+.driver-license-entry-icon { border-color: rgba(158,55,92,.24); background: rgba(158,55,92,.1); color: #a33a61; font-size: 15px; }
+.driver-license-overlay .driver-license-close:hover { background: rgba(255,255,255,.85); }
 .prisoner-file-overlay { position: fixed; z-index: 21; inset: 0; display: grid; place-items: center; padding: 18px; background: rgba(5,9,7,.18); }
 .prisoner-file-sheet {
   position: relative;
@@ -581,6 +629,19 @@ button { color: inherit; }
 .prisoner-file-footer { position: relative; align-items: center; margin-top: auto; padding-top: 10px; border-top: 0; color: #6c6659; font-size: 8px; }
 .prisoner-file-footer-seal { display: grid; width: 34px; height: 34px; place-items: center; border: 2px double rgba(45,99,172,.45); border-radius: 50%; color: rgba(45,99,172,.48); font: 20px Georgia,serif; }
 @media (max-width: 620px) {
+  .driver-license-overlay { padding: 8px; }
+  .driver-license-sheet { width: min(94vw, 94vh); max-height: calc(100vh - 16px); aspect-ratio: 1; }
+  .driver-license-card { padding: 4% 4%; }
+  .driver-license-content { grid-template-columns: 23% 1fr; gap: 4%; }
+  .driver-license-photo { height: 58%; border-width: 2px; }
+  .driver-license-header h1 { font-size: clamp(10px,2.35vw,15px); }
+  .driver-license-fields { grid-template-rows: repeat(8, minmax(0, 1fr)); }
+  .driver-license-field { grid-template-columns: 28px 1fr; gap: 0 3px; }
+  .driver-license-date-row { gap: 6px; }
+  .driver-license-date-row > div { grid-template-columns: 31px max-content; gap: 2px; }
+  .driver-license-categories { gap: 3px; }
+  .driver-license-categories > b { margin-right: 2px; }
+  .driver-license-categories span { width: clamp(20px,5vw,27px); height: clamp(20px,5vw,27px); border-width: 1px; }
   .prisoner-file-overlay { padding: 8px; }
   .prisoner-file-sheet { width: 94vw; max-height: calc(100vh - 16px); grid-template-columns: 1fr; aspect-ratio: auto; overflow-y: auto; }
   .prisoner-file-page { min-height: 390px; padding: 18px; }

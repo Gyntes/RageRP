@@ -6,6 +6,8 @@
   const phoneLockScreen = document.getElementById('phone-lock-screen');
   const militaryIdOverlay = document.getElementById('military-id-overlay');
   const militaryIdSheet = document.getElementById('military-id-sheet');
+  const driverLicenseOverlay = document.getElementById('driver-license-overlay');
+  const driverLicenseSheet = document.getElementById('driver-license-sheet');
   const prisonerFileOverlay = document.getElementById('prisoner-file-overlay');
   const prisonerFileSheet = document.getElementById('prisoner-file-sheet');
   const toast = document.getElementById('toast');
@@ -107,6 +109,8 @@
   function setPhoneOpen(open) {
     if (!open) {
       closeMilitaryId();
+      closeDriverLicense();
+      closePrisonerFile();
       appScreen.classList.remove('is-bank-app');
       shell.classList.remove('is-bank-app');
       state.activeApp = null;
@@ -161,6 +165,8 @@
 
   function lockPhone() {
     closeMilitaryId();
+    closeDriverLicense();
+    closePrisonerFile();
     phoneLockScreen.hidden = false;
   }
 
@@ -465,6 +471,14 @@
         </span>
         <span class="status-badge${issued ? '' : ' busy'}">${issued ? 'Выдан' : 'Не получен'}</span>
       </button>
+      <button class="military-document-entry card driver-license-entry" data-action="open-driver-license" type="button">
+        <span class="military-document-entry-icon driver-license-entry-icon" aria-hidden="true">▰</span>
+        <span class="military-document-entry-copy">
+          <strong>Водительское удостоверение</strong>
+          <small>Категории A, B, C, D, M</small>
+        </span>
+        <span class="status-badge">Выдано</span>
+      </button>
       <button class="military-document-entry card prisoner-document-entry" data-action="open-prisoner-file" type="button">
         <span class="military-document-entry-icon prisoner-document-icon" aria-hidden="true">§</span>
         <span class="military-document-entry-copy">
@@ -689,6 +703,66 @@
       </section>`;
   }
 
+  function driverLicenseHtml() {
+    const nameParts = String(state.name || '').trim().split(/\s+/);
+    const firstName = state.firstName || nameParts[0] || '—';
+    const lastName = state.lastName || nameParts.slice(1).join(' ') || '—';
+    const staticId = validStaticId(state.staticId) || '--- ---';
+
+    return `<button class="driver-license-close" data-close-driver-license type="button" aria-label="Закрыть водительское удостоверение">×</button>
+      <article class="driver-license-card">
+        <header class="driver-license-header">
+          <span class="driver-license-region-mark">TUL</span>
+          <h1>ВОДИТЕЛЬСКОЕ УДОСТОВЕРЕНИЕ</h1>
+        </header>
+        <div class="driver-license-content">
+          <div class="driver-license-left">
+            <div class="driver-license-photo" aria-label="Фото персонажа не загружено">
+              <svg viewBox="0 0 100 130" aria-hidden="true"><circle cx="50" cy="38" r="23"></circle><path d="M10 128c2-35 16-53 40-53s38 18 40 53z"></path></svg>
+            </div>
+            <div class="driver-license-signature">
+              <span>6.</span>
+              <svg viewBox="0 0 180 56" aria-label="Подпись владельца">
+                <path d="M6 42c17-17 20-34 25-32 8 3-13 30-7 32 7 3 19-28 25-25 5 2-8 22-1 24 7 2 17-28 24-28 9 0-5 24 4 25 8 1 11-11 20-14 11-4 18 0 28-8 12-10 15-12 25-10-12 6-14 14-7 16 7 2 20-12 30-17" />
+                <path d="M36 50c28-6 69-1 120-18" />
+              </svg>
+            </div>
+          </div>
+          <div class="driver-license-fields">
+            <div class="driver-license-field"><b>1.</b><strong>${escapeHtml(firstName)}</strong><small>Имя</small></div>
+            <div class="driver-license-field"><b>2.</b><strong>${escapeHtml(lastName)}</strong><small>Фамилия</small></div>
+            <div class="driver-license-field driver-license-city"><b>3.</b><strong>г. Тула и ТО</strong></div>
+            <div class="driver-license-date-row">
+              <div><b>4а)</b><strong>04.11.2026</strong></div>
+              <div><b>4b)</b><strong>04.02.2027</strong></div>
+            </div>
+            <div class="driver-license-field driver-license-issued-by">
+              <b>4c)</b>
+              <strong>Кирилл Матвеев (379-079)</strong>
+              <small>Кем выдано</small>
+            </div>
+            <div class="driver-license-field driver-license-static-id"><b>5.</b><strong>${escapeHtml(staticId)}</strong><small>ID</small></div>
+            <div class="driver-license-field driver-license-city"><b>8.</b><strong>г. Тула и ТО</strong></div>
+            <div class="driver-license-categories"><b>9.</b>${['A', 'B', 'C', 'D', 'M'].map(function (category) {
+              return `<span>${category}</span>`;
+            }).join('')}</div>
+          </div>
+        </div>
+      </article>`;
+  }
+
+  function openDriverLicense() {
+    driverLicenseSheet.innerHTML = driverLicenseHtml();
+    driverLicenseOverlay.hidden = false;
+    shell.classList.add('is-document-covered');
+  }
+
+  function closeDriverLicense() {
+    if (driverLicenseOverlay.hidden) return;
+    driverLicenseOverlay.hidden = true;
+    shell.classList.remove('is-document-covered');
+  }
+
   function openMilitaryId() {
     militaryIdSheet.innerHTML = militaryIdHtml();
     militaryIdOverlay.hidden = false;
@@ -826,6 +900,11 @@
       closeMilitaryId();
     }
   });
+  driverLicenseOverlay.addEventListener('click', function (event) {
+    if (event.target === driverLicenseOverlay || event.target.closest('[data-close-driver-license]')) {
+      closeDriverLicense();
+    }
+  });
   prisonerFileOverlay.addEventListener('click', function (event) {
     if (event.target === prisonerFileOverlay || event.target.closest('[data-close-prisoner-file]')) {
       closePrisonerFile();
@@ -898,6 +977,11 @@
 
     if (action === 'open-military-id') {
       openMilitaryId();
+      return;
+    }
+
+    if (action === 'open-driver-license') {
+      openDriverLicense();
       return;
     }
 
@@ -1045,6 +1129,7 @@
       document.getElementById('home-name').textContent = state.name || 'Мобильная связь';
       renderApp();
       if (!militaryIdOverlay.hidden) militaryIdSheet.innerHTML = militaryIdHtml();
+      if (!driverLicenseOverlay.hidden) driverLicenseSheet.innerHTML = driverLicenseHtml();
       refreshOpenPrisonerFile();
     },
     update: function (payload) {
@@ -1069,6 +1154,7 @@
       if (data.notice) showToast(data.notice);
       renderApp();
       if (!militaryIdOverlay.hidden) militaryIdSheet.innerHTML = militaryIdHtml();
+      if (!driverLicenseOverlay.hidden) driverLicenseSheet.innerHTML = driverLicenseHtml();
       refreshOpenPrisonerFile();
     },
     setNotice: showToast,
@@ -1081,6 +1167,10 @@
       event.stopPropagation();
       if (!militaryIdOverlay.hidden) {
         closeMilitaryId();
+        return;
+      }
+      if (!driverLicenseOverlay.hidden) {
+        closeDriverLicense();
         return;
       }
       if (!prisonerFileOverlay.hidden) {
