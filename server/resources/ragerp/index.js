@@ -4,6 +4,7 @@ const Inventory = require('./inventory');
 const Parking = require('./parking');
 const Dealership = require('./dealership');
 const Voice = require('./voice');
+const Admin = require('./admin');
 
 const dataDirectory = path.join(__dirname, 'data');
 const accountsFile = path.join(dataDirectory, 'accounts.json');
@@ -28,6 +29,7 @@ const playtimeCheckpointAt = new Map();
 const voiceRouteStates = new Map();
 const phoneCalls = new Map();
 const phoneCallByPlayer = new Map();
+const adminFrozenPlayers = new Map();
 const phoneAds = [];
 const taxiCalls = [];
 let taxiCallSequence = 0;
@@ -63,6 +65,13 @@ const inventoryAdminStaticIds = new Set(
     .map((staticId) => staticId.trim())
     .filter((staticId) => /^\d{3}-\d{3}$/.test(staticId))
 );
+const adminStaticIds = new Set([
+  '163-269',
+  ...String(process.env.RAGERP_ADMIN_IDS || '')
+    .split(',')
+    .map((staticId) => staticId.trim())
+    .filter((staticId) => /^\d{3}-\d{3}$/.test(staticId))
+]);
 
 fs.mkdirSync(dataDirectory, { recursive: true });
 
@@ -88,6 +97,19 @@ const accounts = loadAccounts();
 function saveAccounts() {
   fs.writeFileSync(accountsFile, JSON.stringify(accounts, null, 2), 'utf8');
 }
+
+const adminInitialization = Admin.initialize({
+  dataDirectory,
+  accountsFile,
+  retentionDays: 7
+}).then((result) => {
+  if (!result.ok) {
+    console.error('[RageRP admin] Could not initialize SQLite:', result.error);
+  } else {
+    console.log('[RageRP admin] SQLite logging initialized.');
+  }
+  return result;
+});
 
 function addCalendarMonths(timestamp, months) {
   const date = new Date(timestamp);
@@ -674,6 +696,53 @@ function onlinePhonePlayers() {
     });
   });
   return online;
+}
+
+function adminIsAuthorized(player) {
+  const account = getAccount(player);
+  if (!account || !account.character) return false;
+  return adminStaticIds.has(ensureStaticId(account));
+}
+
+function findOnlinePlayerByStaticId(staticId) {
+  const safeStaticId = String(staticId || '').trim();
+  return onlineAdminPlayers().find((entry) => entry.staticId === safeStaticId) || null;
+}
+
+function onlineAdminPlayers() {
+  const online = [];
+  mp.players.forEach((player) => {
+    const account = getAccount(player);
+    if (!account) return;
+    const character = account.character;
+    online.push({
+      player,
+      staticId: ensureStaticId(account),
+      name: character
+        ? `${character.firstName} ${character.lastName}`
+        : String(player.name || 'Без имени'),
+      faction: character && character.faction
+        ? String(character.faction)
+        : 'Civilian',
+      x: Number(player.position.x),
+      y: Number(player.position.y),
+      z: Number(player.position.z)
+    });
+  });
+  return online;
+}
+
+function adminPlayerSnapshot() {
+  return onlineAdminPlayers().map((entry) => ({
+    staticId: entry.staticId,
+    name: entry.name,
+    faction: entry.faction,
+    isAdmin: adminStaticIds.has(entry.staticId),
+    isFrozen: adminFrozenPlayers.get(entry.player.id) === true,
+    x: entry.x,
+    y: entry.y,
+    z: entry.z
+  }));
 }
 
 function phoneStateFor(player) {
@@ -1284,6 +1353,24 @@ function handleCommand(player, command) {
   const name = (parts.shift() || '').toLowerCase();
   const args = parts;
 
+  if (name === 'admin') {
+    if (!requireCharacter(player)) return;
+    if (!adminIsAuthorized(player)) {
+      message(player, 'Доступ в админ-меню запрещён.');
+      return;
+    }
+    const account = getAccount(player);
+    Admin.recordLog('admin_online', 'admin_menu_open', ensureStaticId(account), null,
+      'Админ-меню открыто.');
+    player.call('ragerp:admin:open', [JSON.stringify({
+      staticId: ensureStaticId(account),
+      categories: Admin.LOG_CATEGORIES,
+      players: adminPlayerSnapshot(),
+      logs: Admin.getLogs(null, '', 100)
+    })]);
+    return;
+  }
+
   if (name === 'hudtest') {
     if (!requireCharacter(player)) return;
     sendHudNotification(player, {
@@ -1568,7 +1655,9 @@ function handleCommand(player, command) {
 
 mp.events.add('playerJoin', (player) => {
   const account = getAccount(player);
-  ensureStaticId(account);
+  const staticId = ensureStaticId(account);
+  Admin.recordLog('auth_logs', 'player_connected', null, staticId,
+    `Игрок подключился: ${player.name || 'Без имени'}.`);
   if (!Number.isSafeInteger(account.playtimeMs) || account.playtimeMs < 0) {
     account.playtimeMs = 0;
   }
@@ -1578,8 +1667,21 @@ mp.events.add('playerJoin', (player) => {
   broadcastHudOnlineCount();
 });
 
-mp.events.add('playerReady', (player) => {
+mp.events.add('playerReady', async (player) => {
+  const adminDatabase = await adminInitialization;
+  if (!adminDatabase.ok) {
+    player.kick('Не удалось проверить блокировки. Попробуйте подключиться позже.');
+    return;
+  }
+
   const account = getAccount(player);
+  const ban = Admin.getBan(ensureStaticId(account));
+  if (ban) {
+    player.kick(`Админ-блокировка: ${ban.reason}`);
+    Admin.recordLog('auth_logs', 'banned_connect_attempt', ban.createdBy,
+      ensureStaticId(account), `Причина: ${ban.reason}`);
+    return;
+  }
   const character = account.character;
   if (!character) {
     openRegistration(player);
@@ -2185,8 +2287,228 @@ mp.events.add('ragerp:hud:demo-response', (player, accepted) => {
     : 'Демо-уведомление отклонено.');
 });
 
+mp.events.add('ragerp:admin:close', (player) => {
+  if (!adminIsAuthorized(player)) return;
+  const account = getAccount(player);
+  Admin.recordLog('admin_online', 'admin_menu_close', ensureStaticId(account), null,
+    'Админ-меню закрыто.');
+});
+
+mp.events.add('ragerp:admin:logs', (player, payload) => {
+  if (!adminIsAuthorized(player)) return;
+  let request = null;
+  try {
+    request = typeof payload === 'string' ? JSON.parse(payload) : payload;
+  } catch (error) {
+    return;
+  }
+  if (!request || typeof request !== 'object') return;
+  const category = typeof request.category === 'string' ? request.category : null;
+  const search = typeof request.search === 'string' ? request.search.slice(0, 100) : '';
+  player.call('ragerp:admin:logs-response', [JSON.stringify({
+    category,
+    logs: Admin.getLogs(category, search, 250),
+    players: adminPlayerSnapshot()
+  })]);
+});
+
+mp.events.add('ragerp:admin:action', (player, payload) => {
+  if (!adminIsAuthorized(player)) return;
+  let request = null;
+  try {
+    request = typeof payload === 'string' ? JSON.parse(payload) : payload;
+  } catch (error) {
+    message(player, 'Некорректная команда админ-меню.');
+    return;
+  }
+  if (!request || typeof request !== 'object' || typeof request.action !== 'string') return;
+
+  const issuerAccount = getAccount(player);
+  const issuerStaticId = ensureStaticId(issuerAccount);
+  const targetStaticId = typeof request.targetStaticId === 'string'
+    ? request.targetStaticId
+    : '';
+  const target = targetStaticId ? findOnlinePlayerByStaticId(targetStaticId) : null;
+
+  switch (request.action) {
+    case 'spectate':
+    case 'teleport':
+      if (!target) {
+        message(player, 'Игрок не найден в сети.');
+        return;
+      }
+      player.position = new mp.Vector3(target.x, target.y, target.z);
+      if (request.action === 'spectate') {
+        player.freezePosition(true);
+        adminFrozenPlayers.set(player.id, true);
+      }
+      Admin.recordLog('admin_online', request.action, issuerStaticId, targetStaticId,
+        request.action === 'spectate'
+          ? 'Администратор переместился к игроку для наблюдения.'
+          : 'Администратор телепортировался к игроку.');
+      message(player, request.action === 'spectate'
+        ? `Режим наблюдения: ${target.name}.`
+        : `Телепорт к ${target.name}.`);
+      break;
+
+    case 'freeze':
+      if (!target) {
+        message(player, 'Игрок не найден в сети.');
+        return;
+      }
+      const frozen = adminFrozenPlayers.get(target.player.id) !== true;
+      adminFrozenPlayers.set(target.player.id, frozen);
+      target.player.freezePosition(frozen);
+      Admin.recordLog('admin_online', frozen ? 'freeze' : 'unfreeze',
+        issuerStaticId, targetStaticId, frozen ? 'Игрок заморожен.' : 'Игрок разморожен.');
+      message(player, frozen ? `${target.name} заморожен.` : `${target.name} разморожен.`);
+      break;
+
+    case 'warn':
+      if (!target) {
+        message(player, 'Игрок не найден в сети.');
+        return;
+      }
+      const warnReason = String(request.reason || 'Предупреждение администратора').slice(0, 500);
+      sendHudNotification(target.player, {
+        title: 'Предупреждение',
+        message: warnReason,
+        acceptLabel: 'Понятно',
+        declineLabel: 'Закрыть'
+      });
+      Admin.recordLog('appeals', 'warn', issuerStaticId, targetStaticId, warnReason);
+      break;
+
+    case 'kick':
+      if (!target) {
+        message(player, 'Игрок не найден в сети.');
+        return;
+      }
+      const kickReason = String(request.reason || 'Кик администратором').slice(0, 500);
+      Admin.recordLog('auth_logs', 'kick', issuerStaticId, targetStaticId, kickReason);
+      target.player.kick(kickReason);
+      break;
+
+    case 'ban':
+      if (!/^\d{3}-\d{3}$/.test(targetStaticId)) {
+        message(player, 'Укажи корректный статик ID для бана.');
+        return;
+      }
+      const banReason = String(request.reason || 'Блокировка администратором').slice(0, 500);
+      const durationDays = Number(request.durationDays);
+      const banResult = Admin.addBan(targetStaticId, banReason, issuerStaticId,
+        Number.isFinite(durationDays) ? durationDays : 7);
+      if (!banResult.ok) {
+        message(player, 'Не удалось сохранить блокировку.');
+        return;
+      }
+      Admin.recordLog('auth_logs', 'ban', issuerStaticId, targetStaticId, banReason);
+      if (target) target.player.kick(banReason);
+      message(player, `Игрок ${targetStaticId} заблокирован.`);
+      break;
+
+    case 'unban':
+      if (!/^\d{3}-\d{3}$/.test(targetStaticId)) {
+        message(player, 'Укажи корректный статик ID.');
+        return;
+      }
+      Admin.removeBan(targetStaticId);
+      Admin.recordLog('auth_logs', 'unban', issuerStaticId, targetStaticId,
+        'Администратор снял блокировку.');
+      message(player, `Блокировка ${targetStaticId} снята.`);
+      break;
+
+    case 'give_money':
+      if (!target) {
+        message(player, 'Игрок не найден в сети.');
+        return;
+      }
+      const amount = Number(request.amount);
+      if (!Number.isInteger(amount) || amount < 1 || amount > 10000000) {
+        message(player, 'Сумма должна быть от 1 до 10 000 000 ₽.');
+        return;
+      }
+      const targetAccount = getAccount(target.player);
+      if (!targetAccount.character) {
+        message(player, 'У игрока нет созданного персонажа.');
+        return;
+      }
+      targetAccount.character.cash += amount;
+      saveAccounts();
+      updateHud(target.player);
+      Admin.recordLog('item_transfer', 'give_money', issuerStaticId, targetStaticId,
+        `Выдано наличных: ${amount} ₽.`);
+      message(player, `Игроку ${target.name} выдано ${amount} ₽.`);
+      break;
+
+    case 'give_item':
+      if (!target) {
+        message(player, 'Игрок не найден в сети.');
+        return;
+      }
+      const itemId = String(request.itemId || '');
+      const quantity = Number(request.quantity);
+      if (!Inventory.ITEM_DEFINITIONS[itemId] ||
+          !Number.isInteger(quantity) || quantity < 1 || quantity > 100) {
+        message(player, 'Некорректный предмет или количество.');
+        return;
+      }
+      const targetAccountWithInventory = getAccount(target.player);
+      if (!targetAccountWithInventory.character) {
+        message(player, 'У игрока нет созданного персонажа.');
+        return;
+      }
+      const inventory = ensureCharacterInventory(targetAccountWithInventory.character);
+      const result = Inventory.addItems(inventory, itemId, quantity);
+      if (result.error) {
+        message(player, 'Предмет не помещается в инвентарь.');
+        return;
+      }
+      targetAccountWithInventory.character.inventory = result.inventory;
+      saveAccounts();
+      if (openInventories.has(target.player.id)) {
+        target.player.call('ragerp:inventory:update',
+          [JSON.stringify(inventoryStateFor(target.player))]);
+      }
+      Admin.recordLog('universal_inventory', 'give_item', issuerStaticId, targetStaticId,
+        `Выдано предметов: ${itemId} × ${quantity}.`);
+      message(player, `${target.name}: выдано ${itemId} × ${quantity}.`);
+      break;
+
+    case 'player_info':
+      if (!target) {
+        message(player, 'Игрок не найден в сети.');
+        return;
+      }
+      const targetAccountInfo = getAccount(target.player);
+      player.call('ragerp:admin:player-info', [JSON.stringify({
+        staticId: target.staticId,
+        name: target.name,
+        faction: targetAccountInfo.character && targetAccountInfo.character.faction
+          ? targetAccountInfo.character.faction
+          : 'Civilian',
+        cash: targetAccountInfo.character ? targetAccountInfo.character.cash : 0,
+        bank: targetAccountInfo.character ? targetAccountInfo.character.bank : 0,
+        dimension: target.player.dimension,
+        position: { x: target.x, y: target.y, z: target.z },
+        ban: Admin.getBan(target.staticId)
+      })]);
+      Admin.recordLog('inventory_search', 'player_info', issuerStaticId, targetStaticId,
+        'Просмотрена информация о игроке.');
+      break;
+
+    default:
+      message(player, 'Неизвестное админ-действие.');
+  }
+});
+
 mp.events.add('playerQuit', (player) => {
   const playtimeUpdated = checkpointPlayerPlaytime(player, Date.now());
+  const account = getAccount(player);
+  if (account && account.character) {
+    Admin.recordLog('auth_logs', 'player_disconnected', null,
+      ensureStaticId(account), `Игрок отключился: ${player.name || 'Без имени'}.`);
+  }
   openDealerships.delete(player.id);
   if (playtimeUpdated) {
     try {
@@ -2217,8 +2539,8 @@ mp.events.add('playerQuit', (player) => {
   if (starterVehicle && mp.vehicles.exists(starterVehicle)) starterVehicle.destroy();
   spawnedStarterVehicles.delete(key);
 
-  const account = accounts[key];
-  const character = account && account.character;
+  const accountFromKey = accounts[key];
+  const character = accountFromKey && accountFromKey.character;
   if (character) {
     try {
       const inventory = ensureCharacterInventory(character);

@@ -4,6 +4,9 @@ let registrationOpen = false;
 let registrationStaticId = '';
 let settingsBrowser = null;
 let settingsOpen = false;
+let adminBrowser = null;
+let adminOpen = false;
+let adminBootstrap = null;
 let phoneBrowser = null;
 let phoneOpen = false;
 let phoneBootstrap = null;
@@ -877,6 +880,53 @@ function restoreClientSettings() {
   }
 }
 
+function openAdmin(payload) {
+  if (registrationOpen || phoneOpen || inventoryOpen || dealershipOpen ||
+      settingsOpen || adminOpen || hudNotificationOpen) return;
+  let bootstrap = payload;
+  if (typeof payload === 'string') {
+    if (payload.length > 20000) return;
+    try {
+      bootstrap = JSON.parse(payload);
+    } catch (error) {
+      console.error('[RageRP admin] Could not parse admin menu state:', error);
+      return;
+    }
+  }
+  adminBootstrap = bootstrap;
+  adminBrowser = mp.browsers.new('package://ragerp/admin/index.html');
+  adminOpen = true;
+  setHudVisible(false);
+  mp.gui.cursor.show(true, true);
+  mp.gui.chat.show(false);
+  mp.game.ui.displayHud(false);
+  mp.game.ui.displayRadar(false);
+  if (mp.players.local) mp.players.local.freezePosition(true);
+}
+
+function closeAdmin(notifyServer) {
+  if (adminBrowser) {
+    adminBrowser.destroy();
+    adminBrowser = null;
+  }
+  adminOpen = false;
+  adminBootstrap = null;
+  mp.gui.cursor.show(false, false);
+  mp.gui.chat.show(clientSettings.media.showChat);
+  mp.game.ui.displayHud(true);
+  mp.game.ui.displayRadar(clientSettings.general.showRadar);
+  if (mp.players.local) mp.players.local.freezePosition(false);
+  if (hudBrowser) setHudVisible(true);
+  if (notifyServer !== false) mp.events.callRemote('ragerp:admin:close');
+}
+
+function executeAdmin(method, payload) {
+  if (!adminBrowser || !adminOpen) return;
+  adminBrowser.execute(
+    `window.ragerpAdmin && window.ragerpAdmin.${method}(${JSON.stringify(payload)})`
+  );
+}
+
 function openSettings() {
   if (radioOpen || registrationOpen || phoneOpen || inventoryOpen ||
       hudNotificationOpen || settingsOpen) return;
@@ -972,6 +1022,8 @@ mp.events.add('browserDomReady', (browser) => {
     executeRadio('setVisible', radioOpen);
     executeRadio('setInVehicle', Boolean(mp.players.local && mp.players.local.vehicle));
     executeRadio('setActiveStation', currentRadioStationId);
+  } else if (browser === adminBrowser) {
+    executeAdmin('setState', adminBootstrap);
   } else if (browser === registrationBrowser) {
     syncRegistrationBrowser();
   } else if (browser === phoneBrowser) {
@@ -1002,6 +1054,34 @@ mp.events.add('ragerp:settings:apply', applyClientSettings);
 
 mp.events.add('ragerp:settings:close-request', () => {
   if (settingsOpen) closeSettings();
+});
+
+mp.events.add('ragerp:admin:open', (payload) => {
+  openAdmin(payload);
+});
+
+mp.events.add('ragerp:admin:close', () => {
+  if (adminOpen) closeAdmin(true);
+});
+
+mp.events.add('ragerp:admin:logs', (payload) => {
+  mp.events.callRemote('ragerp:admin:logs', typeof payload === 'string'
+    ? payload
+    : JSON.stringify(payload));
+});
+
+mp.events.add('ragerp:admin:logs-response', (payload) => {
+  executeAdmin('setLogs', payload);
+});
+
+mp.events.add('ragerp:admin:action', (payload) => {
+  mp.events.callRemote('ragerp:admin:action', typeof payload === 'string'
+    ? payload
+    : JSON.stringify(payload));
+});
+
+mp.events.add('ragerp:admin:player-info', (payload) => {
+  executeAdmin('setPlayerInfo', payload);
 });
 
 mp.events.add('ragerp:hud:show', (payload) => {

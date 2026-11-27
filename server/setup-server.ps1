@@ -38,6 +38,19 @@ foreach ($resource in Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'resou
     Copy-Item -Destination $resourceTarget -Recurse -Force
 }
 
+$adminPackage = Join-Path $packageTarget 'ragerp'
+if (Test-Path -LiteralPath (Join-Path $adminPackage 'package.json') -PathType Leaf) {
+  Push-Location $adminPackage
+  try {
+    npm.cmd ci --omit=dev
+    if ($LASTEXITCODE -ne 0) {
+      throw 'Failed to install RageRP Node dependencies.'
+    }
+  } finally {
+    Pop-Location
+  }
+}
+
 $packageCopy = Join-Path $packageTarget 'ragerp\index.js'
 if (-not (Test-Path -LiteralPath $packageCopy -PathType Leaf)) {
   throw 'Ragerp server package was not installed.'

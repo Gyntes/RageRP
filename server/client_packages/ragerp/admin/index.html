@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Админ меню</title>
+  <link rel="stylesheet" href="style.css?v=20261127-1">
+</head>
+<body>
+  <main class="admin-shell" id="admin-shell">
+    <header class="admin-header">
+      <div>
+        <p>АДМИНИСТРИРОВАНИЕ</p>
+        <h1>Админ меню</h1>
+      </div>
+      <button id="close-admin" type="button" aria-label="Закрыть">×</button>
+    </header>
+
+    <section class="admin-grid">
+      <aside class="admin-column categories-column">
+        <h2>Разделы</h2>
+        <nav id="category-list" class="category-list" aria-label="Разделы логов"></nav>
+        <button class="category-button" data-category="all" type="button">
+          <span>Все логи</span>
+          <b>ALL</b>
+        </button>
+      </aside>
+
+      <section class="admin-column players-column">
+        <header>
+          <h2>Игроки онлайн</h2>
+          <span id="online-count">0</span>
+        </header>
+        <label class="search-field">
+          <span>Поиск игрока</span>
+          <input id="player-search" type="search" placeholder="Имя или статик ID">
+        </label>
+        <div id="player-list" class="player-list"></div>
+      </section>
+
+      <section class="admin-column logs-column">
+        <header>
+          <h2 id="logs-heading">Лог всех событий</h2>
+          <label class="log-search">
+            <input id="log-search" type="search" placeholder="Поиск в логах">
+          </label>
+        </header>
+        <div id="log-list" class="log-list"></div>
+      </section>
+    </section>
+
+    <section class="action-bar" id="action-bar" aria-label="Админ-действия">
+      <div class="selected-player" id="selected-player">Игрок не выбран</div>
+      <button data-action="spectate" type="button">Следить</button>
+      <button data-action="teleport" type="button">Телепорт</button>
+      <button data-action="freeze" type="button">Заморозить</button>
+      <button data-action="warn" type="button">Предупредить</button>
+      <button data-action="kick" type="button">Кик</button>
+      <button data-action="ban" type="button">Бан</button>
+      <button data-action="give_money" type="button">Выдать ₽</button>
+      <button data-action="give_item" type="button">Выдать предмет</button>
+      <button data-action="player_info" type="button">Информация</button>
+    </section>
+  </main>
+  <section class="admin-modal" id="admin-modal" hidden>
+    <form id="admin-modal-form">
+      <header>
+        <h2 id="admin-modal-title">Действие</h2>
+        <button id="close-modal" type="button" aria-label="Закрыть">×</button>
+      </header>
+      <div id="admin-modal-fields"></div>
+      <footer>
+        <button id="cancel-modal" type="button">Отмена</button>
+        <button class="primary" type="submit">Выполнить</button>
+      </footer>
+    </form>
+  </section>
+  <script src="app.js?v=20261127-1"></script>
+</body>
+</html>
