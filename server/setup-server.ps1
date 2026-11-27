@@ -49,7 +49,5 @@ Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'client_packages') -Force |
   Copy-Item -Destination $clientTarget -Recurse -Force
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'conf.json') -Destination (Join-Path $serverFiles 'conf.json') -Force
 
-& (Join-Path $PSScriptRoot 'patch-node-loader.ps1') $serverFiles
-
 Write-Host "RAGE MP server configured: $serverFiles"
 Write-Host "Run: server\start-server.bat `"$serverFiles`""

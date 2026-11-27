@@ -17,7 +17,7 @@
 в установленной локальной копии RAGE MP.
 
 1. Скачай актуальную официальную Windows server-пачку RAGE MP.
-2. Запусти `server\setup-server.ps1 -ServerFiles "путь\к\официальной\пачке"`.
+2. Запусти `server\setup-server.ps1 "путь\к\официальной\пачке"`.
    Скрипт проверит `ragemp-server.exe` и установит ресурсы проекта в эту папку.
 3. Запусти `server\start-server.bat "путь\к\официальной\пачке"`.
    Без аргумента используется `server\server-files`, либо переменная `RAGEMP_SERVER_DIR`.
@@ -26,7 +26,7 @@
 Проверить установленную сборку:
 
 ```powershell
-.\server\verify-server.ps1 -ServerFiles "путь\к\официальной\пачке"
+.\server\verify-server.ps1 "путь\к\официальной\пачке"
 ```
 
 Чтобы другие разработчики подключались к серверу с этого ПК:
@@ -37,7 +37,7 @@
 powershell.exe -ExecutionPolicy Bypass -File server\setup-lan.ps1
 ```
 
-Скрипт откроет firewall для порта `22005/UDP` и `22006/TCP/UDP`.
+Скрипт откроет firewall для `22005/UDP` (игровой сервер) и `22006/TCP` (загрузка клиентских пакетов).
 
 2. Для игроков в одной сети передай им IPv4, который выводит скрипт, например
    `192.168.0.5:22005`.
@@ -46,7 +46,6 @@ powershell.exe -ExecutionPolicy Bypass -File server\setup-lan.ps1
 
 - `22005/UDP` -> IPv4 этого ПК;
 - `22006/TCP` -> IPv4 этого ПК;
-- `22006/UDP` -> IPv4 этого ПК;
 - назначь ПК постоянный LAN IPv4 через DHCP reservation.
 
 После проброса внешние разработчики подключаются к публичному IPv4 роутера на порт `22005`.
