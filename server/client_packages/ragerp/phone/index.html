@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
   <title>Телефон</title>
-  <link rel="stylesheet" href="style.css?v=20261127-32">
+  <link rel="stylesheet" href="style.css?v=20261128-01">
 </head>
 <body>
   <main class="phone-shell" id="phone-shell" data-wallpaper="night">
@@ -120,9 +120,20 @@
   <section class="official-document-overlay" id="official-document-overlay" hidden role="dialog" aria-modal="true" aria-label="Документ персонажа">
     <div class="official-document-container" id="official-document-sheet"></div>
   </section>
+  <section class="passport-share-overlay" id="passport-share-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="passport-share-title">
+    <article class="passport-share-dialog">
+      <span class="passport-share-emblem" aria-hidden="true">ПТС</span>
+      <h2 id="passport-share-title">Предъявление документа</h2>
+      <p><strong id="passport-share-name">Игрок</strong> показывает вам паспорт транспортного средства.</p>
+      <div class="passport-share-actions">
+        <button class="button primary" data-passport-share-answer="accept" type="button">Посмотреть</button>
+        <button class="button" data-passport-share-answer="decline" type="button">Отказаться</button>
+      </div>
+    </article>
+  </section>
   <section class="prisoner-file-overlay" id="prisoner-file-overlay" hidden role="dialog" aria-modal="true" aria-label="Личное дело заключённого">
     <article class="prisoner-file-sheet" id="prisoner-file-sheet"></article>
   </section>
-  <script src="app.js?v=20261127-32"></script>
+  <script src="app.js?v=20261128-01"></script>
 </body>
 </html>

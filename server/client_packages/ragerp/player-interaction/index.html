@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <title>Взаимодействие с игроком</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="interaction-overlay" id="interaction-overlay">
+    <section class="interaction-wheel" role="dialog" aria-modal="true" aria-label="Взаимодействие с игроком">
+      <div class="wheel-ring wheel-ring-outer"></div>
+      <div class="wheel-ring wheel-ring-inner"></div>
+      <button class="interaction-action" id="show-passport" type="button">
+        <span class="action-icon" aria-hidden="true">ПТС</span>
+        <span class="action-label">Показать ПТС</span>
+      </button>
+      <div class="wheel-center">
+        <span class="center-mark" aria-hidden="true">↗</span>
+        <p class="eyebrow">ВЗАИМОДЕЙСТВИЕ</p>
+        <h1 id="target-name">ИГРОК</h1>
+      </div>
+      <p class="wheel-hint">ВЫБЕРИ ДЕЙСТВИЕ · ESC — ЗАКРЫТЬ</p>
+      <button class="wheel-close" id="close-menu" type="button" aria-label="Закрыть меню">×</button>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

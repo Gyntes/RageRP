@@ -21,6 +21,7 @@
   const policeIdSheet = document.getElementById('police-id-sheet');
   const officialDocumentOverlay = document.getElementById('official-document-overlay');
   const officialDocumentSheet = document.getElementById('official-document-sheet');
+  const passportShareOverlay = document.getElementById('passport-share-overlay');
   const prisonerFileOverlay = document.getElementById('prisoner-file-overlay');
   const prisonerFileSheet = document.getElementById('prisoner-file-sheet');
   const toast = document.getElementById('toast');
@@ -49,6 +50,11 @@
     ads: [],
     taxiCalls: [],
     starterVehicle: null,
+    vehiclePassport: null,
+    vehiclePassportDisplay: null,
+    vehiclePassportTargets: null,
+    vehiclePassportTargetsLoading: false,
+    passportShareRequest: null,
     numbers: [],
     militaryTicket: null,
     notices: [],
@@ -122,6 +128,18 @@
       toastTimer = null;
       toast.classList.remove('visible');
     }, 2800);
+  }
+
+  function renderPassportShareRequest(request) {
+    state.passportShareRequest = request && typeof request.requestId === 'string' &&
+      request.requestId.length <= 64
+      ? request
+      : null;
+    passportShareOverlay.hidden = !state.passportShareRequest;
+    if (state.passportShareRequest) {
+      document.getElementById('passport-share-name').textContent =
+        String(state.passportShareRequest.fromName || 'Игрок');
+    }
   }
 
   function setPhoneOpen(open) {
@@ -551,6 +569,14 @@
     }).join('');
 
     return `<p class="section-title">Личные документы</p>
+      <button class="military-document-entry card vehicle-passport-entry" data-action="open-official-document" data-document="vehicle-passport" type="button">
+        <span class="military-document-entry-icon vehicle-passport-entry-icon">${documentIconSvg('driver')}</span>
+        <span class="military-document-entry-copy">
+          <strong>Паспорт транспортного средства</strong>
+          <small>${state.vehiclePassport ? escapeHtml(state.vehiclePassport.model) + ' · ' + escapeHtml(state.vehiclePassport.plate) + ' ' + escapeHtml(state.vehiclePassport.region) : 'Данные автомобиля недоступны'}</small>
+        </span>
+        <span class="status-badge${state.vehiclePassport ? '' : ' busy'}">${state.vehiclePassport ? 'Выдан' : 'Недоступен'}</span>
+      </button>
       <button class="military-document-entry card" data-action="open-military-id" type="button">
         <span class="military-document-entry-icon military-ticket-icon">${documentIconSvg('military')}</span>
         <span class="military-document-entry-copy">
@@ -1050,6 +1076,72 @@
     const staticId = validStaticId(state.staticId) || '--- ---';
     const issued = formatDocumentDate(Date.now());
     const expiry = documentDateOffset(kind === 'weapon' ? 3 : 12);
+    if (kind === 'vehicle-passport') {
+      const passport = state.vehiclePassportDisplay || state.vehiclePassport;
+      if (!passport) return '';
+
+      const isShared = Boolean(state.vehiclePassportDisplay);
+      const targets = state.vehiclePassportTargets;
+      const targetList = state.vehiclePassportTargetsLoading
+        ? '<p class="vehicle-passport-share-status">Ищем игроков рядом…</p>'
+        : targets === null
+          ? ''
+          : targets.length
+            ? `<div class="vehicle-passport-targets">${targets.map(function (target) {
+              return `<button class="vehicle-passport-target" data-passport-action="share" data-static-id="${escapeHtml(target.staticId)}" type="button">
+                <span>${escapeHtml(target.name)}</span><small>ID ${escapeHtml(target.staticId)} · ${Number(target.distance).toFixed(1)} м</small>
+              </button>`;
+            }).join('')}</div>`
+            : '<p class="vehicle-passport-share-status">Игроков в радиусе 3 м нет.</p>';
+
+      return `<button class="official-document-close" data-close-official-document type="button" aria-label="Закрыть ПТС">×</button>
+        <article class="official-document-sheet vehicle-passport-sheet">
+          <div class="vehicle-passport-layout">
+            <section class="vehicle-passport-primary">
+              <header class="vehicle-passport-heading">
+                <span>РОССИЙСКАЯ ФЕДЕРАЦИЯ</span>
+                <strong>ПАСПОРТ<br>ТРАНСПОРТНОГО СРЕДСТВА</strong>
+              </header>
+              <div class="vehicle-passport-fields">
+                <div class="vehicle-passport-field vehicle-passport-model"><span>Марка, модель:</span><strong>${escapeHtml(passport.model)}</strong></div>
+                <div class="vehicle-passport-field"><span>Гос. номер:</span><strong>${escapeHtml(passport.plate)} ${escapeHtml(passport.region)}</strong></div>
+                <div class="vehicle-passport-field"><span>Дата покупки:</span><strong class="vehicle-passport-unavailable">Нет данных</strong></div>
+                <div class="vehicle-passport-owner-heading">ВЛАДЕЛЕЦ</div>
+                <div class="vehicle-passport-field"><span>Имя:</span><strong>${escapeHtml(passport.ownerFirstName)}</strong></div>
+                <div class="vehicle-passport-field"><span>Фамилия:</span><strong>${escapeHtml(passport.ownerLastName)}</strong></div>
+                <div class="vehicle-passport-field"><span>ID:</span><strong>${escapeHtml(passport.ownerStaticId)}</strong></div>
+              </div>
+              <div class="vehicle-passport-seal" aria-hidden="true">РФ<small>М.П.</small></div>
+              <footer class="vehicle-passport-footer">Данные ПТС формируются сервером по зарегистрированному автомобилю.</footer>
+              ${isShared
+                ? `<p class="vehicle-passport-share-status">Предъявил: ${escapeHtml(passport.ownerName)}.</p>`
+                : `<div class="vehicle-passport-share">
+                    <button class="button primary" data-passport-action="load-targets" type="button"${state.vehiclePassportTargetsLoading ? ' disabled' : ''}>Показать игроку</button>
+                    ${targetList}
+                  </div>`}
+            </section>
+            <section class="vehicle-passport-modifications">
+              <header class="vehicle-passport-modifications-heading">МОДИФИКАЦИИ</header>
+              <div class="vehicle-passport-modifications-list">
+                <div class="vehicle-passport-modification"><span>Основной цвет:</span><strong class="vehicle-passport-unavailable">Нет данных</strong></div>
+                <div class="vehicle-passport-modification"><span>Дополнительный цвет:</span><strong class="vehicle-passport-unavailable">Нет данных</strong></div>
+                <div class="vehicle-passport-modification"><span>Неон:</span><strong class="vehicle-passport-unavailable">Нет данных</strong></div>
+                <div class="vehicle-passport-modification"><span>Багажник:</span><strong class="vehicle-passport-unavailable">Нет данных</strong></div>
+                <div class="vehicle-passport-modification"><span>Двигатель:</span><strong class="vehicle-passport-unavailable">Нет данных</strong></div>
+                <div class="vehicle-passport-modification"><span>Привод:</span><strong class="vehicle-passport-unavailable">Нет данных</strong></div>
+                <div class="vehicle-passport-modification"><span>Подвеска:</span><strong class="vehicle-passport-unavailable">Нет данных</strong></div>
+                <div class="vehicle-passport-modification"><span>Тормоза:</span><strong class="vehicle-passport-unavailable">Нет данных</strong></div>
+                <h3 class="vehicle-passport-condition-heading">СОСТОЯНИЕ ТС</h3>
+                <div class="vehicle-passport-modification"><span>Пробег:</span><strong class="vehicle-passport-unavailable">Нет данных</strong></div>
+                <div class="vehicle-passport-modification"><span>Износ двигателя:</span><strong class="vehicle-passport-unavailable">Нет данных</strong></div>
+                <p class="vehicle-passport-condition-note">Технические характеристики и состояние не измеряются игровыми системами.</p>
+                <div class="vehicle-passport-status"><span>Статус автомобиля:</span><strong>${escapeHtml(passport.status)}</strong></div>
+              </div>
+            </section>
+          </div>
+        </article>`;
+    }
+
     const details = {
       fsin: {
         agency: 'ФЕДЕРАЛЬНАЯ СЛУЖБА ИСПОЛНЕНИЯ НАКАЗАНИЙ',
@@ -1169,6 +1261,9 @@
   function closeOfficialDocument() {
     if (officialDocumentOverlay.hidden) return;
     officialDocumentOverlay.hidden = true;
+    if (selectedOfficialDocument === 'vehicle-passport') {
+      state.vehiclePassportDisplay = null;
+    }
     delete officialDocumentSheet.dataset.document;
     selectedOfficialDocument = '';
     shell.classList.remove('is-document-covered');
@@ -1383,9 +1478,34 @@
     }
   });
   officialDocumentOverlay.addEventListener('click', function (event) {
+    const passportAction = event.target.closest('[data-passport-action]');
+    if (passportAction) {
+      if (passportAction.dataset.passportAction === 'load-targets') {
+        state.vehiclePassportTargetsLoading = true;
+        officialDocumentSheet.innerHTML = officialDocumentHtml('vehicle-passport');
+        sendAction('vehicle-passport:targets', {});
+      } else if (passportAction.dataset.passportAction === 'share') {
+        const targetStaticId = validStaticId(passportAction.dataset.staticId);
+        if (!targetStaticId) return;
+        state.vehiclePassportTargets = null;
+        state.vehiclePassportTargetsLoading = false;
+        officialDocumentSheet.innerHTML = officialDocumentHtml('vehicle-passport');
+        sendAction('vehicle-passport:share', { targetStaticId: targetStaticId });
+      }
+      return;
+    }
     if (event.target === officialDocumentOverlay || event.target.closest('[data-close-official-document]')) {
       closeOfficialDocument();
     }
+  });
+  passportShareOverlay.addEventListener('click', function (event) {
+    const button = event.target.closest('[data-passport-share-answer]');
+    if (!button || !state.passportShareRequest) return;
+    sendAction('vehicle-passport:answer', {
+      requestId: state.passportShareRequest.requestId,
+      accepted: button.dataset.passportShareAnswer === 'accept'
+    });
+    renderPassportShareRequest(null);
   });
   prisonerFileOverlay.addEventListener('click', function (event) {
     if (event.target === prisonerFileOverlay || event.target.closest('[data-close-prisoner-file]')) {
@@ -1633,6 +1753,9 @@
       shell.style.setProperty('--phone-scale', String(scaledValue));
       shell.style.setProperty('--phone-enter-scale', String(scaledValue * .95));
     },
+    setPassportShareRequest: function (request) {
+      renderPassportShareRequest(request);
+    },
     setBootstrap: function (payload) {
       const data = typeof payload === 'string' ? JSON.parse(payload) : payload;
       if (!data || typeof data !== 'object') return;
@@ -1648,6 +1771,10 @@
       state.ads = Array.isArray(data.ads) ? data.ads : [];
       state.taxiCalls = Array.isArray(data.taxiCalls) ? data.taxiCalls : [];
       state.starterVehicle = data.starterVehicle || null;
+      state.vehiclePassport = data.vehiclePassport || null;
+      state.vehiclePassportDisplay = null;
+      state.vehiclePassportTargets = null;
+      state.vehiclePassportTargetsLoading = false;
       state.militaryTicket = data.militaryTicket || null;
       state.numbers = Array.isArray(data.numbers)
         ? normalizeNumbers(data.numbers)
@@ -1661,6 +1788,7 @@
       if (selectedOfficialDocument) {
         officialDocumentSheet.innerHTML = officialDocumentHtml(selectedOfficialDocument);
       }
+      renderPassportShareRequest(data.passportShareRequest);
       refreshOpenPrisonerFile();
     },
     update: function (payload) {
@@ -1677,6 +1805,22 @@
       if (Array.isArray(data.ads)) state.ads = data.ads;
       if (Array.isArray(data.taxiCalls)) state.taxiCalls = data.taxiCalls;
       if (data.starterVehicle !== undefined) state.starterVehicle = data.starterVehicle;
+      if (data.vehiclePassport !== undefined) state.vehiclePassport = data.vehiclePassport || null;
+      if (data.vehiclePassportTargets !== undefined) {
+        state.vehiclePassportTargets = Array.isArray(data.vehiclePassportTargets)
+          ? data.vehiclePassportTargets
+          : null;
+      }
+      if (data.vehiclePassportTargetsLoading !== undefined) {
+        state.vehiclePassportTargetsLoading = Boolean(data.vehiclePassportTargetsLoading);
+      }
+      if (data.passportShareRequest !== undefined) {
+        renderPassportShareRequest(data.passportShareRequest);
+      }
+      if (data.vehiclePassportDisplay !== undefined) {
+        state.vehiclePassportDisplay = data.vehiclePassportDisplay || null;
+        if (state.vehiclePassportDisplay) openOfficialDocument('vehicle-passport');
+      }
       if (Array.isArray(data.numbers)) {
         state.numbers = normalizeNumbers(data.numbers);
       } else if (data.starterVehicle !== undefined) {

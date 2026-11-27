@@ -5,6 +5,7 @@ const Parking = require('./parking');
 const Dealership = require('./dealership');
 const Voice = require('./voice');
 const Admin = require('./admin');
+const VehiclePassport = require('./vehicle-passport');
 
 const dataDirectory = path.join(__dirname, 'data');
 const accountsFile = path.join(dataDirectory, 'accounts.json');
@@ -21,6 +22,8 @@ const phoneMessageCooldowns = new Map();
 const phoneAdCooldowns = new Map();
 const taxiRequestCooldowns = new Map();
 const vehicleCallCooldowns = new Map();
+const vehiclePassportShareRequests = new Map();
+const vehiclePassportShareCooldowns = new Map();
 const phoneCallCooldowns = new Map();
 const vehicleLockCooldowns = new Map();
 const spawnedStarterVehicles = new Map();
@@ -37,6 +40,8 @@ let phoneCallSequence = 0;
 let hudNotificationSequence = 0;
 const voiceProximityRange = 15;
 const phoneCallTimeoutMs = 30000;
+const vehiclePassportRequestTimeoutMs = 30000;
+let vehiclePassportRequestSequence = 0;
 const starterVehicleModel = 'blista';
 const starterVehicleName = 'Blista';
 const starterVehicleRegion = '97';
@@ -605,6 +610,7 @@ function summonStarterVehicle(player) {
     const vehicleState = starterVehicleState(player);
     updatePhone(player, {
       starterVehicle: vehicleState,
+      vehiclePassport: vehiclePassportFor(player),
       numbers: phoneNumbersFor(vehicleState),
       notice: `Твоя ${starterVehicleName} переспавнена на ближайшей парковке. Метка GPS обновлена.`
     });
@@ -673,6 +679,7 @@ function summonStarterVehicle(player) {
   const vehicleState = starterVehicleState(player);
   updatePhone(player, {
     starterVehicle: vehicleState,
+    vehiclePassport: vehiclePassportFor(player),
     numbers: phoneNumbersFor(vehicleState),
     notice: `Твоя ${starterVehicleName} припаркована. Метка GPS добавлена. Номер: ${plateLabel}.`
   });
@@ -750,6 +757,7 @@ function phoneStateFor(player) {
   ensureStarterVehicle(account);
   if (!Array.isArray(account.messages)) account.messages = [];
   const starterVehicle = starterVehicleState(player);
+  const passportRequest = vehiclePassportShareRequests.get(player.id);
   return {
     staticId: account.staticId,
     name: `${account.character.firstName} ${account.character.lastName}`,
@@ -767,12 +775,154 @@ function phoneStateFor(player) {
     ads: phoneAds.slice(-30),
     taxiCalls: taxiCalls.slice(-20),
     starterVehicle,
+    vehiclePassport: vehiclePassportFor(player),
+    passportShareRequest: passportRequest
+      ? { requestId: passportRequest.requestId, fromName: passportRequest.fromName }
+      : null,
     numbers: phoneNumbersFor(starterVehicle),
     firstName: account.character.firstName,
     lastName: account.character.lastName,
     criminalRecords: criminalRecordsFor(account.character),
     militaryTicket: account.character.militaryTicket || null
   };
+}
+
+function vehiclePassportFor(player) {
+  const account = getAccount(player);
+  const character = account.character;
+  const vehicle = starterVehicleState(player);
+  if (!character || !vehicle) return null;
+
+  return {
+    model: vehicle.name,
+    plate: vehicle.plate,
+    region: vehicle.region,
+    ownerName: `${character.firstName} ${character.lastName}`,
+    ownerFirstName: character.firstName,
+    ownerLastName: character.lastName,
+    ownerStaticId: ensureStaticId(account),
+    status: vehicle.isOut ? 'Вызван' : 'На парковке'
+  };
+}
+
+function nearbyVehiclePassportTargets(player) {
+  const account = getAccount(player);
+  const origin = {
+    staticId: ensureStaticId(account),
+    dimension: player.dimension,
+    x: Number(player.position.x),
+    y: Number(player.position.y),
+    z: Number(player.position.z)
+  };
+  const candidates = onlinePhonePlayers().map((entry) => ({
+    staticId: entry.staticId,
+    name: entry.name,
+    dimension: entry.player.dimension,
+    x: entry.x,
+    y: entry.y,
+    z: entry.z
+  }));
+  return VehiclePassport.targetsWithinShareRange(origin, candidates);
+}
+
+function findNearbyPassportTarget(player, staticId) {
+  const target = onlinePhonePlayers().find((entry) => entry.staticId === staticId);
+  if (!target) return null;
+  const targets = nearbyVehiclePassportTargets(player);
+  return targets.some((entry) => entry.staticId === staticId) ? target.player : null;
+}
+
+function findNearbyPassportTargetById(player, targetId) {
+  const target = onlinePhonePlayers().find((entry) => entry.player.id === targetId);
+  if (!target || target.player.id === player.id) return null;
+  return findNearbyPassportTarget(player, target.staticId);
+}
+
+function vehiclePassportShareNotice(player, text) {
+  if (openPhones.has(player.id)) phoneNotice(player, text);
+  else message(player, text);
+}
+
+function requestVehiclePassportShare(player, target) {
+  if (!target || target.id === player.id) {
+    vehiclePassportShareNotice(player, 'Выбери другого игрока рядом.');
+    return;
+  }
+
+  const now = Date.now();
+  const lastShare = vehiclePassportShareCooldowns.get(player.id) || 0;
+  if (now - lastShare < 2000) {
+    vehiclePassportShareNotice(player, 'Подожди немного перед следующим показом ПТС.');
+    return;
+  }
+  if (vehiclePassportShareRequests.has(target.id)) {
+    vehiclePassportShareNotice(player, 'У этого игрока уже есть ожидающий запрос на просмотр документа.');
+    return;
+  }
+
+  const passport = vehiclePassportFor(player);
+  if (!passport) {
+    vehiclePassportShareNotice(player, 'Не удалось получить данные ПТС.');
+    return;
+  }
+
+  const account = getAccount(player);
+  const character = account.character;
+  vehiclePassportShareCooldowns.set(player.id, now);
+  const requestId = `${now.toString(36)}-${(++vehiclePassportRequestSequence).toString(36)}`;
+  const targetCharacter = characterFor(target);
+  const targetName = targetCharacter
+    ? `${targetCharacter.firstName} ${targetCharacter.lastName}`
+    : String(target.name || 'Игрок');
+  const request = {
+    requestId,
+    sender: player,
+    target,
+    passport,
+    targetName,
+    fromName: `${character.firstName} ${character.lastName}`,
+    timeout: null
+  };
+  request.timeout = setTimeout(() => {
+    if (vehiclePassportShareRequests.get(target.id) !== request) return;
+    clearVehiclePassportShare(
+      target.id,
+      'Время запроса на просмотр ПТС истекло.',
+      'Игрок не ответил на запрос показа ПТС.'
+    );
+  }, vehiclePassportRequestTimeoutMs);
+  vehiclePassportShareRequests.set(target.id, request);
+
+  target.call('ragerp:phone:passport:request', [JSON.stringify({
+    requestId,
+    fromName: request.fromName
+  })]);
+  const notice = `Запрос показа ПТС отправлен игроку ${targetName}.`;
+  if (openPhones.has(player.id)) {
+    updatePhone(player, {
+      vehiclePassportTargets: null,
+      vehiclePassportTargetsLoading: false,
+      notice
+    });
+  } else {
+    message(player, notice);
+  }
+}
+
+function clearVehiclePassportShare(targetId, targetNotice, senderNotice) {
+  const request = vehiclePassportShareRequests.get(targetId);
+  if (!request) return null;
+
+  clearTimeout(request.timeout);
+  vehiclePassportShareRequests.delete(targetId);
+  if (mp.players.exists(request.target)) {
+    request.target.call('ragerp:phone:passport:request', [JSON.stringify(null)]);
+    if (targetNotice) vehiclePassportShareNotice(request.target, targetNotice);
+  }
+  if (senderNotice && mp.players.exists(request.sender)) {
+    vehiclePassportShareNotice(request.sender, senderNotice);
+  }
+  return request;
 }
 
 function onlinePhoneState() {
@@ -1918,6 +2068,21 @@ mp.events.add('ragerp:vehicle:toggle-engine', (player) => {
   message(player, vehicle.engine ? 'Двигатель запущен.' : 'Двигатель заглушён.');
 });
 
+mp.events.add('ragerp:vehicle-passport:share-to', (player, targetId) => {
+  if (player.dimension !== 0 || !characterFor(player)) return;
+  if (!Number.isSafeInteger(targetId) || targetId < 0) {
+    message(player, 'Не удалось определить игрока для показа ПТС.');
+    return;
+  }
+
+  const target = findNearbyPassportTargetById(player, targetId);
+  if (!target) {
+    message(player, 'Игрок должен находиться рядом, не дальше 3 метров.');
+    return;
+  }
+  requestVehiclePassportShare(player, target);
+});
+
 mp.events.add('ragerp:phone:action', (player, action, payload) => {
   if (!openPhones.has(player.id) || typeof action !== 'string' ||
       typeof payload !== 'string' || payload.length > 4096 ||
@@ -1943,6 +2108,67 @@ mp.events.add('ragerp:phone:action', (player, action, payload) => {
 
   if (action === 'refresh') {
     updatePhone(player, phoneStateFor(player));
+    return;
+  }
+
+  if (action === 'vehicle-passport:targets') {
+    updatePhone(player, {
+      vehiclePassportTargets: nearbyVehiclePassportTargets(player),
+      vehiclePassportTargetsLoading: false
+    });
+    return;
+  }
+
+  if (action === 'vehicle-passport:share') {
+    const targetStaticId = String(data.targetStaticId || '').trim();
+    if (!/^\d{3}-\d{3}$/.test(targetStaticId)) {
+      phoneNotice(player, 'Выбери игрока из списка рядом.');
+      return;
+    }
+
+    const target = findNearbyPassportTarget(player, targetStaticId);
+    if (!target) {
+      phoneNotice(player, 'Игрок должен находиться рядом, не дальше 3 метров.');
+      updatePhone(player, { vehiclePassportTargets: nearbyVehiclePassportTargets(player) });
+      return;
+    }
+    requestVehiclePassportShare(player, target);
+    return;
+  }
+
+  if (action === 'vehicle-passport:answer') {
+    const request = vehiclePassportShareRequests.get(player.id);
+    const requestId = String(data.requestId || '');
+    if (!request || request.requestId !== requestId || typeof data.accepted !== 'boolean') {
+      phoneNotice(player, 'Запрос на просмотр ПТС уже недействителен.');
+      return;
+    }
+    if (!data.accepted) {
+      clearVehiclePassportShare(
+        player.id,
+        null,
+        `${request.targetName} отказался от просмотра ПТС.`
+      );
+      return;
+    }
+
+    if (!mp.players.exists(request.sender) ||
+        !findNearbyPassportTarget(request.sender, ensureStaticId(account))) {
+      clearVehiclePassportShare(
+        player.id,
+        'Игрок, показывающий ПТС, уже не рядом.',
+        'Показ ПТС отменён: игрок отошёл слишком далеко или вышел.'
+      );
+      return;
+    }
+
+    clearTimeout(request.timeout);
+    vehiclePassportShareRequests.delete(player.id);
+    player.call('ragerp:phone:passport:request', [JSON.stringify(null)]);
+    updatePhone(player, {
+      vehiclePassportDisplay: request.passport
+    });
+    vehiclePassportShareNotice(request.sender, `${request.targetName} открыл ваш ПТС.`);
     return;
   }
 
@@ -2520,6 +2746,15 @@ mp.events.add('playerQuit', (player) => {
   const phoneCall = phoneCallByPlayer.get(player.id);
   if (phoneCall) finishPhoneCall(phoneCall, 'Абонент отключился.');
 
+  for (const [targetId, request] of vehiclePassportShareRequests) {
+    if (request.sender !== player && request.target !== player) continue;
+    clearVehiclePassportShare(
+      targetId,
+      request.sender === player ? 'Показ ПТС отменён: владелец отключился.' : null,
+      request.target === player ? 'Показ ПТС отменён: получатель отключился.' : null
+    );
+  }
+
   const key = sessions.get(player.id);
   openPhones.delete(player.id);
   openInventories.delete(player.id);
@@ -2529,6 +2764,7 @@ mp.events.add('playerQuit', (player) => {
   taxiRequestCooldowns.delete(player.id);
   phoneCallCooldowns.delete(player.id);
   vehicleCallCooldowns.delete(player.id);
+  vehiclePassportShareCooldowns.delete(player.id);
   vehicleLockCooldowns.delete(player.id);
   hudNotifications.delete(player.id);
   playtimeCheckpointAt.delete(player.id);
