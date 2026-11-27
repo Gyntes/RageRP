@@ -35,6 +35,12 @@ const allowedFactions = new Map([
   ['civilian', 'Civilian'],
   ['mechanic', 'Mechanic']
 ]);
+const justiceAdminStaticIds = new Set(
+  String(process.env.RAGERP_JUSTICE_ADMIN_IDS || '')
+    .split(',')
+    .map((staticId) => staticId.trim())
+    .filter((staticId) => /^\d{3}-\d{3}$/.test(staticId))
+);
 
 fs.mkdirSync(dataDirectory, { recursive: true });
 
@@ -59,6 +65,37 @@ const accounts = loadAccounts();
 
 function saveAccounts() {
   fs.writeFileSync(accountsFile, JSON.stringify(accounts, null, 2), 'utf8');
+}
+
+function addCalendarMonths(timestamp, months) {
+  const date = new Date(timestamp);
+  const day = date.getUTCDate();
+  date.setUTCDate(1);
+  date.setUTCMonth(date.getUTCMonth() + months);
+  const lastDay = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).getUTCDate();
+  date.setUTCDate(Math.min(day, lastDay));
+  return date.getTime();
+}
+
+function criminalRecordsFor(character) {
+  if (!character || !Array.isArray(character.criminalRecords)) return [];
+
+  return character.criminalRecords.filter((record) =>
+    record && Number.isSafeInteger(Number(record.issuedAt)) &&
+    Number.isSafeInteger(Number(record.expiresAt)) &&
+    Number.isSafeInteger(Number(record.termMonths)) &&
+    Number(record.termMonths) >= 1 && Number(record.termMonths) <= 120
+  ).slice(-100).map((record, index) => ({
+    id: String(record.id || `${record.issuedAt}-${index + 1}`).slice(0, 64),
+    issuedAt: Number(record.issuedAt),
+    termMonths: Number(record.termMonths),
+    expiresAt: Number(record.expiresAt),
+    reason: String(record.reason || '—').replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, 120),
+    issuerName: String(record.issuerName || '—').replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, 60),
+    issuerStaticId: /^\d{3}-\d{3}$/.test(String(record.issuerStaticId || ''))
+      ? String(record.issuerStaticId)
+      : ''
+  }));
 }
 
 function getAccountKey(player) {
@@ -240,6 +277,7 @@ function onlinePhonePlayers() {
       player,
       staticId: ensureStaticId(account),
       name: `${account.character.firstName} ${account.character.lastName}`,
+      criminalRecords: criminalRecordsFor(account.character),
       x: Number(player.position.x),
       y: Number(player.position.y),
       z: Number(player.position.z)
@@ -261,6 +299,7 @@ function phoneStateFor(player) {
     online: onlinePhonePlayers().map((person) => ({
       staticId: person.staticId,
       name: person.name,
+      criminalRecords: person.criminalRecords,
       x: person.x,
       y: person.y,
       z: person.z
@@ -272,8 +311,20 @@ function phoneStateFor(player) {
     numbers: phoneNumbersFor(starterVehicle),
     firstName: account.character.firstName,
     lastName: account.character.lastName,
+    criminalRecords: criminalRecordsFor(account.character),
     militaryTicket: account.character.militaryTicket || null
   };
+}
+
+function onlinePhoneState() {
+  return onlinePhonePlayers().map((person) => ({
+    staticId: person.staticId,
+    name: person.name,
+    criminalRecords: person.criminalRecords,
+    x: person.x,
+    y: person.y,
+    z: person.z
+  }));
 }
 
 function updatePhone(player, update) {
@@ -508,6 +559,7 @@ function showHelp(player) {
   message(player, '/register <Имя> <Фамилия> <возраст> [male|female] — резервное создание персонажа');
   message(player, '/stats, /bank, /deposit <сумма>, /withdraw <сумма>');
   message(player, '/job [courier|unemployed], /work, /faction, /joinfaction <civilian|mechanic>, /me <текст>');
+  message(player, '/conviction <статик ID> <месяцев> <причина> — добавить приговор (для разрешённых ID)');
   message(player, 'Телефон: клавиша P. Доступны SMS, банк, GPS, такси и объявления.');
   message(player, 'Тестовая карта: /maptest — перейти к пилоту Тулы. HUD: /hudtest — проверить уведомление.');
 }
@@ -681,6 +733,72 @@ function handleCommand(player, command) {
 
   if (name === 'help') {
     showHelp(player);
+    return;
+  }
+
+  if (name === 'conviction') {
+    const issuerCharacter = requireCharacter(player);
+    if (!issuerCharacter) return;
+
+    const issuerAccount = getAccount(player);
+    const issuerStaticId = ensureStaticId(issuerAccount);
+    if (!justiceAdminStaticIds.size) {
+      message(player, 'Команда отключена: задай RAGERP_JUSTICE_ADMIN_IDS перед запуском сервера.');
+      return;
+    }
+    if (!justiceAdminStaticIds.has(issuerStaticId)) {
+      message(player, 'У тебя нет прав добавлять судебные записи.');
+      return;
+    }
+
+    const targetStaticId = String(args[0] || '');
+    const termMonths = /^\d{1,3}$/.test(String(args[1] || '')) ? Number(args[1]) : 0;
+    const reason = args.slice(2).join(' ').replace(/[\u0000-\u001f\u007f]/g, ' ').trim();
+    if (!/^\d{3}-\d{3}$/.test(targetStaticId) ||
+        !Number.isInteger(termMonths) || termMonths < 1 || termMonths > 120 ||
+        !reason || reason.length > 120) {
+      message(player, 'Использование: /conviction <статик ID> <месяцев 1–120> <причина до 120 символов>.');
+      return;
+    }
+
+    const target = accountByStaticId(targetStaticId);
+    if (!target || !target.account.character) {
+      message(player, 'Персонаж с таким статик ID не найден.');
+      return;
+    }
+
+    const targetCharacter = target.account.character;
+    const records = criminalRecordsFor(targetCharacter);
+    if (records.length >= 100) {
+      message(player, 'В деле уже максимальное количество записей.');
+      return;
+    }
+
+    const issuedAt = Date.now();
+    const expiresAt = addCalendarMonths(issuedAt, termMonths);
+    const record = {
+      id: `${issuedAt}-${records.length + 1}`,
+      issuedAt,
+      termMonths,
+      expiresAt,
+      reason,
+      issuerName: `${issuerCharacter.firstName} ${issuerCharacter.lastName}`,
+      issuerStaticId
+    };
+    targetCharacter.criminalRecords = records.concat(record);
+    saveAccounts();
+
+    updateOpenPhones({ online: onlinePhoneState() });
+    const targetPlayer = playerByAccountKey(target.key);
+    if (targetPlayer) {
+      updatePhone(targetPlayer, {
+        criminalRecords: targetCharacter.criminalRecords,
+        notice: 'В личное дело добавлена судебная запись.'
+      });
+      message(targetPlayer, 'В личное дело добавлена судебная запись.');
+    }
+
+    message(player, `Приговор добавлен. Срок: ${termMonths} мес.; погашение: ${new Date(expiresAt).toLocaleDateString('ru-RU', { timeZone: 'UTC' })}.`);
     return;
   }
 

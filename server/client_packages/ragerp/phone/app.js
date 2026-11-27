@@ -6,6 +6,8 @@
   const phoneLockScreen = document.getElementById('phone-lock-screen');
   const militaryIdOverlay = document.getElementById('military-id-overlay');
   const militaryIdSheet = document.getElementById('military-id-sheet');
+  const prisonerFileOverlay = document.getElementById('prisoner-file-overlay');
+  const prisonerFileSheet = document.getElementById('prisoner-file-sheet');
   const toast = document.getElementById('toast');
   const phoneTitles = {
     contacts: 'Контакты',
@@ -24,6 +26,7 @@
     name: '',
     firstName: '',
     lastName: '',
+    criminalRecords: [],
     cash: 0,
     bank: 0,
     online: [],
@@ -39,6 +42,8 @@
     contacts: loadContacts()
   };
   let toastTimer = null;
+  let prisonerFileExpiryTimer = null;
+  let selectedPrisonerFile = null;
 
   function loadContacts() {
     try {
@@ -415,8 +420,42 @@
     return Number.isNaN(date.getTime()) ? '—' : date.toLocaleDateString('ru-RU');
   }
 
+  function formatSentenceTerm(value) {
+    const months = Number(value);
+    if (!Number.isSafeInteger(months) || months < 1) return '—';
+    function quantity(value, one, few, many) {
+      const mod10 = value % 10;
+      const mod100 = value % 100;
+      if (mod10 === 1 && mod100 !== 11) return one;
+      if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
+      return many;
+    }
+
+    const years = Math.floor(months / 12);
+    const remainingMonths = months % 12;
+    const parts = [];
+    if (years) parts.push(`${years} ${quantity(years, 'год', 'года', 'лет')}`);
+    if (remainingMonths) {
+      parts.push(`${remainingMonths} ${quantity(remainingMonths, 'месяц', 'месяца', 'месяцев')}`);
+    }
+    return parts.join(' ');
+  }
+
   function documentsHtml() {
     const issued = Boolean(state.militaryTicket && typeof state.militaryTicket === 'object');
+    const publicFiles = state.online.filter(function (person) {
+      return person && validStaticId(person.staticId) && person.staticId !== state.staticId;
+    }).map(function (person) {
+      return `<button class="military-document-entry card prisoner-record-entry" data-action="open-prisoner-file" data-id="${escapeHtml(person.staticId)}" type="button">
+        <span class="military-document-entry-icon prisoner-document-icon" aria-hidden="true">§</span>
+        <span class="military-document-entry-copy">
+          <strong>${escapeHtml(personName(person))}</strong>
+          <small>Публичное личное дело · ID ${escapeHtml(person.staticId)}</small>
+        </span>
+        <span class="status-badge">Открыть</span>
+      </button>`;
+    }).join('');
+
     return `<p class="section-title">Личные документы</p>
       <button class="military-document-entry card" data-action="open-military-id" type="button">
         <span class="military-document-entry-icon" aria-hidden="true">★</span>
@@ -426,7 +465,149 @@
         </span>
         <span class="status-badge${issued ? '' : ' busy'}">${issued ? 'Выдан' : 'Не получен'}</span>
       </button>
+      <button class="military-document-entry card prisoner-document-entry" data-action="open-prisoner-file" type="button">
+        <span class="military-document-entry-icon prisoner-document-icon" aria-hidden="true">§</span>
+        <span class="military-document-entry-copy">
+          <strong>Моё личное дело</strong>
+          <small>Публичная карточка персонажа</small>
+        </span>
+        <span class="status-badge">Открыто</span>
+      </button>
+      <p class="section-title" style="margin-top:16px">Публичные дела жителей онлайн</p>
+      <div class="prisoner-record-list">${publicFiles || '<div class="empty-state">Других жителей онлайн нет.</div>'}</div>
       <p class="muted">Нажми на документ, чтобы открыть его на весь экран.</p>`;
+  }
+
+  function prisonerFileHtml() {
+    const person = selectedPrisonerFile || state;
+    const nameParts = String(person.name || '').trim().split(/\s+/);
+    const firstName = person.firstName || nameParts[0] || '—';
+    const lastName = person.lastName || nameParts.slice(1).join(' ') || '—';
+    const staticId = validStaticId(person.staticId) || '--- ---';
+    const records = Array.isArray(person.criminalRecords)
+      ? person.criminalRecords.filter(function (record) {
+        return record && Number.isFinite(Number(record.expiresAt));
+      })
+      : [];
+    const allRecordsExpired = records.length > 0 && records.every(function (record) {
+      return Number(record.expiresAt) <= Date.now();
+    });
+    const status = !records.length
+      ? 'Нет записей о судимостях'
+      : allRecordsExpired
+        ? records.length === 1 ? 'Судимость погашена' : 'Все судимости погашены'
+        : 'Есть непогашенная судимость';
+    const recordsHtml = records.length
+      ? records.slice().reverse().map(function (record, index) {
+        const convictionNumber = records.length - index;
+        const reason = String(record.reason || '—');
+        const issuerName = String(record.issuerName || '—');
+        const issuerId = validStaticId(record.issuerStaticId);
+        return `<article class="prisoner-file-record">
+          <h3>Судимость № ${convictionNumber}</h3>
+          <div class="prisoner-file-record-line">
+            <span>Дата: <strong>${escapeHtml(formatDocumentDate(record.issuedAt))}</strong></span>
+            <span>Срок: <strong>${escapeHtml(formatSentenceTerm(record.termMonths))}</strong></span>
+          </div>
+          <div class="prisoner-file-record-line"><span>Причина:</span><strong>${escapeHtml(reason)}</strong></div>
+          <div class="prisoner-file-record-line"><span>Обвинитель:</span><strong>${escapeHtml(issuerName)}${issuerId ? ` (${escapeHtml(issuerId)})` : ''}</strong></div>
+          <div class="prisoner-file-record-line"><span>Дата освобождения:</span><strong>${escapeHtml(formatDocumentDate(record.expiresAt))}</strong></div>
+        </article>`;
+      }).join('')
+      : '<div class="prisoner-file-no-records">Сведений о приговорах пока нет</div>';
+    const stamp = allRecordsExpired
+      ? `<div class="prisoner-file-empty-stamp" aria-label="Судимость погашена">${records.length === 1 ? 'ПОГАШЕНА' : 'ПОГАШЕНЫ'}</div>`
+      : '';
+
+    return `<button class="prisoner-file-close" data-close-prisoner-file type="button" aria-label="Закрыть личное дело">×</button>
+      <section class="prisoner-file-page prisoner-file-profile">
+        <header class="prisoner-file-topline">
+          <div class="prisoner-file-meta">
+            <div><span>Орган:</span><strong>—</strong></div>
+            <div><span>ФСИН / МВД:</span><strong>—</strong></div>
+            <div><span>Место заключения:</span><strong>—</strong></div>
+            <div><span>УК №:</span><strong>—</strong></div>
+          </div>
+          <div class="prisoner-file-portrait" aria-label="Фото персонажа не загружено">
+            <svg viewBox="0 0 64 72" aria-hidden="true"><circle cx="32" cy="22" r="13"></circle><path d="M8 68c1-17 10-26 24-26s23 9 24 26z"></path></svg>
+            <span>ФОТО</span>
+            <i class="prisoner-file-seal" aria-hidden="true">§</i>
+          </div>
+        </header>
+        <h1 class="prisoner-file-title">ЛИЧНОЕ ДЕЛО<small>ЗАКЛЮЧЁННОГО</small></h1>
+        <div class="prisoner-file-fields">
+          <div><span>Имя:</span><strong>${escapeHtml(firstName)}</strong></div>
+          <div><span>Фамилия:</span><strong>${escapeHtml(lastName)}</strong></div>
+          <div><span>ID:</span><strong>${escapeHtml(staticId)}</strong></div>
+        </div>
+        <div class="prisoner-file-status">
+          <span>Статус:</span><strong>${escapeHtml(status)}</strong>
+        </div>
+        <footer class="prisoner-file-count">
+          <span>Всего судимостей:</span><strong>${records.length}</strong>
+          <div class="prisoner-file-count-track"><i style="width:${Math.min(records.length * 14, 100)}%"></i></div>
+        </footer>
+      </section>
+      <section class="prisoner-file-page prisoner-file-records">
+        <header class="prisoner-file-records-heading">
+          <h2>Судимость № <span>${records.length || '—'}</span></h2>
+        </header>
+        <div class="prisoner-file-record-list">${recordsHtml}</div>
+        ${stamp}
+        <footer class="prisoner-file-footer">
+          <span>${escapeHtml(status)}</span>
+          <span class="prisoner-file-footer-seal" aria-hidden="true">✳</span>
+        </footer>
+      </section>`;
+  }
+
+  function openPrisonerFile(person) {
+    selectedPrisonerFile = person || state;
+    prisonerFileSheet.innerHTML = prisonerFileHtml();
+    prisonerFileOverlay.hidden = false;
+    shell.classList.add('is-document-covered');
+    schedulePrisonerFileExpiry();
+  }
+
+  function closePrisonerFile() {
+    if (prisonerFileOverlay.hidden) return;
+    prisonerFileOverlay.hidden = true;
+    shell.classList.remove('is-document-covered');
+    selectedPrisonerFile = null;
+    if (prisonerFileExpiryTimer) clearTimeout(prisonerFileExpiryTimer);
+    prisonerFileExpiryTimer = null;
+  }
+
+  function schedulePrisonerFileExpiry() {
+    if (prisonerFileExpiryTimer) clearTimeout(prisonerFileExpiryTimer);
+    prisonerFileExpiryTimer = null;
+    if (prisonerFileOverlay.hidden || !selectedPrisonerFile) return;
+    const records = Array.isArray(selectedPrisonerFile.criminalRecords)
+      ? selectedPrisonerFile.criminalRecords
+      : [];
+    const latestExpiry = records.reduce(function (latest, record) {
+      const expiry = Number(record && record.expiresAt);
+      return Number.isFinite(expiry) ? Math.max(latest, expiry) : latest;
+    }, 0);
+    const remaining = latestExpiry - Date.now();
+    if (remaining <= 0) return;
+    prisonerFileExpiryTimer = setTimeout(function () {
+      prisonerFileExpiryTimer = null;
+      refreshOpenPrisonerFile();
+    }, Math.min(remaining + 25, 2147483647));
+  }
+
+  function refreshOpenPrisonerFile() {
+    if (prisonerFileOverlay.hidden || !selectedPrisonerFile) return;
+    const staticId = validStaticId(selectedPrisonerFile.staticId);
+    const person = staticId === state.staticId
+      ? state
+      : state.online.find(function (entry) {
+        return entry.staticId === staticId;
+      });
+    if (person) selectedPrisonerFile = person;
+    prisonerFileSheet.innerHTML = prisonerFileHtml();
+    schedulePrisonerFileExpiry();
   }
 
   function militaryIdHtml() {
@@ -645,6 +826,11 @@
       closeMilitaryId();
     }
   });
+  prisonerFileOverlay.addEventListener('click', function (event) {
+    if (event.target === prisonerFileOverlay || event.target.closest('[data-close-prisoner-file]')) {
+      closePrisonerFile();
+    }
+  });
 
   appContent.addEventListener('change', function (event) {
     if (event.target && event.target.id === 'message-contact') {
@@ -712,6 +898,21 @@
 
     if (action === 'open-military-id') {
       openMilitaryId();
+      return;
+    }
+
+    if (action === 'open-prisoner-file') {
+      const staticId = validStaticId(button.dataset.id) || state.staticId;
+      const person = staticId === state.staticId
+        ? state
+        : state.online.find(function (entry) {
+          return entry.staticId === staticId;
+        });
+      if (!person) {
+        showToast('Этот житель больше не в сети.');
+        return;
+      }
+      openPrisonerFile(person);
       return;
     }
 
@@ -829,6 +1030,7 @@
       state.name = String(data.name || '');
       state.firstName = String(data.firstName || '');
       state.lastName = String(data.lastName || '');
+      state.criminalRecords = Array.isArray(data.criminalRecords) ? data.criminalRecords : [];
       state.cash = Number(data.cash) || 0;
       state.bank = Number(data.bank) || 0;
       state.online = Array.isArray(data.online) ? data.online : [];
@@ -843,6 +1045,7 @@
       document.getElementById('home-name').textContent = state.name || 'Мобильная связь';
       renderApp();
       if (!militaryIdOverlay.hidden) militaryIdSheet.innerHTML = militaryIdHtml();
+      refreshOpenPrisonerFile();
     },
     update: function (payload) {
       const data = typeof payload === 'string' ? JSON.parse(payload) : payload;
@@ -851,6 +1054,7 @@
       if (data.bank !== undefined) state.bank = Number(data.bank) || 0;
       if (data.firstName !== undefined) state.firstName = String(data.firstName || '');
       if (data.lastName !== undefined) state.lastName = String(data.lastName || '');
+      if (Array.isArray(data.criminalRecords)) state.criminalRecords = data.criminalRecords;
       if (data.militaryTicket !== undefined) state.militaryTicket = data.militaryTicket || null;
       if (Array.isArray(data.online)) state.online = data.online;
       if (Array.isArray(data.messages)) state.messages = data.messages;
@@ -865,6 +1069,7 @@
       if (data.notice) showToast(data.notice);
       renderApp();
       if (!militaryIdOverlay.hidden) militaryIdSheet.innerHTML = militaryIdHtml();
+      refreshOpenPrisonerFile();
     },
     setNotice: showToast,
     close: function () { setPhoneOpen(false); }
@@ -876,6 +1081,10 @@
       event.stopPropagation();
       if (!militaryIdOverlay.hidden) {
         closeMilitaryId();
+        return;
+      }
+      if (!prisonerFileOverlay.hidden) {
+        closePrisonerFile();
         return;
       }
       setPhoneOpen(false);
