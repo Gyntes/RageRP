@@ -1,0 +1,208 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: transparent;
+  color: #f3f5ef;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+body {
+  pointer-events: none;
+}
+
+button {
+  color: inherit;
+  font: inherit;
+}
+
+.radio-overlay {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  visibility: hidden;
+  opacity: 0;
+  background: rgba(3, 8, 10, 0.48);
+  pointer-events: none;
+  transition: opacity 130ms ease, visibility 130ms ease;
+}
+
+.radio-overlay.is-open {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.radio-wheel {
+  position: relative;
+  width: min(86vw, 82vh, 560px);
+  aspect-ratio: 1;
+  border: 1px solid rgba(201, 243, 107, 0.12);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, rgba(14, 23, 24, 0.94) 0 29%, transparent 29.5%),
+    radial-gradient(circle, rgba(16, 24, 25, 0.76) 0 58%, rgba(9, 15, 16, 0.54) 59% 100%);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.42), inset 0 0 60px rgba(201, 243, 107, 0.04);
+}
+
+.wheel-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border: 1px solid rgba(201, 243, 107, 0.13);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.wheel-ring-outer {
+  width: 72%;
+  height: 72%;
+}
+
+.wheel-ring-inner {
+  width: 47%;
+  height: 47%;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.station-list {
+  position: absolute;
+  inset: 0;
+}
+
+.station-button {
+  position: absolute;
+  width: clamp(76px, 17vw, 112px);
+  min-height: 56px;
+  padding: 9px 7px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 15px;
+  background: rgba(19, 27, 28, 0.94);
+  box-shadow: 0 7px 20px rgba(0, 0, 0, 0.28);
+  cursor: pointer;
+  font-size: clamp(10px, 1.7vw, 13px);
+  font-weight: 700;
+  letter-spacing: 0.045em;
+  line-height: 1.2;
+  text-align: center;
+  transform: translate(-50%, -50%);
+  transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
+}
+
+.station-button:hover,
+.station-button.is-selected {
+  border-color: rgba(201, 243, 107, 0.9);
+  background: rgba(42, 57, 39, 0.98);
+  transform: translate(-50%, -50%) scale(1.05);
+}
+
+.station-button.is-playing {
+  color: #d7ff8b;
+}
+
+.wheel-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  width: 42%;
+  height: 42%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+  transform: translate(-50%, -50%);
+}
+
+.eyebrow {
+  margin: 0;
+  color: #aeb8a4;
+  font-size: clamp(8px, 1.35vw, 10px);
+  font-weight: 700;
+  letter-spacing: 0.17em;
+}
+
+.wheel-center h1 {
+  max-width: 100%;
+  margin: 0;
+  color: #f5f7f1;
+  font-size: clamp(12px, 2.2vw, 18px);
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.radio-off {
+  padding: 7px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  color: #c5ccc0;
+  cursor: pointer;
+  font-size: clamp(8px, 1.4vw, 10px);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.radio-off:hover {
+  border-color: #c9f36b;
+  color: #fff;
+}
+
+.wheel-hint {
+  position: absolute;
+  right: 0;
+  bottom: 8%;
+  left: 0;
+  margin: 0;
+  color: rgba(234, 239, 230, 0.72);
+  font-size: clamp(9px, 1.6vw, 12px);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-align: center;
+}
+
+.radio-status {
+  position: fixed;
+  bottom: max(28px, 5vh);
+  left: 50%;
+  max-width: 90vw;
+  margin: 0;
+  padding: 9px 15px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: rgba(8, 13, 14, 0.78);
+  color: #e2e8de;
+  font-size: 13px;
+  text-align: center;
+  transform: translateX(-50%);
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 150ms ease, visibility 150ms ease;
+}
+
+.radio-status.is-visible {
+  visibility: visible;
+  opacity: 1;
+}
+
+@media (max-width: 520px) {
+  .radio-wheel {
+    width: min(92vw, 76vh, 440px);
+  }
+
+  .station-button {
+    width: clamp(72px, 20vw, 88px);
+    min-height: 48px;
+    padding: 7px 5px;
+    border-radius: 12px;
+  }
+}

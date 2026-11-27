@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const Inventory = require('./inventory');
 const Parking = require('./parking');
+const Dealership = require('./dealership');
 const Voice = require('./voice');
 
 const dataDirectory = path.join(__dirname, 'data');
@@ -13,6 +14,7 @@ const previewGenders = new Map();
 const rotationUpdates = new Map();
 const openPhones = new Set();
 const openInventories = new Set();
+const openDealerships = new Set();
 const inventoryActionCooldowns = new Map();
 const phoneMessageCooldowns = new Map();
 const phoneAdCooldowns = new Map();
@@ -1058,7 +1060,8 @@ function showHelp(player) {
   message(player, 'Инвентарь: I; быстрые слоты: 1–4. Предметы выдаются разрешённым администраторам через /inventorygive.');
   message(player, '/job [courier|unemployed], /work, /faction, /joinfaction <civilian|mechanic>, /me <текст>');
   message(player, '/conviction <статик ID> <месяцев> <причина> — добавить приговор (для разрешённых ID)');
-  message(player, 'Телефон: клавиша P. Доступны SMS, банк, GPS, такси и объявления.');
+  message(player, 'Телефон: стрелка вверх или Tab. Доступны SMS, банк, GPS, такси и объявления.');
+  message(player, 'Автосалон: нажми E у отметки в городе, чтобы посмотреть каталог машин.');
   message(player, 'Тестовая карта: /maptest — перейти к пилоту Тулы. HUD: /hudtest — проверить уведомление.');
 }
 
@@ -1520,6 +1523,10 @@ mp.events.add('playerReady', (player) => {
 
 mp.events.add('ragerp:client:ui-ready', (player) => {
   const account = getAccount(player);
+  player.call('ragerp:dealership:location', [JSON.stringify({
+    position: Dealership.DEALERSHIP_POSITION,
+    radius: Dealership.INTERACTION_RADIUS
+  })]);
   if (!account.character) {
     player.call('ragerp:registration:show', [ensureStaticId(account)]);
     return;
@@ -1529,10 +1536,32 @@ mp.events.add('ragerp:client:ui-ready', (player) => {
   player.call('ragerp:hud:show', [JSON.stringify(hudStateFor(player))]);
 });
 
+mp.events.add('ragerp:dealership:request-open', (player) => {
+  if (!characterFor(player) || openDealerships.has(player.id) ||
+      openPhones.has(player.id) || openInventories.has(player.id) ||
+      hudNotifications.has(player.id) ||
+      !Dealership.isNearDealership(player.position, player.dimension)) {
+    return;
+  }
+
+  try {
+    openDealerships.add(player.id);
+    player.call('ragerp:dealership:open', [JSON.stringify(Dealership.VEHICLES)]);
+  } catch (error) {
+    openDealerships.delete(player.id);
+    console.error('[RageRP dealership] Could not open vehicle catalog:', error);
+    message(player, 'Не удалось открыть каталог автосалона.');
+  }
+});
+
+mp.events.add('ragerp:dealership:close', (player) => {
+  openDealerships.delete(player.id);
+});
+
 mp.events.add('ragerp:inventory:request-open', (player) => {
   const character = characterFor(player);
   if (!character || player.dimension !== 0 || openPhones.has(player.id) ||
-      hudNotifications.has(player.id)) {
+      openDealerships.has(player.id) || hudNotifications.has(player.id)) {
     message(player, 'Инвентарь сейчас недоступен.');
     return;
   }
@@ -1588,6 +1617,7 @@ mp.events.add('ragerp:inventory:action', (player, action, payload) => {
 
 mp.events.add('ragerp:inventory:quick-use', (player, quickSlot) => {
   if (openInventories.has(player.id) || openPhones.has(player.id) ||
+      openDealerships.has(player.id) ||
       player.dimension !== 0 || !characterFor(player)) {
     return;
   }
@@ -1614,8 +1644,12 @@ mp.events.add('playerDamage', (player) => {
 
 mp.events.add('ragerp:phone:request-open', (player) => {
   const character = characterFor(player);
-  if (!character || player.dimension !== 0 || openInventories.has(player.id)) {
+  if (!character || player.dimension !== 0) {
     player.call('ragerp:phone:notice', ['Сначала создай персонажа, чтобы пользоваться телефоном.']);
+    return;
+  }
+  if (openInventories.has(player.id) || openDealerships.has(player.id)) {
+    player.call('ragerp:phone:notice', ['Телефон сейчас недоступен.']);
     return;
   }
 
@@ -1671,7 +1705,8 @@ mp.events.add('ragerp:media:settings', (player, payload) => {
 
 mp.events.add('ragerp:vehicle:toggle-lock', (player) => {
   if (player.dimension !== 0 || !characterFor(player) ||
-      openPhones.has(player.id) || openInventories.has(player.id)) {
+      openPhones.has(player.id) || openInventories.has(player.id) ||
+      openDealerships.has(player.id)) {
     return;
   }
 
@@ -1694,7 +1729,8 @@ mp.events.add('ragerp:vehicle:toggle-lock', (player) => {
 });
 
 mp.events.add('ragerp:vehicle:toggle-engine', (player) => {
-  if (!characterFor(player) || openPhones.has(player.id) || openInventories.has(player.id)) {
+  if (!characterFor(player) || openPhones.has(player.id) ||
+      openInventories.has(player.id) || openDealerships.has(player.id)) {
     return;
   }
 
@@ -2080,6 +2116,7 @@ mp.events.add('ragerp:hud:demo-response', (player, accepted) => {
 
 mp.events.add('playerQuit', (player) => {
   const playtimeUpdated = checkpointPlayerPlaytime(player, Date.now());
+  openDealerships.delete(player.id);
   if (playtimeUpdated) {
     try {
       saveAccounts();

@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <title>Автомобильное радио</title>
+  <link rel="stylesheet" href="style.css?v=20261127-1">
+</head>
+<body>
+  <main class="radio-overlay" id="radio-overlay" aria-hidden="true">
+    <section class="radio-wheel" aria-label="Выбор радиостанции">
+      <div class="wheel-ring wheel-ring-outer"></div>
+      <div class="wheel-ring wheel-ring-inner"></div>
+      <div class="station-list" id="station-list"></div>
+      <section class="wheel-center">
+        <p class="eyebrow">АВТОМОБИЛЬНОЕ РАДИО</p>
+        <h1 id="current-station">ВЫБЕРИ СТАНЦИЮ</h1>
+        <button class="radio-off" id="radio-off" type="button">ВЫКЛЮЧИТЬ</button>
+      </section>
+      <p class="wheel-hint">УДЕРЖИВАЙ Q · НАЖМИ НА СТАНЦИЮ</p>
+    </section>
+    <p class="radio-status" id="radio-status" role="status" aria-live="polite"></p>
+  </main>
+  <audio id="radio-audio" preload="none"></audio>
+  <script src="app.js?v=20261127-1"></script>
+</body>
+</html>

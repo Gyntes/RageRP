@@ -7,6 +7,7 @@ let settingsOpen = false;
 let phoneBrowser = null;
 let phoneOpen = false;
 let phoneBootstrap = null;
+let phoneScenarioStarted = false;
 let callBrowser = null;
 let callBrowserReady = false;
 let currentPhoneCall = null;
@@ -17,6 +18,18 @@ let phoneCallVoice3dCaptured = false;
 let inventoryBrowser = null;
 let inventoryOpen = false;
 let inventoryBootstrap = null;
+let dealershipBrowser = null;
+let dealershipOpen = false;
+let dealershipBootstrap = null;
+let dealershipPosition = null;
+let dealershipInteractionRadius = 5;
+let dealershipMarker = null;
+let dealershipBlip = null;
+let radioBrowser = null;
+let radioBrowserReady = false;
+let radioOpen = false;
+let radioInVehicle = null;
+let currentRadioStationId = null;
 let hudBrowser = null;
 let hudBootstrap = null;
 let hudBrowserReady = false;
@@ -60,6 +73,16 @@ let keyBindingsInstalled = false;
 let settingsStorageFlushTimer = null;
 let mediaSettingsSyncTimer = null;
 const quickSlotKeyCodes = [0x31, 0x32, 0x33, 0x34];
+const radioStationNames = {
+  russianGold: 'Russian Gold',
+  europaPlus: 'Европа Плюс',
+  dfm: 'DFM',
+  retroFm: 'Retro FM',
+  russkoeRadio: 'Русское Радио',
+  radioRecord: 'Радио Рекорд',
+  chanson: 'Радио Шансон',
+  nasheRadio: 'Наше Радио'
+};
 let voiceChatEnabled = true;
 let voiceKeyPressed = false;
 
@@ -85,7 +108,7 @@ function mergeHudState(update) {
 function setHudVisible(visible) {
   hudVisible = Boolean(visible) && clientSettings.general.showHud;
   executeHud('setVisible', hudVisible);
-  if (phoneOpen || inventoryOpen || registrationOpen || settingsOpen) return;
+  if (phoneOpen || inventoryOpen || dealershipOpen || registrationOpen || settingsOpen) return;
 
   if (hudVisible) {
     mp.game.ui.displayHud(false);
@@ -111,7 +134,8 @@ function openHud(payload) {
 }
 
 function answerHudNotification(answer) {
-  if (!hudNotificationOpen || phoneOpen || inventoryOpen || registrationOpen) return;
+  if (!hudNotificationOpen || radioOpen || phoneOpen || inventoryOpen || dealershipOpen ||
+      registrationOpen) return;
   const notificationId = hudNotificationId;
   hudNotificationOpen = false;
   hudNotificationId = '';
@@ -198,7 +222,8 @@ function closeRegistration() {
 }
 
 function openPhone(payload) {
-  if (registrationOpen || phoneOpen || inventoryOpen || hudNotificationOpen) return;
+  if (radioOpen || registrationOpen || phoneOpen || inventoryOpen || dealershipOpen ||
+      hudNotificationOpen) return;
 
   phoneBootstrap = typeof payload === 'string' ? payload : JSON.stringify(payload || {});
   phoneBrowser = mp.browsers.new('package://ragerp/phone/index.html');
@@ -211,13 +236,16 @@ function openPhone(payload) {
   mp.game.ui.displayRadar(false);
 
   if (mp.players.local) {
-    mp.players.local.freezePosition(true);
-    mp.game.ai.taskStartScenarioInPlace(
-      mp.players.local.handle,
-      'WORLD_HUMAN_STAND_MOBILE',
-      0,
-      true
-    );
+    phoneScenarioStarted = !mp.players.local.vehicle;
+    if (phoneScenarioStarted) {
+      mp.players.local.freezePosition(true);
+      mp.game.ai.taskStartScenarioInPlace(
+        mp.players.local.handle,
+        'WORLD_HUMAN_STAND_MOBILE',
+        0,
+        true
+      );
+    }
   }
 }
 
@@ -229,14 +257,17 @@ function closePhone(notifyServer) {
 
   if (mp.players.local) {
     const pedHandle = mp.players.local.handle;
-    if (typeof mp.game.ai.clearPedTasksImmediately === 'function') {
-      mp.game.ai.clearPedTasksImmediately(pedHandle);
-    } else if (typeof mp.game.invoke === 'function') {
-      mp.game.invoke('0xAAA34F8A7CB32098', pedHandle);
+    if (phoneScenarioStarted) {
+      if (typeof mp.game.ai.clearPedTasksImmediately === 'function') {
+        mp.game.ai.clearPedTasksImmediately(pedHandle);
+      } else if (typeof mp.game.invoke === 'function') {
+        mp.game.invoke('0xAAA34F8A7CB32098', pedHandle);
+      }
+      mp.players.local.freezePosition(false);
     }
-    mp.players.local.freezePosition(false);
   }
 
+  phoneScenarioStarted = false;
   phoneOpen = false;
   phoneBootstrap = null;
   mp.gui.cursor.show(false, false);
@@ -276,7 +307,7 @@ function closePhoneCallUi() {
   updatePhoneCallVoiceTarget();
   updateVoiceChatMute();
 
-  const anotherUiOpen = registrationOpen || phoneOpen || inventoryOpen ||
+  const anotherUiOpen = radioOpen || registrationOpen || phoneOpen || inventoryOpen || dealershipOpen ||
     settingsOpen || hudNotificationOpen;
   mp.gui.cursor.show(anotherUiOpen, anotherUiOpen);
 }
@@ -288,6 +319,7 @@ function showPhoneCallUi(payload) {
     return;
   }
 
+  if (radioOpen) closeRadioWheel();
   currentPhoneCall = payload;
   updatePhoneCallVoiceTarget();
   updateVoiceChatMute();
@@ -339,7 +371,8 @@ function updatePhoneCallVoiceTarget() {
 }
 
 function openInventory(payload) {
-  if (registrationOpen || phoneOpen || inventoryOpen || hudNotificationOpen) return;
+  if (radioOpen || registrationOpen || phoneOpen || inventoryOpen || dealershipOpen ||
+      hudNotificationOpen) return;
 
   inventoryBootstrap = typeof payload === 'string' ? payload : JSON.stringify(payload || {});
   inventoryBrowser = mp.browsers.new('package://ragerp/inventory/index.html');
@@ -382,6 +415,210 @@ function executeInventory(method, payload) {
   );
 }
 
+function openDealership(payload) {
+  if (radioOpen || registrationOpen || phoneOpen || inventoryOpen || dealershipOpen ||
+      hudNotificationOpen) return;
+
+  let catalog = payload;
+  if (typeof payload === 'string') {
+    if (payload.length > 20000) {
+      console.error('[RageRP dealership] Catalog payload is too large.');
+      return;
+    }
+    try {
+      catalog = JSON.parse(payload);
+    } catch (error) {
+      console.error('[RageRP dealership] Could not parse vehicle catalog:', error);
+      return;
+    }
+  }
+  if (!Array.isArray(catalog) || catalog.length !== 21) {
+    console.error('[RageRP dealership] Invalid vehicle catalog payload.');
+    return;
+  }
+  dealershipBootstrap = catalog;
+  dealershipBrowser = mp.browsers.new('package://ragerp/dealership/index.html');
+  dealershipOpen = true;
+  setHudVisible(false);
+  mp.gui.cursor.show(true, true);
+  mp.gui.chat.show(false);
+  updateVoiceChatMute();
+  mp.game.ui.displayHud(false);
+  mp.game.ui.displayRadar(false);
+  if (mp.players.local) mp.players.local.freezePosition(true);
+}
+
+function closeDealership(notifyServer) {
+  if (dealershipBrowser) {
+    dealershipBrowser.destroy();
+    dealershipBrowser = null;
+  }
+
+  if (mp.players.local) mp.players.local.freezePosition(false);
+  dealershipOpen = false;
+  dealershipBootstrap = null;
+  mp.gui.cursor.show(false, false);
+  mp.gui.chat.show(clientSettings.media.showChat);
+  updateVoiceChatMute();
+  mp.game.ui.displayHud(true);
+  mp.game.ui.displayRadar(clientSettings.general.showRadar);
+  if (hudBrowser) setHudVisible(true);
+  if (hudNotificationOpen && hudNotificationPayload) {
+    mp.gui.cursor.show(true, true);
+    executeHud('showNotification', hudNotificationPayload);
+  }
+  if (notifyServer !== false) mp.events.callRemote('ragerp:dealership:close');
+}
+
+function executeDealership(method, payload) {
+  if (!dealershipBrowser || !dealershipOpen) return;
+  dealershipBrowser.execute(
+    `window.ragerpDealership && window.ragerpDealership.${method}(${JSON.stringify(payload)})`
+  );
+}
+
+function ensureRadioBrowser() {
+  if (radioBrowser) return;
+  radioBrowserReady = false;
+  radioBrowser = mp.browsers.new('package://ragerp/radio/index.html');
+}
+
+function executeRadio(method, payload) {
+  if (!radioBrowser || !radioBrowserReady) return;
+  radioBrowser.execute(
+    `window.ragerpRadio && window.ragerpRadio.${method}(${JSON.stringify(payload)})`
+  );
+}
+
+function canOpenRadioWheel() {
+  return Boolean(mp.players.local && mp.players.local.vehicle) &&
+    !radioOpen && !registrationOpen && !phoneOpen && !inventoryOpen &&
+    !dealershipOpen && !settingsOpen && !hudNotificationOpen && !currentPhoneCall;
+}
+
+function openRadioWheel() {
+  if (!canOpenRadioWheel()) return;
+
+  ensureRadioBrowser();
+  radioOpen = true;
+  mp.gui.cursor.show(true, true);
+  mp.gui.chat.show(false);
+  updateVoiceChatMute();
+  executeRadio('setVisible', true);
+}
+
+function closeRadioWheel() {
+  if (!radioOpen) return;
+
+  radioOpen = false;
+  executeRadio('setVisible', false);
+  mp.gui.cursor.show(false, false);
+  mp.gui.chat.show(clientSettings.media.showChat);
+  updateVoiceChatMute();
+}
+
+function syncRadioVehicleState() {
+  const inVehicle = Boolean(mp.players.local && mp.players.local.vehicle);
+  if (radioInVehicle === inVehicle) return;
+
+  radioInVehicle = inVehicle;
+  if (!inVehicle && radioOpen) closeRadioWheel();
+  mp.game.audio.setUserRadioControlEnabled(!inVehicle);
+  if (inVehicle) mp.game.audio.setRadioToStationName('OFF');
+  executeRadio('setInVehicle', inVehicle);
+}
+
+function handleRadioSelection(stationId) {
+  if (stationId !== 'off' &&
+      !Object.prototype.hasOwnProperty.call(radioStationNames, stationId)) {
+    console.error('[RageRP radio] An unknown station was selected.');
+    return;
+  }
+  if (!mp.players.local || !mp.players.local.vehicle) {
+    closeRadioWheel();
+    return;
+  }
+
+  currentRadioStationId = stationId === 'off' ? null : stationId;
+  executeRadio('setActiveStation', currentRadioStationId);
+  mp.game.graphics.notify(stationId === 'off'
+    ? 'Автомобильное радио выключено.'
+    : `Радио: ${radioStationNames[stationId]}`);
+}
+
+function handleRadioError(stationId, message) {
+  const stationName = radioStationNames[stationId];
+  if (!stationName || typeof message !== 'string' || !message || message.length > 200) {
+    console.error('[RageRP radio] Received an invalid playback error.');
+    return;
+  }
+  console.error(`[RageRP radio] ${stationName}: ${message}`);
+  mp.game.graphics.notify(`Не удалось включить ${stationName}. Проверь подключение.`);
+}
+
+function setDealershipLocation(payload) {
+  if (typeof payload !== 'string' || payload.length > 512) {
+    console.error('[RageRP dealership] Invalid dealership location payload.');
+    return;
+  }
+
+  let location;
+  try {
+    location = JSON.parse(payload);
+  } catch (error) {
+    console.error('[RageRP dealership] Could not parse dealership location:', error);
+    return;
+  }
+
+  const position = location && location.position;
+  const x = Number(position && position.x);
+  const y = Number(position && position.y);
+  const z = Number(position && position.z);
+  const radius = Number(location && location.radius);
+  if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z) ||
+      !Number.isFinite(radius) || radius <= 0 || radius > 20) {
+    console.error('[RageRP dealership] Invalid dealership location or interaction radius.');
+    return;
+  }
+
+  if (dealershipMarker) dealershipMarker.destroy();
+  if (dealershipBlip) dealershipBlip.destroy();
+  dealershipPosition = { x, y, z };
+  dealershipInteractionRadius = radius;
+  const worldPosition = new mp.Vector3(x, y, z);
+  dealershipMarker = mp.markers.new(1, worldPosition, 1.15, {
+    bobUpAndDown: true,
+    color: [201, 243, 107, 190],
+    dimension: 0,
+    visible: true
+  });
+  dealershipBlip = mp.blips.new(326, worldPosition, {
+    color: 2,
+    dimension: 0,
+    name: 'Автосалон',
+    scale: 0.8,
+    shortRange: true
+  });
+}
+
+function dealershipIsNearby(maxDistance) {
+  if (!dealershipPosition || !mp.players.local || mp.players.local.dimension !== 0) return false;
+
+  const position = mp.players.local.position;
+  const dx = position.x - dealershipPosition.x;
+  const dy = position.y - dealershipPosition.y;
+  const dz = position.z - dealershipPosition.z;
+  return dx * dx + dy * dy + dz * dz <= maxDistance * maxDistance;
+}
+
+function requestDealershipOpen() {
+  if (dealershipOpen || phoneOpen || inventoryOpen || registrationOpen ||
+      settingsOpen || hudNotificationOpen ||
+      !dealershipIsNearby(dealershipInteractionRadius) ||
+      (mp.players.local && mp.players.local.vehicle)) return;
+  mp.events.callRemote('ragerp:dealership:request-open');
+}
+
 function settingsBindingValues(bindings) {
   const actions = ['phoneUp', 'phoneTab', 'inventory', 'vehicleLock', 'engine'];
   const normalized = {};
@@ -389,7 +626,8 @@ function settingsBindingValues(bindings) {
     const action = actions[index];
     const keyCode = Number(bindings && bindings[action]);
     if (!Number.isInteger(keyCode) || keyCode < 1 || keyCode > 255 ||
-        keyCode === 0x1B || keyCode === 0x79 ||
+        keyCode === 0x1B || keyCode === 0x45 || keyCode === 0x79 ||
+        keyCode === 0x51 ||
         Object.keys(normalized).some((key) => normalized[key] === keyCode)) {
       return null;
     }
@@ -400,7 +638,8 @@ function settingsBindingValues(bindings) {
 }
 
 function dispatchClientKey(keyCode) {
-  if (registrationOpen || settingsOpen || hudNotificationOpen) return;
+  if (radioOpen || registrationOpen || settingsOpen ||
+      hudNotificationOpen || dealershipOpen) return;
 
   if (keyCode === clientSettings.bindings.phoneUp ||
       keyCode === clientSettings.bindings.phoneTab) {
@@ -431,14 +670,15 @@ function dispatchClientKey(keyCode) {
 function updateVoiceChatMute() {
   if (!mp.voiceChat || typeof mp.voiceChat.muted !== 'boolean') return;
   const phoneCallActive = currentPhoneCall && currentPhoneCall.state === 'active';
-  const uiOpen = registrationOpen || settingsOpen || inventoryOpen ||
+  const uiOpen = radioOpen || registrationOpen || settingsOpen || inventoryOpen || dealershipOpen ||
     (phoneOpen && !phoneCallActive);
   mp.voiceChat.muted = !voiceChatEnabled || !voiceKeyPressed || uiOpen;
 }
 
 function toggleVoiceChat() {
   const phoneCallActive = currentPhoneCall && currentPhoneCall.state === 'active';
-  if (registrationOpen || settingsOpen || inventoryOpen || (phoneOpen && !phoneCallActive)) return;
+  if (radioOpen || registrationOpen || settingsOpen || inventoryOpen || dealershipOpen ||
+      (phoneOpen && !phoneCallActive)) return;
   if (!mp.voiceChat || mp.voiceChat.isAllowed === false) {
     mp.game.graphics.notify('Голосовой чат недоступен. Проверь микрофон и настройки сервера.');
     return;
@@ -453,7 +693,8 @@ function toggleVoiceChat() {
 
 function startVoiceTransmit() {
   const phoneCallActive = currentPhoneCall && currentPhoneCall.state === 'active';
-  if (!voiceChatEnabled || registrationOpen || settingsOpen || inventoryOpen ||
+  if (!voiceChatEnabled || radioOpen || registrationOpen || settingsOpen || inventoryOpen ||
+      dealershipOpen ||
       (phoneOpen && !phoneCallActive)) return;
   voiceKeyPressed = true;
   updateVoiceChatMute();
@@ -636,7 +877,8 @@ function restoreClientSettings() {
 }
 
 function openSettings() {
-  if (registrationOpen || phoneOpen || inventoryOpen || hudNotificationOpen || settingsOpen) return;
+  if (radioOpen || registrationOpen || phoneOpen || inventoryOpen ||
+      hudNotificationOpen || settingsOpen) return;
 
   settingsBrowser = mp.browsers.new('package://ragerp/settings/index.html');
   settingsOpen = true;
@@ -669,7 +911,8 @@ function closeSettings() {
 mp.nametags.enabled = false;
 
 function togglePhone() {
-  if (registrationOpen || inventoryOpen || settingsOpen || hudNotificationOpen) return;
+  if (radioOpen || registrationOpen || inventoryOpen || dealershipOpen ||
+      settingsOpen || hudNotificationOpen) return;
   if (phoneOpen) {
     closePhone(true);
     return;
@@ -678,7 +921,8 @@ function togglePhone() {
 }
 
 function toggleInventory() {
-  if (registrationOpen || phoneOpen || settingsOpen || hudNotificationOpen) return;
+  if (radioOpen || registrationOpen || phoneOpen || dealershipOpen ||
+      settingsOpen || hudNotificationOpen) return;
   if (inventoryOpen) {
     closeInventory(true);
     return;
@@ -687,6 +931,7 @@ function toggleInventory() {
 }
 
 function toggleSettings() {
+  if (radioOpen || dealershipOpen) return;
   if (settingsOpen) {
     closeSettings();
     return;
@@ -701,12 +946,16 @@ mp.keys.bind(0x79, false, toggleSettings);
 mp.keys.bind(0x5A, false, startVoiceTransmit);
 mp.keys.bind(0x5A, true, stopVoiceTransmit);
 mp.keys.bind(0x75, false, toggleVoiceChat);
+mp.keys.bind(0x45, false, requestDealershipOpen);
+mp.keys.bind(0x51, false, openRadioWheel);
+mp.keys.bind(0x51, true, closeRadioWheel);
 
 mp.keys.bind(0x59, false, () => answerHudNotification('accept'));
 mp.keys.bind(0x4E, false, () => answerHudNotification('decline'));
 
 mp.events.add('ragerp:registration:show', (staticId) => {
   if (registrationOpen) return;
+  if (radioOpen) closeRadioWheel();
 
   registrationStaticId = String(staticId || '');
   registrationBrowser = mp.browsers.new('package://ragerp/registration/index.html');
@@ -717,13 +966,20 @@ mp.events.add('ragerp:registration:show', (staticId) => {
 });
 
 mp.events.add('browserDomReady', (browser) => {
-  if (browser === registrationBrowser) {
+  if (browser === radioBrowser) {
+    radioBrowserReady = true;
+    executeRadio('setVisible', radioOpen);
+    executeRadio('setInVehicle', Boolean(mp.players.local && mp.players.local.vehicle));
+    executeRadio('setActiveStation', currentRadioStationId);
+  } else if (browser === registrationBrowser) {
     syncRegistrationBrowser();
   } else if (browser === phoneBrowser) {
     executePhone('setBootstrap', phoneBootstrap);
     applyPhonePreferences();
   } else if (browser === inventoryBrowser) {
     executeInventory('setBootstrap', inventoryBootstrap);
+  } else if (browser === dealershipBrowser) {
+    executeDealership('setCatalog', dealershipBootstrap);
   } else if (browser === settingsBrowser) {
     settingsBrowser.execute('window.ragerpSettings && window.ragerpSettings.focus()');
   } else if (browser === callBrowser) {
@@ -778,11 +1034,12 @@ mp.events.add('ragerp:hud:notification', (payload) => {
       typeof notification.id !== 'string' ||
       typeof notification.message !== 'string') return;
 
+  if (radioOpen) closeRadioWheel();
   if (!hudBrowser) openHud({});
   hudNotificationPayload = notification;
   hudNotificationId = notification.id;
   hudNotificationOpen = true;
-  if (inventoryOpen) return;
+  if (inventoryOpen || dealershipOpen) return;
   mp.gui.cursor.show(true, true);
   executeHud('showNotification', notification);
 });
@@ -902,6 +1159,16 @@ mp.events.add('ragerp:inventory:action', (action, payload) => {
   mp.events.callRemote('ragerp:inventory:action', action, payload);
 });
 
+mp.events.add('ragerp:dealership:location', setDealershipLocation);
+
+mp.events.add('ragerp:dealership:open', (payload) => {
+  openDealership(payload);
+});
+
+mp.events.add('ragerp:dealership:close-request', () => {
+  if (dealershipOpen) closeDealership(true);
+});
+
 function setPhoneWaypoint(payload) {
   if (typeof payload !== 'string' || payload.length > 256) return;
   let destination;
@@ -923,28 +1190,55 @@ mp.events.add('ragerp:phone:set-waypoint', setPhoneWaypoint);
 mp.events.add('ragerp:phone:waypoint', setPhoneWaypoint);
 
 setTimeout(() => {
+  ensureRadioBrowser();
   mp.events.callRemote('ragerp:client:ui-ready');
 }, 1500);
 
+mp.events.add('ragerp:radio:select', handleRadioSelection);
+mp.events.add('ragerp:radio:error', handleRadioError);
+
 mp.events.add('render', () => {
-  if (phoneOpen || inventoryOpen || settingsOpen || hudNotificationOpen) {
+  syncRadioVehicleState();
+
+  if (phoneOpen || inventoryOpen || dealershipOpen || settingsOpen || hudNotificationOpen) {
     mp.game.controls.disableAllControlActions(0);
   }
+  if (radioInVehicle) {
+    [81, 82, 83, 84, 85].forEach((control) => {
+      mp.game.controls.disableControlAction(0, control, true);
+    });
+  }
+  if (radioOpen) {
+    mp.game.controls.disableControlAction(0, 24, true);
+    mp.game.controls.disableControlAction(0, 25, true);
+    mp.game.controls.disableControlAction(0, 37, true);
+  }
 
-  if (!phoneOpen && !inventoryOpen && !registrationOpen && !settingsOpen) {
+  if (!phoneOpen && !inventoryOpen && !dealershipOpen && !registrationOpen && !settingsOpen) {
     mp.game.ui.displayRadar(clientSettings.general.showRadar);
+  }
+  if (!dealershipOpen && !phoneOpen && !inventoryOpen &&
+      !(mp.players.local && mp.players.local.vehicle) &&
+      dealershipIsNearby(dealershipInteractionRadius + 1)) {
+    mp.game.graphics.drawText('АВТОСАЛОН  ·  НАЖМИ E', [0.5, 0.88], {
+      font: 4,
+      color: [201, 243, 107, 255],
+      scale: [0.36, 0.36],
+      outline: true,
+      centre: true
+    });
   }
   if (clientSettings.graphics.lodScale !== 100 && typeof mp.game.invoke === 'function') {
     mp.game.invoke('0xA76359FC80B2438E', clientSettings.graphics.lodScale / 100);
   }
   if (clientSettings.combat.showAmmo &&
-      !phoneOpen && !inventoryOpen && !settingsOpen && !registrationOpen &&
+      !phoneOpen && !inventoryOpen && !dealershipOpen && !settingsOpen && !registrationOpen &&
       typeof mp.game.ui.displayAmmoThisFrame === 'function') {
     mp.game.ui.displayAmmoThisFrame();
   }
   const hideNativeCrosshair = !clientSettings.combat.showCrosshair ||
     (clientSettings.general.showHud && hudVisible &&
-      !phoneOpen && !inventoryOpen && !settingsOpen && !registrationOpen);
+      !phoneOpen && !inventoryOpen && !dealershipOpen && !settingsOpen && !registrationOpen);
   if (hideNativeCrosshair && typeof mp.game.ui.hideHudComponentThisFrame === 'function') {
     mp.game.ui.hideHudComponentThisFrame(14);
   }

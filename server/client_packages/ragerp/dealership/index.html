@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Автосалон | Tula RP</title>
+  <link rel="stylesheet" href="style.css?v=20261128-1">
+</head>
+<body>
+  <main class="dealership-screen">
+    <div class="screen-backdrop" aria-hidden="true"></div>
+    <section class="dealership-panel" role="dialog" aria-modal="true" aria-labelledby="dealership-title">
+      <header class="dealership-header">
+        <div class="brand-mark" aria-hidden="true">T</div>
+        <div class="brand-copy">
+          <p class="eyebrow">TULA ROLEPLAY <span>•</span> PREMIUM AUTO</p>
+          <h1 id="dealership-title">Автосалон</h1>
+        </div>
+        <label class="search-box">
+          <span aria-hidden="true">⌕</span>
+          <input id="vehicle-search" type="search" placeholder="Найти автомобиль" autocomplete="off">
+        </label>
+        <button class="close-button" id="close-dealership" type="button" aria-label="Закрыть автосалон">×</button>
+      </header>
+
+      <div class="catalog-notice" role="note">
+        <span class="notice-mark" aria-hidden="true">i</span>
+        <p>Каталог доступен для просмотра. Покупка и выдача машин пока отключены: игровые модели ещё не подключены к серверу.</p>
+      </div>
+
+      <div class="catalog-toolbar">
+        <div>
+          <p class="eyebrow">АВТОМОБИЛИ ГОРОДА</p>
+          <h2>Выбери свою машину</h2>
+        </div>
+        <span class="vehicle-count" id="vehicle-count">0 моделей</span>
+      </div>
+
+      <div class="catalog-scroll">
+        <div class="vehicle-grid" id="vehicle-grid" aria-live="polite"></div>
+        <p class="empty-state" id="empty-state" hidden>По этому запросу ничего не найдено.</p>
+      </div>
+
+      <footer class="dealership-footer">
+        <span>Автосалон · -56.0, -1096.5</span>
+        <span>Для закрытия нажми <kbd>ESC</kbd></span>
+      </footer>
+    </section>
+  </main>
+  <script src="app.js?v=20261128-1"></script>
+</body>
+</html>

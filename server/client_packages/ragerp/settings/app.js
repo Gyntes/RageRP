@@ -3,6 +3,7 @@
   const footerMessage = document.getElementById('footer-message');
   const toast = document.getElementById('settings-toast');
   const bindingButtons = Array.from(document.querySelectorAll('[data-bind]'));
+  const reservedRadioKeyCode = 81;
   const defaultSettings = {
     general: {
       showHud: true,
@@ -56,7 +57,8 @@
     39: '→',
     40: '↓',
     45: 'INSERT',
-    46: 'DELETE'
+    46: 'DELETE',
+    81: 'Q'
   };
   let state = null;
   let capturing = null;
@@ -118,7 +120,9 @@
       let valid = true;
       actions.forEach(function (action) {
         const code = Number(value.bindings[action]);
-        if (!Number.isInteger(code) || code < 1 || code > 255 || code === 27 || code === 121 ||
+        if (!Number.isInteger(code) || code < 1 || code > 255 ||
+            code === 27 || code === 69 ||
+            code === reservedRadioKeyCode || code === 121 ||
             Object.keys(candidate).some(function (key) { return candidate[key] === code; })) {
           valid = false;
           return;
@@ -294,7 +298,8 @@
 
       const code = Number(event.keyCode || event.which);
       if (!Number.isInteger(code) || code < 1 || code > 255 ||
-          code === 27 || code === 121 || ['Shift', 'Control', 'Alt', 'Meta'].includes(event.key)) {
+          code === 27 || code === 69 || code === reservedRadioKeyCode || code === 121 ||
+          ['Shift', 'Control', 'Alt', 'Meta'].includes(event.key)) {
         showToast('Эту клавишу нельзя назначить.');
         return;
       }
