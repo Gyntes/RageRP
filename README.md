@@ -52,14 +52,19 @@ powershell.exe -ExecutionPolicy Bypass -File server\setup-lan.ps1
 Проверь внешний адрес на этом сайте: `https://api.ipify.org`.
 Если провайдер использует CGNAT, портовый проброс будет недоступен; нужен VPS или разрешённый UPnP/TAP.
 
-В комплект входит тестовый RAGE MP resource `tula_pilot_map` с native GTA assets:
+Компактный greybox-пилот Тулы собирается в RAGE MP client DLC `dlc.rpf` и устанавливается
+в `server/client_packages/game_resources/dlcpacks/tula_pilot`. Для GTA V Legacy/RAGE MP
+сначала экспортируй gen8 assets через Blender/Sollumz, собери `CodeWalker.Core`, затем запусти:
 
-- `server/resources/tula_pilot_map/stream/tula_pilot_greybox.ydr`;
-- `.ytyp`;
-- `.ymap`.
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File map\build_tula_pilot_dlc.ps1 -Force
+```
 
-Setup устанавливает ресурс вместе с RageRP. Запуск сервера загрузит пакет `tula_pilot_map`
-из папки `packages`. Эти файлы являются compact greybox-пилотом, а не заменой всей карты GTA V.
+`server/setup-server.ps1` копирует клиентский DLC вместе с остальными `client_packages`.
+После установки перезапусти RAGE MP сервер и переподключи клиента. Это тестовый greybox около
+временной точки Лос-Сантоса, а не замена всей карты GTA V; отображение следует подтвердить
+в игре, прежде чем менять стартовую точку.
+После создания персонажа введи в чат `/maptest`, чтобы попасть к временному origin пилота.
 
 При первом входе откроется редактор создания персонажа. Укажи имя и фамилию кириллицей,
 возраст, настрой лицо, волосы и одежду, затем подтверди создание.

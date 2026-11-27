@@ -15,10 +15,7 @@ $requiredServerSource = @(
   (Join-Path $PSScriptRoot 'resources\ragerp\index.js'),
   (Join-Path $PSScriptRoot 'client_packages\index.js'),
   (Join-Path $PSScriptRoot 'conf.json'),
-  (Join-Path $PSScriptRoot 'resources\tula_pilot_map\meta.xml'),
-  (Join-Path $PSScriptRoot 'resources\tula_pilot_map\stream\tula_pilot_greybox.ydr'),
-  (Join-Path $PSScriptRoot 'resources\tula_pilot_map\stream\tula_pilot_greybox.ytyp'),
-  (Join-Path $PSScriptRoot 'resources\tula_pilot_map\stream\tula_pilot_greybox.ymap')
+  (Join-Path $PSScriptRoot 'client_packages\game_resources\dlcpacks\tula_pilot\dlc.rpf')
 )
 
 foreach ($required in $requiredServerSource) {
@@ -29,6 +26,7 @@ foreach ($required in $requiredServerSource) {
 
 $packageTarget = Join-Path $serverFiles 'packages'
 $clientTarget = Join-Path $serverFiles 'client_packages'
+$requiredDlc = Join-Path $clientTarget 'game_resources\dlcpacks\tula_pilot\dlc.rpf'
 
 New-Item -ItemType Directory -Force -Path $packageTarget | Out-Null
 New-Item -ItemType Directory -Force -Path $clientTarget | Out-Null
@@ -50,4 +48,5 @@ Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'client_packages') -Force |
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'conf.json') -Destination (Join-Path $serverFiles 'conf.json') -Force
 
 Write-Host "RAGE MP server configured: $serverFiles"
+Write-Host "Tula pilot DLC installed: $requiredDlc"
 Write-Host "Run: server\start-server.bat `"$serverFiles`""

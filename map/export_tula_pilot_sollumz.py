@@ -8,6 +8,8 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 SOLLUMZ_DIR = os.path.join(SCRIPT_DIR, "..", "tools", "Sollumz")
 INPUT_OBJ = os.path.join(SCRIPT_DIR, "tula_pilot_greybox_compact.obj")
 OUTPUT_DIR = os.path.join(SCRIPT_DIR, "tula_pilot_game_asset")
+ASSET_NAME = "tula_pilot_greybox_v2"
+GTA_ORIGIN = (215.76, -810.12, 30.73)
 
 
 def main():
@@ -25,15 +27,15 @@ def main():
 
     meshes = [obj for obj in bpy.context.scene.objects if obj.type == "MESH"]
     for obj in meshes:
-        obj.location = (215.76, -810.12, 30.73)
+        obj.location = (0.0, 0.0, 0.0)
 
     print("SOLLUMZ_IMPORT_OK", "objects=", len(meshes), "output=", OUTPUT_DIR)
 
     from Sollumz.sollumz_properties import SollumType, LODLevel, ArchetypeType, AssetType
     from Sollumz.ydr.gta5.shader_materials import create_shader
-    root = bpy.data.objects.new("tula_pilot_greybox", None)
+    root = bpy.data.objects.new(ASSET_NAME, None)
     root.sollum_type = SollumType.DRAWABLE
-    root.location = (215.76, -810.12, 30.73)
+    root.location = (0.0, 0.0, 0.0)
     bpy.context.collection.objects.link(root)
 
     for obj in meshes:
@@ -63,25 +65,25 @@ def main():
     bpy.context.view_layer.objects.active = root
 
     ytyp = bpy.context.scene.ytyps.add()
-    ytyp.name = "tula_pilot_greybox"
+    ytyp.name = ASSET_NAME
     archetype = ytyp.new_archetype(ArchetypeType.BASE)
-    archetype.name = "tula_pilot_greybox"
+    archetype.name = ASSET_NAME
     archetype.asset = root
     archetype.asset_type = AssetType.DRAWABLE
     archetype.asset_name = root.name
-    archetype.lod_dist = 500
+    archetype.lod_dist = 6000
 
     from Sollumz.ymap_next.properties.map import get_maps
     maps = get_maps(bpy.context, create_if_missing=True)
     map_group = maps.new_group()
-    map_group.name = "tula_pilot_greybox"
+    map_group.name = ASSET_NAME
     map_data = map_group.new_map()
-    map_data.name = "tula_pilot_greybox"
+    map_data.name = ASSET_NAME
     entity = map_group.new_entity()
     entity.linked_object = root
     entity.map_data_uuid = map_data.uuid
-    entity.archetype_name = "tula_pilot_greybox"
-    entity.position = (215.76, -810.12, 30.73)
+    entity.archetype_name = ASSET_NAME
+    entity.position = GTA_ORIGIN
     entity.rotation = (1.0, 0.0, 0.0, 0.0)
     entity.lod_level = "HD"
     entity.priority_level = "REQUIRED"

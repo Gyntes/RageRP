@@ -24,6 +24,7 @@ const starterVehicleName = 'Blista';
 const starterVehicleRegion = '97';
 const russianPlateLetters = 'ABEKMHOPCTYX';
 const spawnPoint = { x: 215.76, y: -810.12, z: 30.73 };
+const mapTestPoint = { x: 215.76, y: -810.12, z: 30.73 };
 const registrationPoint = { x: 402.8664, y: -996.4108, z: -99.0 };
 const registrationDimensionOffset = 100000;
 const workPay = 500;
@@ -508,7 +509,7 @@ function showHelp(player) {
   message(player, '/stats, /bank, /deposit <сумма>, /withdraw <сумма>');
   message(player, '/job [courier|unemployed], /work, /faction, /joinfaction <civilian|mechanic>, /me <текст>');
   message(player, 'Телефон: клавиша P. Доступны SMS, банк, GPS, такси и объявления.');
-  message(player, 'HUD: /hudtest — проверить окно уведомления.');
+  message(player, 'Тестовая карта: /maptest — перейти к пилоту Тулы. HUD: /hudtest — проверить уведомление.');
 }
 
 function parseAmount(value) {
@@ -667,6 +668,14 @@ function handleCommand(player, command) {
       declineLabel: 'Отказаться',
       responseEvent: 'ragerp:hud:demo-response'
     });
+    return;
+  }
+
+  if (name === 'maptest') {
+    if (!requireCharacter(player)) return;
+    player.dimension = 0;
+    player.position = new mp.Vector3(mapTestPoint.x, mapTestPoint.y, mapTestPoint.z);
+    message(player, 'Перемещение к тестовому greybox-пилоту Тулы.');
     return;
   }
 

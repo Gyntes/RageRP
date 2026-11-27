@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<meta>
-  <info name="tula_pilot_map" description="Compact Tula pilot greybox native GTA assets" type="map" version="1.0.0"/>
-  <file src="stream/tula_pilot_greybox.ydr"/>
-  <file src="stream/tula_pilot_greybox.ytyp"/>
-  <file src="stream/tula_pilot_greybox.ymap"/>
-</meta>
