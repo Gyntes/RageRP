@@ -57,6 +57,7 @@
   let activeStation = null;
   let hlsInstance = null;
   let hlsLoadPromise = null;
+  let audioContext = null;
   let inVehicle = false;
   let lastReportedError = null;
 
@@ -99,8 +100,30 @@
     lastReportedError = null;
   }
 
+  function unlockAudioOutput() {
+    audio.muted = false;
+    audio.volume = 1;
+    if (!window.AudioContext && !window.webkitAudioContext) return;
+
+    try {
+      if (!audioContext) {
+        const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
+        audioContext = new AudioContextConstructor();
+      }
+      if (audioContext.state === 'suspended') {
+        audioContext.resume().catch(function (error) {
+          console.error('[RageRP radio] Could not resume audio output:', error);
+        });
+      }
+    } catch (error) {
+      console.error('[RageRP radio] Could not initialize audio output:', error);
+    }
+  }
+
   function playAudio(station) {
     if (activeStation !== station || !inVehicle) return;
+    audio.muted = false;
+    audio.volume = 1;
     const playRequest = audio.play();
     if (playRequest && typeof playRequest.catch === 'function') {
       playRequest.catch(function (error) {
@@ -195,6 +218,7 @@
   }
 
   function selectStation(stationId) {
+    unlockAudioOutput();
     clearStream();
     if (stationId === 'off') {
       renderActiveStation();

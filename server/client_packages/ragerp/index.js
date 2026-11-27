@@ -523,8 +523,8 @@ function syncRadioVehicleState() {
 
   radioInVehicle = inVehicle;
   if (!inVehicle && radioOpen) closeRadioWheel();
-  mp.game.audio.setUserRadioControlEnabled(!inVehicle);
-  if (inVehicle) mp.game.audio.setRadioToStationName('OFF');
+  mp.game.audio.setUserRadioControlEnabled(false);
+  mp.game.audio.setRadioToStationName('OFF');
   executeRadio('setInVehicle', inVehicle);
 }
 
@@ -1200,6 +1200,7 @@ mp.events.add('ragerp:radio:error', handleRadioError);
 
 mp.events.add('render', () => {
   syncRadioVehicleState();
+  mp.game.ui.hideHudComponentThisFrame(16);
 
   if (phoneOpen || inventoryOpen || dealershipOpen || settingsOpen || hudNotificationOpen) {
     mp.game.controls.disableAllControlActions(0);
