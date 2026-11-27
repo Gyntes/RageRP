@@ -508,15 +508,83 @@ function summonStarterVehicle(player) {
   const key = sessions.get(player.id);
   const existing = spawnedStarterVehicles.get(key);
   if (existing && mp.vehicles.exists(existing)) {
+    if (player.vehicle) {
+      phoneNotice(player, 'Выйди из машины перед повторным вызовом стартового автомобиля.');
+      return;
+    }
+
+    const lastCall = vehicleCallCooldowns.get(player.id) || 0;
+    if (Date.now() - lastCall < 3000) {
+      phoneNotice(player, 'Подожди немного перед следующим вызовом машины.');
+      return;
+    }
+    vehicleCallCooldowns.set(player.id, Date.now());
+
+    const occupants = [];
+    mp.vehicles.forEach((vehicle) => {
+      if (vehicle === existing ||
+          vehicle.dimension !== player.dimension ||
+          !isValidPosition(vehicle.position)) return;
+      occupants.push({
+        x: Number(vehicle.position.x),
+        y: Number(vehicle.position.y),
+        z: Number(vehicle.position.z),
+        dimension: vehicle.dimension
+      });
+    });
+    mp.players.forEach((otherPlayer) => {
+      if (otherPlayer.dimension !== player.dimension ||
+          !isValidPosition(otherPlayer.position)) return;
+      occupants.push({
+        x: Number(otherPlayer.position.x),
+        y: Number(otherPlayer.position.y),
+        z: Number(otherPlayer.position.z),
+        dimension: otherPlayer.dimension
+      });
+    });
+
+    let parkingSpot = Parking.nearestFreeParkingSpot(
+      player.position,
+      occupants,
+      player.dimension
+    );
+    if (!parkingSpot) {
+      parkingSpot = Parking.nearestParkingSpot(player.position);
+    }
+    if (!parkingSpot) {
+      phoneNotice(player, 'Не удалось найти парковочное место для машины.');
+      return;
+    }
+
+    const starterVehicle = ensureStarterVehicle(account);
+    existing.destroy();
+    const respawned = mp.vehicles.new(
+      mp.joaat(starterVehicle.model),
+      new mp.Vector3(parkingSpot.x, parkingSpot.y, parkingSpot.z),
+      {
+        heading: parkingSpot.heading,
+        dimension: player.dimension,
+        numberPlate: `${starterVehicle.plate}${starterVehicle.region}`,
+        locked: false,
+        engine: false
+      }
+    );
+    if (!respawned) {
+      spawnedStarterVehicles.delete(key);
+      phoneNotice(player, 'Не удалось переспавнить автомобиль. Попробуй ещё раз.');
+      return;
+    }
+
+    spawnedStarterVehicles.set(key, respawned);
     player.call('ragerp:phone:waypoint', [JSON.stringify({
-      x: existing.position.x,
-      y: existing.position.y
+      x: parkingSpot.x,
+      y: parkingSpot.y
     })]);
     const vehicleState = starterVehicleState(player);
     updatePhone(player, {
       starterVehicle: vehicleState,
       numbers: phoneNumbersFor(vehicleState),
-      notice: `Твоя ${starterVehicleName} уже в городе. Метка добавлена на GPS.`
+      notice: `Твоя ${starterVehicleName} переспавнена на ближайшей парковке. Метка GPS обновлена.`
     });
     return;
   }

@@ -102,7 +102,25 @@ function nearestFreeParkingSpot(position, occupants, dimension) {
   return null;
 }
 
+function nearestParkingSpot(position) {
+  if (!isValidPosition(position)) return null;
+
+  let nearest = null;
+  let nearestDistanceSquared = Infinity;
+  for (const spot of PARKING_SPOTS) {
+    const dx = spot.x - position.x;
+    const dy = spot.y - position.y;
+    const distanceSquared = dx * dx + dy * dy;
+    if (distanceSquared < nearestDistanceSquared) {
+      nearest = spot;
+      nearestDistanceSquared = distanceSquared;
+    }
+  }
+  return nearest;
+}
+
 module.exports = {
   PARKING_SPOTS,
-  nearestFreeParkingSpot
+  nearestFreeParkingSpot,
+  nearestParkingSpot
 };

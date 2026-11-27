@@ -10,13 +10,13 @@
       id: 'europaPlus',
       name: 'ЕВРОПА ПЛЮС',
       type: 'mp3',
-      url: 'http://ep256.hostingradio.ru:8052/europaplus256.mp3'
+      url: 'https://ep256.hostingradio.ru:8052/europaplus256.mp3'
     },
     {
       id: 'dfm',
       name: 'DFM',
       type: 'mp3',
-      url: 'http://dfm.hostingradio.ru/dfm128.mp3'
+      url: 'https://dfm.hostingradio.ru/dfm128.mp3'
     },
     {
       id: 'retroFm',
@@ -40,7 +40,7 @@
       id: 'chanson',
       name: 'РАДИО ШАНСОН',
       type: 'mp3',
-      url: 'http://chanson.hostingradio.ru:8041/chanson256.mp3'
+      url: 'https://chanson.hostingradio.ru:8041/chanson256.mp3'
     },
     {
       id: 'nasheRadio',
@@ -122,7 +122,7 @@
         script.remove();
         reject(new Error('Не удалось загрузить HLS-плеер.'));
       }, 12000);
-      script.src = 'https://cdn.jsdelivr.net/npm/hls.js@1.5.18/dist/hls.min.js';
+      script.src = 'hls.min.js';
       script.onload = function () {
         window.clearTimeout(timeout);
         if (window.Hls) resolve(window.Hls);
@@ -155,7 +155,13 @@
         throw new Error('В этом браузере нет поддержки HLS.');
       }
 
-      const instance = new Hls({ enableWorker: false });
+      const instance = new Hls({
+        enableWorker: false,
+        autoStartLoad: true,
+        xhrSetup: function (xhr) {
+          xhr.withCredentials = false;
+        }
+      });
       hlsInstance = instance;
       instance.on(Hls.Events.MEDIA_ATTACHED, function () {
         if (hlsInstance === instance) instance.loadSource(station.url);

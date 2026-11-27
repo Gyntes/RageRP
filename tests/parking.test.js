@@ -34,3 +34,17 @@ test('returns no spot when every parking location is occupied', () => {
 test('rejects invalid player positions', () => {
   assert.equal(parking.nearestFreeParkingSpot({ x: 0, y: 0 }, [], 0), null);
 });
+
+test('falls back to the nearest parking spot when all locations are occupied', () => {
+  const vehicles = parking.PARKING_SPOTS.map((spot) => ({
+    x: spot.x,
+    y: spot.y,
+    z: spot.z,
+    dimension: 0
+  }));
+
+  const freeSpot = parking.nearestFreeParkingSpot(cityOrigin, vehicles, 0);
+  const fallbackSpot = parking.nearestParkingSpot(cityOrigin);
+  assert.equal(freeSpot, null);
+  assert.equal(fallbackSpot.id, '479219415');
+});

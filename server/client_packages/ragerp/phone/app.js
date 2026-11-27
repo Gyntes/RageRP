@@ -455,7 +455,7 @@
         <div class="card-subtitle">${escapeHtml(vehicle.model || 'blista')} · ${vehicle.isOut ? 'уже в городе' : 'в гараже'}</div>
         <div class="vehicle-plate">${escapeHtml(`${vehicle.plate || '---'} ${vehicle.region || ''}`.trim())}</div>
         <button class="button primary vehicle-button" data-action="starter-vehicle" type="button">
-          ${vehicle.isOut ? 'Отметить машину на GPS' : 'Вызвать машину'}
+          ${vehicle.isOut ? 'Переспавнить машину' : 'Вызвать машину'}
         </button>
       </article>
       <div class="notice">Автомобиль бесплатный и закреплён за персонажем. Если он уже вызван, кнопка отметит его положение на карте.</div>`;

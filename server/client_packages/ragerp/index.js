@@ -544,6 +544,7 @@ function handleRadioSelection(stationId) {
   mp.game.graphics.notify(stationId === 'off'
     ? 'Автомобильное радио выключено.'
     : `Радио: ${radioStationNames[stationId]}`);
+  closeRadioWheel();
 }
 
 function handleRadioError(stationId, message) {
