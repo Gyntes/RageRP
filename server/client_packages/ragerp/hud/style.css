@@ -257,7 +257,8 @@ button { font: inherit; color: inherit; }
   justify-content: center;
   gap: 6px;
   background: rgba(255, 255, 255, .025);
-  color: #dce9e1;
+  color: #78827d;
+  transition: width .16s ease, color .16s ease, background .16s ease;
 }
 
 .voice-mic {
@@ -265,14 +266,32 @@ button { font: inherit; color: inherit; }
   width: 23px;
   height: 23px;
   place-items: center;
-  border: 1px solid rgba(40, 199, 123, .62);
+  border: 1px solid rgba(150, 164, 155, .32);
   border-radius: 50%;
-  color: var(--green-light);
-  background: rgba(40, 199, 123, .10);
+  color: #89968e;
+  background: rgba(150, 164, 155, .07);
 }
 
 .voice-mic svg { width: 14px; height: 14px; fill: currentColor; }
-.voice-level { min-width: 10px; color: #dce9e1; font-size: 12px; font-weight: 800; text-align: center; }
+.voice-status { color: #c9f8dc; font-size: 8px; font-weight: 850; letter-spacing: .08em; }
+.voice-card.is-transmitting {
+  width: 100px;
+  background: rgba(31, 130, 77, .22);
+  color: var(--green-light);
+}
+.voice-card.is-transmitting .voice-mic {
+  border-color: rgba(40, 199, 123, .85);
+  color: #d1ffe2;
+  background: rgba(40, 199, 123, .22);
+  box-shadow: 0 0 12px rgba(40, 199, 123, .34);
+  animation: voice-pulse .9s ease-in-out infinite alternate;
+}
+.voice-card.is-transmitting .voice-status { display: inline; }
+
+@keyframes voice-pulse {
+  from { box-shadow: 0 0 4px rgba(40, 199, 123, .2); }
+  to { box-shadow: 0 0 13px rgba(40, 199, 123, .62); }
+}
 
 .character-card {
   min-width: 150px;

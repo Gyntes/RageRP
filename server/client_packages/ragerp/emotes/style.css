@@ -1,0 +1,106 @@
+:root {
+  color-scheme: dark;
+  font-family: "Segoe UI", Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: transparent;
+}
+
+button { color: inherit; font: inherit; cursor: pointer; }
+
+.emote-overlay {
+  position: fixed;
+  display: grid;
+  place-items: center;
+  background: rgba(3, 8, 11, .38);
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .15s ease;
+}
+
+.emote-overlay.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.emote-panel {
+  width: min(390px, 90vw);
+  padding: 18px;
+  border: 1px solid rgba(204, 229, 232, .16);
+  border-radius: 10px;
+  background: rgba(14, 21, 25, .97);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .48);
+  color: #edf4f5;
+}
+
+.emote-panel header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(204, 229, 232, .1);
+}
+
+.emote-panel header p {
+  margin: 0 0 4px;
+  color: #87a19f;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .14em;
+}
+
+.emote-panel h1 { margin: 0; font-size: 18px; }
+
+#close-emotes {
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(204, 229, 232, .12);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, .035);
+  color: #b7c4c6;
+  font-size: 20px;
+}
+
+.emote-list { display: grid; gap: 6px; padding-top: 12px; }
+
+.emote-list button {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 11px;
+  padding: 0 10px;
+  border: 1px solid rgba(204, 229, 232, .08);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, .025);
+  color: #dce8e8;
+  text-align: left;
+  transition: background .12s ease, border-color .12s ease;
+}
+
+.emote-list button:hover,
+.emote-list button:focus-visible {
+  border-color: rgba(107, 214, 170, .42);
+  background: rgba(46, 143, 111, .16);
+  outline: none;
+}
+
+.emote-list button span {
+  color: #6d8d85;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.emote-hint {
+  margin: 12px 0 0;
+  color: #819296;
+  font-size: 8px;
+  text-align: center;
+}

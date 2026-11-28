@@ -1,5 +1,8 @@
 (function () {
   const targetName = document.getElementById('target-name');
+  const interactionType = document.getElementById('interaction-type');
+  const playerAction = document.getElementById('show-passport');
+  const vehicleActions = Array.from(document.querySelectorAll('.vehicle-action'));
 
   function triggerClient(eventName, value) {
     if (typeof mp === 'undefined' || !mp || typeof mp.trigger !== 'function') return;
@@ -10,8 +13,10 @@
     triggerClient('ragerp:player-interaction:close-request');
   }
 
-  document.getElementById('show-passport').addEventListener('click', function () {
-    triggerClient('ragerp:player-interaction:action', 'vehicle-passport');
+  document.querySelectorAll('[data-interaction-action]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      triggerClient('ragerp:player-interaction:action', button.dataset.interactionAction);
+    });
   });
   document.getElementById('close-menu').addEventListener('click', closeMenu);
   document.addEventListener('keydown', function (event) {
@@ -21,6 +26,18 @@
   window.ragerpPlayerInteraction = {
     setTargetName: function (name) {
       targetName.textContent = String(name || 'Игрок').slice(0, 48);
+    },
+    setPlayerMode: function (name) {
+      targetName.textContent = String(name || 'Игрок').slice(0, 48);
+      interactionType.textContent = 'ВЗАИМОДЕЙСТВИЕ';
+      playerAction.hidden = false;
+      vehicleActions.forEach(function (button) { button.hidden = true; });
+    },
+    setVehicleMode: function (name) {
+      targetName.textContent = String(name || 'Автомобиль').slice(0, 48);
+      interactionType.textContent = 'АВТОМОБИЛЬ';
+      playerAction.hidden = true;
+      vehicleActions.forEach(function (button) { button.hidden = false; });
     }
   };
 })();

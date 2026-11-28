@@ -106,3 +106,42 @@ test('normalization rejects unknown items and invalid quick slots', () => {
   assert.equal(state.equipment.secondary.itemId, 'pistol');
   assert.equal(state.equipment.secondary.ammo, inventory.ITEM_DEFINITIONS.pistol.ammo);
 });
+
+test('lockpicks are persistent tool items and can be consumed only by server logic', () => {
+  let state = inventory.createEmptyInventory();
+  state = inventory.addItems(state, 'lockpick', 2).inventory;
+  assert.equal(inventory.countItems(state, 'lockpick'), 2);
+
+  const removed = inventory.removeItems(state, 'lockpick', 1);
+  assert.equal(inventory.countItems(removed.inventory, 'lockpick'), 1);
+  assert.equal(inventory.countItems(state, 'lockpick'), 2);
+  assert.equal(inventory.removeItems(removed.inventory, 'lockpick', 2).error,
+    'insufficient-items');
+});
+
+test('transferring between inventories preserves items and enforces the target capacity', () => {
+  let playerInventory = inventory.createEmptyInventory();
+  let trunkInventory = inventory.createEmptyInventory();
+  playerInventory = inventory.addItems(playerInventory, 'pistol', 1).inventory;
+  playerInventory.slots[0].ammo = 17;
+
+  let transfer = inventory.transferItems(playerInventory, trunkInventory, 0, 1, 100);
+  assert.ifError(transfer.error);
+  playerInventory = transfer.sourceInventory;
+  trunkInventory = transfer.targetInventory;
+  assert.equal(playerInventory.slots[0], null);
+  assert.deepEqual(trunkInventory.slots[0], {
+    itemId: 'pistol',
+    quantity: 1,
+    ammo: 17
+  });
+
+  const tooHeavy = inventory.transferItems(
+    inventory.addItems(inventory.createEmptyInventory(), 'carbine', 1).inventory,
+    inventory.createEmptyInventory(),
+    0,
+    1,
+    1
+  );
+  assert.equal(tooHeavy.error, 'too-heavy');
+});

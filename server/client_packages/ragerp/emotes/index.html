@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Жесты</title>
+  <link rel="stylesheet" href="style.css?v=20261128-01">
+</head>
+<body>
+  <main class="emote-overlay" id="emote-overlay" aria-hidden="true">
+    <section class="emote-panel" aria-label="Меню жестов">
+      <header>
+        <div>
+          <p>ПЕРСОНАЖ</p>
+          <h1>Жесты</h1>
+        </div>
+        <button id="close-emotes" type="button" aria-label="Закрыть меню">×</button>
+      </header>
+      <div class="emote-list">
+        <button type="button" data-emote="wave"><span>01</span>Помахать</button>
+        <button type="button" data-emote="salute"><span>02</span>Отдать честь</button>
+        <button type="button" data-emote="point"><span>03</span>Указать</button>
+        <button type="button" data-emote="finger"><span>04</span>Показать жест</button>
+      </div>
+      <p class="emote-hint">Нажми ESC, чтобы закрыть меню. SPACE прерывает жест.</p>
+    </section>
+  </main>
+  <script src="app.js?v=20261128-01"></script>
+</body>
+</html>

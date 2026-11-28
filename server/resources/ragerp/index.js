@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const Inventory = require('./inventory');
 const Parking = require('./parking');
 const Dealership = require('./dealership');
@@ -8,6 +9,8 @@ const Admin = require('./admin');
 const VehiclePassport = require('./vehicle-passport');
 const VehicleFuel = require('./vehicle_fuel');
 const VehicleStats = require('./vehicle_stats');
+const VehicleAccess = require('./vehicle-access');
+const VehicleTheftConfig = require('./vehicle-theft.config');
 
 const dataDirectory = path.join(__dirname, 'data');
 const accountsFile = path.join(dataDirectory, 'accounts.json');
@@ -36,6 +39,11 @@ const vehicleFuelDisplayStates = new Map();
 const vehicleRefuelCooldowns = new Map();
 const vehicleStatsRequestCooldowns = new Map();
 const vehicleSignalCooldowns = new Map();
+const openVehicleTrunks = new Map();
+const vehicleTrunkUsers = new Map();
+const vehicleDoorStates = new Map();
+const theftAttemptRegistry = new VehicleAccess.TheftAttemptRegistry();
+const hotwiredVehicles = new Map();
 const hudNotifications = new Map();
 const playtimeCheckpointAt = new Map();
 const voiceRouteStates = new Map();
@@ -110,9 +118,20 @@ function loadAccounts() {
 const accounts = loadAccounts();
 let lastFuelAccountsSaveAt = Date.now();
 let vehicleAccountsDirty = false;
+let vehicleMigrationBackupCreated = false;
 
 function saveAccounts() {
-  fs.writeFileSync(accountsFile, JSON.stringify(accounts, null, 2), 'utf8');
+  const temporaryFile = `${accountsFile}.tmp`;
+  fs.writeFileSync(temporaryFile, JSON.stringify(accounts, null, 2), 'utf8');
+  fs.renameSync(temporaryFile, accountsFile);
+}
+
+function backupAccountsBeforeVehicleMigration() {
+  if (vehicleMigrationBackupCreated || !fs.existsSync(accountsFile)) return;
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const backupFile = path.join(dataDirectory, `accounts-vehicle-migration-${stamp}.json`);
+  fs.copyFileSync(accountsFile, backupFile);
+  vehicleMigrationBackupCreated = true;
 }
 
 function registerVehicleFuel(vehicle, accountKey, model) {
@@ -420,6 +439,25 @@ function ensureCharacterInventory(character) {
   return inventory;
 }
 
+function vehicleTrunkStateFor(player) {
+  const session = openVehicleTrunks.get(player.id);
+  if (!session) return null;
+  const vehicleInfo = starterVehicleForEntity(session.vehicle);
+  if (!vehicleInfo || vehicleInfo.vehicle.vehicleId !== session.vehicleId ||
+      !hasVehicleAccess(player, vehicleInfo)) {
+    return null;
+  }
+
+  const inventory = Inventory.normalizeInventory(vehicleInfo.vehicle.trunkInventory);
+  return {
+    vehicleId: vehicleInfo.vehicle.vehicleId,
+    plate: `${vehicleInfo.vehicle.plate} ${vehicleInfo.vehicle.region}`,
+    inventory: Inventory.inventoryForClient(inventory),
+    weight: Inventory.inventoryWeight(inventory),
+    capacity: VehicleAccess.TRUNK_CAPACITY_WEIGHT
+  };
+}
+
 function inventoryStateFor(player) {
   const account = getAccount(player);
   const character = account.character;
@@ -437,6 +475,7 @@ function inventoryStateFor(player) {
     weight: Inventory.inventoryWeight(inventory),
     capacity: Inventory.MAX_WEIGHT,
     inventory: Inventory.inventoryForClient(inventory),
+    vehicleTrunk: vehicleTrunkStateFor(player),
     catalog: Object.keys(Inventory.ITEM_DEFINITIONS).map((itemId) => {
       const item = Inventory.ITEM_DEFINITIONS[itemId];
       return {
@@ -533,8 +572,11 @@ function inventoryActionError(error) {
     'invalid-item': 'Неизвестный предмет.',
     'invalid-slot': 'Указан неверный слот.',
     'no-character': 'Для этого действия нужен персонаж.',
+    'no-vehicle-access': 'У тебя больше нет доступа к багажнику.',
     'no-space': 'В инвентаре нет свободного места.',
+    'no-vehicle-trunk': 'Багажник не открыт.',
     'not-consumable': 'Этот предмет нельзя использовать.',
+    'vehicle-too-far': 'Подойди ближе к автомобилю.',
     'slot-occupied': 'Сначала освободи выбранный слот.',
     'stack-full': 'В целевом слоте недостаточно места.',
     'too-heavy': 'Превышена грузоподъёмность инвентаря.',
@@ -646,6 +688,102 @@ function performInventoryAction(player, action, data) {
   return { success: true };
 }
 
+function performVehicleInventoryTransfer(player, data) {
+  const session = openVehicleTrunks.get(player.id);
+  if (!session) return { error: 'no-vehicle-trunk' };
+  if (!session.vehicle || !mp.vehicles.exists(session.vehicle) ||
+      !playerNearVehicle(player, session.vehicle, 3.5)) {
+    return { error: 'vehicle-too-far' };
+  }
+
+  const vehicleInfo = starterVehicleForEntity(session.vehicle);
+  if (!vehicleInfo || vehicleInfo.vehicle.vehicleId !== session.vehicleId ||
+      vehicleTrunkUsers.get(session.vehicleId) !== player.id ||
+      !hasVehicleAccess(player, vehicleInfo)) {
+    return { error: 'no-vehicle-access' };
+  }
+
+  const character = characterFor(player);
+  if (!character) return { error: 'no-character' };
+  const playerInventory = ensureCharacterInventory(character);
+  const trunkInventory = Inventory.normalizeInventory(vehicleInfo.vehicle.trunkInventory);
+  const direction = data.direction;
+  const transfer = direction === 'to-trunk'
+    ? Inventory.transferItems(
+      playerInventory,
+      trunkInventory,
+      data.slot,
+      data.quantity,
+      VehicleAccess.TRUNK_CAPACITY_WEIGHT
+    )
+    : direction === 'to-player'
+      ? Inventory.transferItems(
+        trunkInventory,
+        playerInventory,
+        data.slot,
+        data.quantity,
+        Inventory.MAX_WEIGHT
+      )
+      : { error: 'invalid-direction' };
+  if (transfer.error) return transfer;
+
+  const previousPlayerInventory = character.inventory;
+  const previousVehicleRecord = vehicleInfo.account.character.starterVehicle;
+  const updatedVehicle = Object.assign({}, vehicleInfo.vehicle, {
+    trunkInventory: direction === 'to-trunk'
+      ? transfer.targetInventory
+      : transfer.sourceInventory
+  });
+  character.inventory = direction === 'to-trunk'
+    ? transfer.sourceInventory
+    : transfer.targetInventory;
+  vehicleInfo.account.character.starterVehicle = updatedVehicle;
+  try {
+    saveAccounts();
+  } catch (error) {
+    character.inventory = previousPlayerInventory;
+    vehicleInfo.account.character.starterVehicle = previousVehicleRecord;
+    throw error;
+  }
+
+  updateInventoryClient(player);
+  return { success: true };
+}
+
+function performVehicleInventoryMove(player, data) {
+  const session = openVehicleTrunks.get(player.id);
+  if (!session) return { error: 'no-vehicle-trunk' };
+  if (!session.vehicle || !mp.vehicles.exists(session.vehicle) ||
+      !playerNearVehicle(player, session.vehicle, 3.5)) {
+    return { error: 'vehicle-too-far' };
+  }
+  const vehicleInfo = starterVehicleForEntity(session.vehicle);
+  if (!vehicleInfo || vehicleInfo.vehicle.vehicleId !== session.vehicleId ||
+      vehicleTrunkUsers.get(session.vehicleId) !== player.id ||
+      !hasVehicleAccess(player, vehicleInfo)) {
+    return { error: 'no-vehicle-access' };
+  }
+
+  const moved = Inventory.moveSlot(
+    Inventory.normalizeInventory(vehicleInfo.vehicle.trunkInventory),
+    data.from,
+    data.to
+  );
+  if (moved.error) return moved;
+  const previous = vehicleInfo.account.character.starterVehicle;
+  vehicleInfo.account.character.starterVehicle = Object.assign({}, vehicleInfo.vehicle, {
+    trunkInventory: moved.inventory
+  });
+  try {
+    saveAccounts();
+  } catch (error) {
+    vehicleInfo.account.character.starterVehicle = previous;
+    throw error;
+  }
+  updateInventoryClient(player);
+  return { success: true };
+}
+
 function russianPlateForStaticId(staticId) {
   const digits = String(staticId).replace(/\D/g, '').padStart(6, '0');
   if (!/^\d{6}$/.test(digits)) {
@@ -661,6 +799,21 @@ function russianPlateForStaticId(staticId) {
   return `${letters[0]}${digits.slice(0, 3)}${letters[1]}${letters[2]}`;
 }
 
+function newVehicleId() {
+  return crypto.randomBytes(16).toString('hex');
+}
+
+function persistVehicleRecord(account, vehicleRecord) {
+  const previous = account.character.starterVehicle;
+  account.character.starterVehicle = vehicleRecord;
+  try {
+    saveAccounts();
+  } catch (error) {
+    account.character.starterVehicle = previous;
+    throw error;
+  }
+}
+
 function ensureStarterVehicle(account) {
   if (!account.character) return null;
 
@@ -669,17 +822,110 @@ function ensureStarterVehicle(account) {
       starterVehicle.model === starterVehicleModel &&
       /^[ABEKMHOPCTYX]\d{3}[ABEKMHOPCTYX]{2}$/.test(String(starterVehicle.plate || '')) &&
       /^\d{2,3}$/.test(String(starterVehicle.region || ''))) {
+    const normalized = VehicleAccess.normalizeVehicleRecord(
+      starterVehicle,
+      ensureStaticId(account),
+      newVehicleId
+    );
+    if (normalized.error) throw new Error('Could not normalize the personal vehicle record.');
+    if (normalized.changed) {
+      backupAccountsBeforeVehicleMigration();
+      persistVehicleRecord(account, normalized.vehicle);
+      return normalized.vehicle;
+    }
     return starterVehicle;
   }
 
+  if (starterVehicle) backupAccountsBeforeVehicleMigration();
   const staticId = ensureStaticId(account);
-  account.character.starterVehicle = {
+  const vehicle = {
     model: starterVehicleModel,
     plate: russianPlateForStaticId(staticId),
-    region: starterVehicleRegion
+    region: starterVehicleRegion,
+    vehicleId: newVehicleId(),
+    keyHolderStaticIds: [],
+    locked: false,
+    trunkInventory: Inventory.createEmptyInventory()
   };
-  saveAccounts();
+  persistVehicleRecord(account, vehicle);
   return account.character.starterVehicle;
+}
+
+function starterVehicleForEntity(entity) {
+  let result = null;
+  for (const [accountKey, spawnedVehicle] of spawnedStarterVehicles) {
+    if (!spawnedVehicle || !mp.vehicles.exists(spawnedVehicle)) {
+      spawnedStarterVehicles.delete(accountKey);
+      continue;
+    }
+    if (spawnedVehicle !== entity) continue;
+
+    const account = accounts[accountKey];
+    if (!account || !account.character) return null;
+    const vehicle = ensureStarterVehicle(account);
+    if (!vehicle) return null;
+    result = {
+      accountKey,
+      account,
+      vehicle,
+      entity: spawnedVehicle,
+      ownerStaticId: ensureStaticId(account)
+    };
+    break;
+  }
+  return result;
+}
+
+function hasVehicleAccess(player, vehicleInfo) {
+  if (!player || !vehicleInfo) return false;
+  return VehicleAccess.hasKey(
+    vehicleInfo.vehicle,
+    vehicleInfo.ownerStaticId,
+    ensureStaticId(getAccount(player))
+  ) || hotwiredVehicles.get(vehicleInfo.vehicle.vehicleId) === vehicleInfo.entity;
+}
+
+function vehicleIsLocked(vehicleInfo) {
+  return Boolean(vehicleInfo && vehicleInfo.vehicle.locked) &&
+    hotwiredVehicles.get(vehicleInfo.vehicle.vehicleId) !== vehicleInfo.entity;
+}
+
+function clearVehicleRuntimeState(entity) {
+  const vehicleInfo = starterVehicleForEntity(entity);
+  if (!vehicleInfo) return;
+
+  const vehicleId = vehicleInfo.vehicle.vehicleId;
+  const attempt = theftAttemptRegistry.getByVehicle(vehicleId);
+  if (attempt) cancelTheftAttempt(attempt, 'Взлом отменён: автомобиль покинул город.');
+  hotwiredVehicles.delete(vehicleId);
+  vehicleDoorStates.delete(vehicleId);
+  const userId = vehicleTrunkUsers.get(vehicleId);
+  if (userId !== undefined) {
+    const user = openVehicleTrunks.get(userId);
+    if (user) {
+      closeVehicleTrunk(user.player);
+      openInventories.delete(userId);
+      if (mp.players.exists(user.player)) {
+        user.player.call('ragerp:inventory:close');
+        message(user.player, 'Багажник закрылся: автомобиль покинул город.');
+      }
+    }
+  }
+}
+
+function vehicleKeysFor(player) {
+  const account = getAccount(player);
+  const vehicle = ensureStarterVehicle(account);
+  if (!vehicle) return [];
+  return vehicle.keyHolderStaticIds.map((staticId) => {
+    const target = accountByStaticId(staticId);
+    return {
+      staticId,
+      name: target && target.account.character
+        ? `${target.account.character.firstName} ${target.account.character.lastName}`
+        : 'Персонаж не найден'
+    };
+  });
 }
 
 function starterVehicleState(player) {
@@ -699,6 +945,9 @@ function starterVehicleState(player) {
     name: starterVehicleName,
     plate: starterVehicle.plate,
     region: starterVehicle.region,
+    locked: vehicle
+      ? vehicleIsLocked(starterVehicleForEntity(vehicle))
+      : starterVehicle.locked,
     isOut: Boolean(vehicle)
   };
   if (vehicle) {
@@ -772,6 +1021,7 @@ function summonStarterVehicle(player) {
     }
 
     const starterVehicle = ensureStarterVehicle(account);
+    clearVehicleRuntimeState(existing);
     existing.destroy();
     unregisterVehicleFuel(existing);
     const respawned = mp.vehicles.new(
@@ -876,6 +1126,276 @@ function summonStarterVehicle(player) {
   });
 }
 
+function distanceSquared(first, second) {
+  if (!isValidPosition(first) || !isValidPosition(second)) return Infinity;
+  const dx = Number(first.x) - Number(second.x);
+  const dy = Number(first.y) - Number(second.y);
+  const dz = Number(first.z) - Number(second.z);
+  return dx * dx + dy * dy + dz * dz;
+}
+
+function playerNearVehicle(player, vehicle, radius) {
+  return player.dimension === vehicle.dimension &&
+    distanceSquared(player.position, vehicle.position) <= radius * radius;
+}
+
+function setVehicleDoorForNearbyPlayers(vehicle, doorIndex, open) {
+  mp.players.forEach((player) => {
+    if (player.dimension !== vehicle.dimension ||
+        distanceSquared(player.position, vehicle.position) > 80 * 80) return;
+    player.call('ragerp:vehicle:door', [vehicle.id, doorIndex, open]);
+  });
+}
+
+function setVehicleCompartmentState(vehicleInfo, compartment, open) {
+  const state = vehicleDoorStates.get(vehicleInfo.vehicle.vehicleId) || {
+    hoodOpen: false,
+    trunkOpen: false
+  };
+  const doorIndex = compartment === 'hood' ? 4 : 5;
+  state[compartment === 'hood' ? 'hoodOpen' : 'trunkOpen'] = open;
+  vehicleDoorStates.set(vehicleInfo.vehicle.vehicleId, state);
+  setVehicleDoorForNearbyPlayers(vehicleInfo.entity, doorIndex, open);
+}
+
+function closeVehicleTrunk(player) {
+  const session = openVehicleTrunks.get(player.id);
+  if (!session) return;
+  openVehicleTrunks.delete(player.id);
+  if (vehicleTrunkUsers.get(session.vehicleId) === player.id) {
+    vehicleTrunkUsers.delete(session.vehicleId);
+  }
+  if (session.vehicle && mp.vehicles.exists(session.vehicle)) {
+    setVehicleCompartmentState(
+      { vehicle: { vehicleId: session.vehicleId }, entity: session.vehicle },
+      'trunk',
+      false
+    );
+  }
+}
+
+function openVehicleTrunk(player, vehicle) {
+  if (!characterFor(player) || player.dimension !== 0 || player.vehicle ||
+      openPhones.has(player.id) || openInventories.has(player.id) ||
+      openDealerships.has(player.id) || hudNotifications.has(player.id)) {
+    message(player, 'Багажник сейчас недоступен.');
+    return;
+  }
+  const vehicleInfo = starterVehicleForEntity(vehicle);
+  if (!vehicleInfo || !playerNearVehicle(player, vehicle, 3.5)) {
+    message(player, 'Подойди ближе к личному автомобилю.');
+    return;
+  }
+  if (!hasVehicleAccess(player, vehicleInfo)) {
+    message(player, 'У тебя нет ключа от этого автомобиля.');
+    return;
+  }
+  if (vehicleTrunkUsers.has(vehicleInfo.vehicle.vehicleId)) {
+    message(player, 'Багажник уже используется другим игроком.');
+    return;
+  }
+
+  const session = {
+    vehicleId: vehicleInfo.vehicle.vehicleId,
+    vehicle,
+    player
+  };
+  openVehicleTrunks.set(player.id, session);
+  vehicleTrunkUsers.set(session.vehicleId, player.id);
+  openInventories.add(player.id);
+  setVehicleCompartmentState(vehicleInfo, 'trunk', true);
+  try {
+    const state = inventoryStateFor(player);
+    if (!state || !state.vehicleTrunk) throw new Error('Vehicle trunk state is unavailable.');
+    player.call('ragerp:inventory:open', [JSON.stringify(state)]);
+  } catch (error) {
+    closeVehicleTrunk(player);
+    openInventories.delete(player.id);
+    console.error('[RageRP vehicle] Could not open trunk:', error);
+    message(player, 'Не удалось открыть багажник.');
+  }
+}
+
+function toggleVehicleLock(player, vehicleInfo) {
+  if (!vehicleInfo || !mp.vehicles.exists(vehicleInfo.entity)) return false;
+  if (!VehicleAccess.hasKey(
+    vehicleInfo.vehicle,
+    vehicleInfo.ownerStaticId,
+    ensureStaticId(getAccount(player))
+  )) {
+    message(player, 'У тебя нет ключа от этого автомобиля.');
+    return false;
+  }
+
+  const locked = !vehicleIsLocked(vehicleInfo);
+  const updated = Object.assign({}, vehicleInfo.vehicle, { locked });
+  persistVehicleRecord(vehicleInfo.account, updated);
+  vehicleInfo.vehicle = updated;
+  vehicleInfo.entity.locked = false;
+  player.call('ragerp:vehicle:lock-animation', [locked]);
+  message(player, locked ? 'Автомобиль закрыт.' : 'Автомобиль открыт.');
+  return true;
+}
+
+function cancelTheftAttempt(attempt, notice) {
+  if (attempt.timeout) clearTimeout(attempt.timeout);
+  theftAttemptRegistry.release(attempt);
+  if (notice && mp.players.exists(attempt.player)) message(attempt.player, notice);
+}
+
+function maybeSendPoliceTheftAlert(stage, player, vehicleInfo) {
+  const settings = VehicleTheftConfig.policeAlert;
+  if (!VehicleAccess.shouldAlertPolice(stage, Math.random(), settings)) return;
+  const alert = {
+    type: 'vehicle-theft',
+    stage,
+    plate: `${vehicleInfo.vehicle.plate} ${vehicleInfo.vehicle.region}`,
+    model: vehicleInfo.vehicle.model,
+    position: {
+      x: Number(vehicleInfo.entity.position.x),
+      y: Number(vehicleInfo.entity.position.y),
+      z: Number(vehicleInfo.entity.position.z)
+    },
+    dimension: vehicleInfo.entity.dimension
+  };
+  mp.events.call('ragerp:police:vehicle-theft', JSON.stringify(alert));
+}
+
+function completeTheftAttempt(attempt) {
+  if (theftAttemptRegistry.getByVehicle(attempt.vehicleId) !== attempt) return;
+  cancelTheftAttempt(attempt, null);
+
+  if (!mp.players.exists(attempt.player) ||
+      !attempt.vehicle || !mp.vehicles.exists(attempt.vehicle) ||
+      !playerNearVehicle(attempt.player, attempt.vehicle, 3.5) ||
+      attempt.player.vehicle) {
+    if (mp.players.exists(attempt.player)) {
+      message(attempt.player, 'Взлом отменён: ты отошёл от автомобиля.');
+    }
+    return;
+  }
+
+  const vehicleInfo = starterVehicleForEntity(attempt.vehicle);
+  if (!vehicleInfo || vehicleInfo.vehicle.vehicleId !== attempt.vehicleId ||
+      vehicleInfo.accountKey !== attempt.ownerAccountKey ||
+      !vehicleIsLocked(vehicleInfo) ||
+      VehicleAccess.hasKey(
+        vehicleInfo.vehicle,
+        vehicleInfo.ownerStaticId,
+        ensureStaticId(getAccount(attempt.player))
+      )) {
+    message(attempt.player, 'Взлом отменён: состояние автомобиля изменилось.');
+    return;
+  }
+
+  const character = characterFor(attempt.player);
+  const inventory = ensureCharacterInventory(character);
+  if (Inventory.countItems(inventory, 'lockpick') < 1) {
+    message(attempt.player, 'Взлом отменён: у тебя больше нет отмычки.');
+    return;
+  }
+
+  const outcome = VehicleAccess.resolveTheftOutcome(
+    Math.random(),
+    Math.random(),
+    VehicleTheftConfig
+  );
+  if (outcome.error) throw new Error('Vehicle theft settings are invalid.');
+  if (!outcome.success) {
+    attempt.vehicle.locked = false;
+    if (outcome.lockpickBroken) {
+      const removed = Inventory.removeItems(inventory, 'lockpick', 1);
+      if (!removed.error) {
+        character.inventory = removed.inventory;
+        try {
+          saveAccounts();
+        } catch (error) {
+          character.inventory = inventory;
+          console.error('[RageRP vehicle] Could not save a broken lockpick:', error);
+          message(attempt.player, 'Не удалось сохранить результат взлома.');
+          return;
+        }
+      }
+    }
+    message(attempt.player, outcome.lockpickBroken
+      ? 'Не удалось взломать автомобиль. Отмычка сломалась.'
+      : 'Не удалось взломать автомобиль.');
+    maybeSendPoliceTheftAlert('failure', attempt.player, vehicleInfo);
+    return;
+  }
+
+  hotwiredVehicles.set(attempt.vehicleId, attempt.vehicle);
+  message(attempt.player, 'Замок вскрыт. Двигатель можно запустить без штатного ключа.');
+  maybeSendPoliceTheftAlert('success', attempt.player, vehicleInfo);
+}
+
+function startTheftAttempt(player, vehicle) {
+  if (!characterFor(player) || player.dimension !== 0 || player.vehicle ||
+      openPhones.has(player.id) || openInventories.has(player.id) ||
+      openDealerships.has(player.id) || hudNotifications.has(player.id)) return;
+
+  const vehicleInfo = starterVehicleForEntity(vehicle);
+  if (!vehicleInfo || !playerNearVehicle(player, vehicle, 3.5)) {
+    message(player, 'Подойди ближе к личному автомобилю.');
+    return;
+  }
+  if (!vehicleIsLocked(vehicleInfo)) {
+    message(player, 'Автомобиль не закрыт.');
+    return;
+  }
+  if (hasVehicleAccess(player, vehicleInfo)) {
+    message(player, 'У тебя уже есть доступ к этому автомобилю.');
+    return;
+  }
+  if (theftAttemptRegistry.getByPlayer(player.id) ||
+      theftAttemptRegistry.getByVehicle(vehicleInfo.vehicle.vehicleId)) {
+    message(player, 'Кто-то уже пытается взломать автомобиль.');
+    return;
+  }
+  const inventory = ensureCharacterInventory(characterFor(player));
+  if (Inventory.countItems(inventory, 'lockpick') < 1) {
+    message(player, 'Для взлома нужна отмычка.');
+    return;
+  }
+
+  const attempt = {
+    vehicleId: vehicleInfo.vehicle.vehicleId,
+    playerId: player.id,
+    ownerAccountKey: vehicleInfo.accountKey,
+    vehicle,
+    player,
+    timeout: null
+  };
+  if (!theftAttemptRegistry.reserve(attempt)) {
+    message(player, 'Кто-то уже пытается взломать автомобиль.');
+    return;
+  }
+  attempt.timeout = setTimeout(
+    () => completeTheftAttempt(attempt),
+    VehicleTheftConfig.attemptDurationMs
+  );
+  message(player, 'Начался взлом замка. Не отходи от автомобиля.');
+  maybeSendPoliceTheftAlert('attempt', player, vehicleInfo);
+}
+
+function toggleVehicleHood(player, vehicle) {
+  const vehicleInfo = starterVehicleForEntity(vehicle);
+  if (!vehicleInfo || !playerNearVehicle(player, vehicle, 3.5)) {
+    message(player, 'Подойди ближе к личному автомобилю.');
+    return;
+  }
+  if (!hasVehicleAccess(player, vehicleInfo)) {
+    message(player, 'У тебя нет доступа к капоту этого автомобиля.');
+    return;
+  }
+
+  const state = vehicleDoorStates.get(vehicleInfo.vehicle.vehicleId) || {
+    hoodOpen: false,
+    trunkOpen: false
+  };
+  setVehicleCompartmentState(vehicleInfo, 'hood', !state.hoodOpen);
+}
+
 function onlinePhonePlayers() {
   const online = [];
   mp.players.forEach((player) => {
@@ -966,6 +1486,7 @@ function phoneStateFor(player) {
     ads: phoneAds.slice(-30),
     taxiCalls: taxiCalls.slice(-20),
     starterVehicle,
+    vehicleKeys: vehicleKeysFor(player),
     vehiclePassport: vehiclePassportFor(player),
     passportShareRequest: passportRequest
       ? { requestId: passportRequest.requestId, fromName: passportRequest.fromName }
@@ -1539,6 +2060,7 @@ function showHelp(player) {
   message(player, '/job [courier|unemployed], /work, /faction, /joinfaction <civilian|mechanic>, /me <текст>');
   message(player, '/conviction <статик ID> <месяцев> <причина> — добавить приговор (для разрешённых ID)');
   message(player, 'Телефон: стрелка вверх или Tab. Доступны SMS, банк, GPS, такси и объявления.');
+  message(player, 'Автомобиль: наведи камеру на машину и нажми E. Управляй ключами в приложении «Моя машина».');
   message(player, 'Автосалон: нажми E у отметки в городе, чтобы посмотреть каталог машин.');
   message(player, 'Машина: двигатель 2, замок L, радио Q; поворотники [ ] и аварийка \\. Заправка — E у АЗС.');
   message(player, 'Администраторам: /bmwm5g90 — создать тестовый BMW M5 рядом с собой.');
@@ -1691,6 +2213,24 @@ function openRegistration(player) {
   player.call('ragerp:registration:show', [account.staticId]);
 }
 
+function openAdminMenu(player) {
+  if (!requireCharacter(player)) return;
+  if (!adminIsAuthorized(player)) {
+    message(player, 'Доступ в админ-меню запрещён.');
+    return;
+  }
+
+  const account = getAccount(player);
+  const staticId = ensureStaticId(account);
+  Admin.recordLog('admin_online', 'admin_menu_open', staticId, null, 'Админ-меню открыто.');
+  player.call('ragerp:admin:open', [JSON.stringify({
+    staticId,
+    categories: Admin.LOG_CATEGORIES,
+    players: adminPlayerSnapshot(),
+    logs: Admin.getLogs(null, '', 100)
+  })]);
+}
+
 function handleCommand(player, command) {
   const parts = String(command || '').trim().replace(/^\/+/, '').split(/\s+/);
   const name = (parts.shift() || '').toLowerCase();
@@ -1745,20 +2285,7 @@ function handleCommand(player, command) {
   }
 
   if (name === 'admin') {
-    if (!requireCharacter(player)) return;
-    if (!adminIsAuthorized(player)) {
-      message(player, 'Доступ в админ-меню запрещён.');
-      return;
-    }
-    const account = getAccount(player);
-    Admin.recordLog('admin_online', 'admin_menu_open', ensureStaticId(account), null,
-      'Админ-меню открыто.');
-    player.call('ragerp:admin:open', [JSON.stringify({
-      staticId: ensureStaticId(account),
-      categories: Admin.LOG_CATEGORIES,
-      players: adminPlayerSnapshot(),
-      logs: Admin.getLogs(null, '', 100)
-    })]);
+    openAdminMenu(player);
     return;
   }
 
@@ -1806,7 +2333,7 @@ function handleCommand(player, command) {
     if (!/^\d{3}-\d{3}$/.test(targetStaticId) ||
         !Inventory.ITEM_DEFINITIONS[itemId] ||
         !Number.isInteger(quantity) || quantity < 1 || quantity > 100) {
-      message(player, 'Использование: /inventorygive <статик ID> <medkit|armor_vest|pistol|carbine> <1–100>.');
+      message(player, 'Использование: /inventorygive <статик ID> <medkit|armor_vest|pistol|carbine|lockpick> <1–100>.');
       return;
     }
 
@@ -2143,6 +2670,7 @@ mp.events.add('ragerp:inventory:request-open', (player) => {
 
 mp.events.add('ragerp:inventory:close', (player) => {
   openInventories.delete(player.id);
+  closeVehicleTrunk(player);
 });
 
 mp.events.add('ragerp:inventory:action', (player, action, payload) => {
@@ -2171,6 +2699,16 @@ mp.events.add('ragerp:inventory:action', (player, action, payload) => {
   }
 
   try {
+    if (action === 'vehicle-transfer') {
+      const result = performVehicleInventoryTransfer(player, data);
+      if (result.error) inventoryNotice(player, inventoryActionError(result.error));
+      return;
+    }
+    if (action === 'vehicle-move') {
+      const result = performVehicleInventoryMove(player, data);
+      if (result.error) inventoryNotice(player, inventoryActionError(result.error));
+      return;
+    }
     const result = performInventoryAction(player, action, data);
     if (result.error) inventoryNotice(player, inventoryActionError(result.error));
   } catch (error) {
@@ -2270,7 +2808,7 @@ mp.events.add('ragerp:media:settings', (player, payload) => {
 mp.events.add('ragerp:vehicle:toggle-lock', (player) => {
   if (player.dimension !== 0 || !characterFor(player) ||
       openPhones.has(player.id) || openInventories.has(player.id) ||
-      openDealerships.has(player.id)) {
+      openDealerships.has(player.id) || hudNotifications.has(player.id)) {
     return;
   }
 
@@ -2286,15 +2824,19 @@ mp.events.add('ragerp:vehicle:toggle-lock', (player) => {
     return;
   }
 
-  vehicle.locked = !vehicle.locked;
-  message(player, vehicle.locked
-    ? 'Твоя личная машина закрыта.'
-    : 'Твоя личная машина открыта.');
+  const vehicleInfo = starterVehicleForEntity(vehicle);
+  try {
+    toggleVehicleLock(player, vehicleInfo);
+  } catch (error) {
+    console.error('[RageRP vehicle] Could not update vehicle lock:', error);
+    message(player, 'Не удалось сохранить состояние замка.');
+  }
 });
 
 mp.events.add('ragerp:vehicle:toggle-engine', (player) => {
   if (!characterFor(player) || openPhones.has(player.id) ||
-      openInventories.has(player.id) || openDealerships.has(player.id)) {
+      openInventories.has(player.id) || openDealerships.has(player.id) ||
+      hudNotifications.has(player.id)) {
     return;
   }
 
@@ -2302,6 +2844,12 @@ mp.events.add('ragerp:vehicle:toggle-engine', (player) => {
   if (!vehicle) return;
   if (player.seat !== -1) {
     message(player, 'Завести или заглушить двигатель может только водитель.');
+    return;
+  }
+
+  const vehicleInfo = starterVehicleForEntity(vehicle);
+  if (vehicleInfo && !hasVehicleAccess(player, vehicleInfo) && !vehicle.engine) {
+    message(player, 'Для запуска двигателя нужен ключ или успешно взломанный замок.');
     return;
   }
 
@@ -2319,6 +2867,45 @@ mp.events.add('ragerp:vehicle:toggle-engine', (player) => {
     vehicleFuelDisplayStates.delete(player.id);
   }
   message(player, vehicle.engine ? 'Двигатель запущен.' : 'Двигатель заглушён.');
+});
+
+mp.events.add('playerEnterVehicle', (player, vehicle, seat) => {
+  if (seat !== -1) return;
+  const vehicleInfo = starterVehicleForEntity(vehicle);
+  if (vehicleInfo && !hasVehicleAccess(player, vehicleInfo)) {
+    vehicle.engine = false;
+  }
+});
+
+mp.events.add('ragerp:vehicle:interaction', (player, action, vehicleId) => {
+  if (typeof action !== 'string' || !Number.isSafeInteger(vehicleId) ||
+      vehicleId < 0 || !characterFor(player) || player.dimension !== 0 ||
+      openPhones.has(player.id) || openInventories.has(player.id) ||
+      openDealerships.has(player.id) || hudNotifications.has(player.id)) {
+    return;
+  }
+  const vehicle = mp.vehicles.at(vehicleId);
+  if (!vehicle || vehicle.dimension !== player.dimension ||
+      !playerNearVehicle(player, vehicle, 3.5)) {
+    message(player, 'Подойди ближе к автомобилю.');
+    return;
+  }
+
+  if (action === 'trunk') {
+    openVehicleTrunk(player, vehicle);
+  } else if (action === 'hood') {
+    toggleVehicleHood(player, vehicle);
+  } else if (action === 'lock') {
+    const vehicleInfo = starterVehicleForEntity(vehicle);
+    try {
+      toggleVehicleLock(player, vehicleInfo);
+    } catch (error) {
+      console.error('[RageRP vehicle] Could not update vehicle lock:', error);
+      message(player, 'Не удалось сохранить состояние замка.');
+    }
+  } else if (action === 'lockpick') {
+    startTheftAttempt(player, vehicle);
+  }
 });
 
 mp.events.add('ragerp:vehicle-passport:share-to', (player, targetId) => {
@@ -2604,6 +3191,74 @@ mp.events.add('ragerp:phone:action', (player, action, payload) => {
       console.error('[RageRP] Starter vehicle summon failed:', error);
       phoneNotice(player, 'Не удалось вызвать автомобиль. Попробуй позже.');
     }
+    return;
+  }
+
+  if (action === 'vehicle-key:grant' || action === 'vehicle-key:revoke') {
+    const targetStaticId = String(data.staticId || '').trim();
+    if (!VehicleAccess.STATIC_ID_PATTERN.test(targetStaticId)) {
+      phoneNotice(player, 'Укажи корректный статик ID получателя.');
+      return;
+    }
+
+    const target = accountByStaticId(targetStaticId);
+    if (!target || !target.account.character) {
+      phoneNotice(player, 'Персонаж с таким статик ID не найден.');
+      return;
+    }
+
+    const ownerStaticId = ensureStaticId(account);
+    const vehicle = ensureStarterVehicle(account);
+    const result = action === 'vehicle-key:grant'
+      ? VehicleAccess.grantKey(vehicle, ownerStaticId, targetStaticId)
+      : VehicleAccess.revokeKey(vehicle, targetStaticId);
+    if (result.error) {
+      phoneNotice(player, result.error === 'already-granted'
+        ? 'У этого игрока уже есть ключ.'
+        : result.error === 'not-granted'
+          ? 'У этого игрока нет ключа.'
+          : result.error === 'owner-already-has-key'
+            ? 'Владелец уже имеет ключ.'
+            : 'Не удалось изменить доступ к автомобилю.');
+      return;
+    }
+
+    try {
+      persistVehicleRecord(account, result.vehicle);
+    } catch (error) {
+      console.error('[RageRP vehicle] Could not save key access:', error);
+      phoneNotice(player, 'Не удалось сохранить доступ к автомобилю.');
+      return;
+    }
+
+    const onlineTarget = onlinePhonePlayers().find((person) =>
+      person.staticId === targetStaticId
+    );
+    if (onlineTarget) {
+      if (action === 'vehicle-key:revoke') {
+        const spawnedVehicle = spawnedStarterVehicles.get(sessions.get(player.id));
+        if (spawnedVehicle && onlineTarget.player.vehicle === spawnedVehicle) {
+          spawnedVehicle.engine = false;
+        }
+        const trunkSession = openVehicleTrunks.get(onlineTarget.player.id);
+        if (trunkSession && trunkSession.vehicleId === vehicle.vehicleId) {
+          closeVehicleTrunk(onlineTarget.player);
+          openInventories.delete(onlineTarget.player.id);
+          onlineTarget.player.call('ragerp:inventory:close');
+        }
+        message(onlineTarget.player, 'Доступ к автомобилю отозван владельцем.');
+      } else {
+        message(onlineTarget.player, `Владелец выдал тебе ключ от автомобиля ${vehicle.plate}.`);
+      }
+    }
+
+    updatePhone(player, {
+      starterVehicle: starterVehicleState(player),
+      vehicleKeys: vehicleKeysFor(player)
+    });
+    phoneNotice(player, action === 'vehicle-key:grant'
+      ? `Ключ выдан игроку ${targetStaticId}.`
+      : `Ключ игрока ${targetStaticId} отозван.`);
     return;
   }
 
@@ -2933,6 +3588,10 @@ mp.events.add('ragerp:hud:demo-response', (player, accepted) => {
     : 'Демо-уведомление отклонено.');
 });
 
+mp.events.add('ragerp:admin:request-open', (player) => {
+  openAdminMenu(player);
+});
+
 mp.events.add('ragerp:admin:close', (player) => {
   if (!adminIsAuthorized(player)) return;
   const account = getAccount(player);
@@ -3183,6 +3842,7 @@ mp.events.add('playerQuit', (player) => {
 
   const key = sessions.get(player.id);
   openPhones.delete(player.id);
+  closeVehicleTrunk(player);
   openInventories.delete(player.id);
   inventoryActionCooldowns.delete(player.id);
   phoneMessageCooldowns.delete(player.id);
@@ -3198,13 +3858,16 @@ mp.events.add('playerQuit', (player) => {
   vehicleFuelDisplayStates.delete(player.id);
   hudNotifications.delete(player.id);
   playtimeCheckpointAt.delete(player.id);
+  const theftAttempt = theftAttemptRegistry.getByPlayer(player.id);
+  if (theftAttempt) cancelTheftAttempt(theftAttempt, null);
   broadcastHudOnlineCount(player.id);
   if (!key) return;
 
   const starterVehicle = spawnedStarterVehicles.get(key);
   if (starterVehicle && mp.vehicles.exists(starterVehicle)) {
-    starterVehicle.destroy();
+    clearVehicleRuntimeState(starterVehicle);
     unregisterVehicleFuel(starterVehicle);
+    starterVehicle.destroy();
   }
   spawnedStarterVehicles.delete(key);
 

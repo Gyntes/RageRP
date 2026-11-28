@@ -178,6 +178,9 @@ button { color: inherit; font: inherit; }
 .storage-header { display: flex; min-height: 54px; align-items: flex-start; justify-content: space-between; gap: 18px; padding: 1px 2px 12px; }
 .storage-header .section-heading { gap: 8px; }
 .storage-header p { margin: 5px 0 0 25px; color: var(--muted); font-size: 9px; }
+.storage-switch { display: flex; gap: 5px; margin: 8px 0 0 25px; }
+.storage-tab { padding: 5px 9px; border: 1px solid var(--border); border-radius: 4px; background: rgba(255,255,255,.025); color: var(--muted); cursor: pointer; font-size: 8px; }
+.storage-tab.is-active { border-color: rgba(107, 214, 170, .42); background: rgba(107, 214, 170, .1); color: #b8f1d2; }
 .capacity { width: min(220px, 36%); flex: none; padding-top: 1px; }
 .capacity-label { display: flex; align-items: center; justify-content: space-between; color: var(--muted); font-size: 8px; font-weight: 800; letter-spacing: .1em; }
 .capacity-label strong { color: #e0e9ec; font-size: 10px; letter-spacing: 0; font-variant-numeric: tabular-nums; }
@@ -229,6 +232,8 @@ button { color: inherit; font: inherit; }
 .primary-action { min-width: 104px; min-height: 32px; padding: 0 11px; border: 1px solid rgba(107, 214, 170, .4); border-radius: 5px; background: rgba(66, 152, 117, .15); color: #b8f1d2; cursor: pointer; font-size: 9px; font-weight: 700; }
 .primary-action:hover:not(:disabled) { background: rgba(66, 152, 117, .28); }
 .primary-action:disabled { border-color: rgba(255,255,255,.08); background: rgba(255,255,255,.025); color: #637178; cursor: default; }
+.transfer-action { border-color: rgba(103, 200, 212, .4); background: rgba(56, 136, 146, .15); color: #b8e9ed; }
+.transfer-action:hover:not(:disabled) { background: rgba(56, 136, 146, .28); }
 
 .inventory-footer { display: flex; min-height: 25px; align-items: center; gap: 15px; padding-top: 9px; border-top: 1px solid var(--border); color: #7f8e93; font-size: 8px; }
 .inventory-footer kbd { margin-right: 4px; padding: 2px 5px; border: 1px solid rgba(255,255,255,.12); border-radius: 3px; color: #c3d0d4; font: 700 8px "Segoe UI", Arial, sans-serif; }

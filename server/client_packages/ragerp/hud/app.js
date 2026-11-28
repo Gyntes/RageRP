@@ -5,6 +5,8 @@
   const notificationPanel = document.getElementById('notification');
   const notificationMessage = document.getElementById('notification-message');
   const customCrosshair = document.getElementById('custom-crosshair');
+  const voiceCard = document.getElementById('voice-card');
+  const voiceStatus = document.getElementById('hud-voice-status');
   let state = {};
   let activeNotification = null;
 
@@ -25,6 +27,43 @@
 
   function setText(id, value) {
     document.getElementById(id).textContent = String(value == null ? '' : value);
+  }
+
+  function keyLabel(code) {
+    const number = Number(code);
+    if (number === 9) return 'TAB';
+    if (number === 13) return 'ENTER';
+    if (number === 32) return 'SPACE';
+    if (number === 37) return '←';
+    if (number === 38) return '↑';
+    if (number === 39) return '→';
+    if (number === 40) return '↓';
+    if (number === 33) return 'PAGE UP';
+    if (number === 34) return 'PAGE DOWN';
+    if (number === 35) return 'END';
+    if (number === 36) return 'HOME';
+    if (number >= 48 && number <= 57) return String.fromCharCode(number);
+    if (number >= 65 && number <= 90) return String.fromCharCode(number);
+    if (number >= 112 && number <= 123) return `F${number - 111}`;
+    if (number === 186) return ';';
+    if (number === 187) return '=';
+    if (number === 188) return ',';
+    if (number === 189) return '-';
+    if (number === 190) return '.';
+    if (number === 191) return '/';
+    if (number === 192) return '`';
+    if (number === 219) return '[';
+    if (number === 220) return '\\';
+    if (number === 221) return ']';
+    if (number === 222) return "'";
+    return `KEY ${number}`;
+  }
+
+  function keyBindingLabel(primary, alternate) {
+    return [primary, alternate]
+      .filter((code) => code !== null && code !== undefined && Number.isInteger(Number(code)))
+      .map(keyLabel)
+      .join(' / ');
   }
 
   function roleLabel(data) {
@@ -123,6 +162,20 @@
           /^#[0-9a-f]{6}$/i.test(options.crosshairColor)) {
         customCrosshair.style.setProperty('--crosshair-color', options.crosshairColor);
       }
+    },
+    setNotificationKeys: function (bindings) {
+      if (!bindings || typeof bindings !== 'object') return;
+      setText('accept-key', keyBindingLabel(bindings.accept, bindings.acceptAlternate));
+      setText('decline-key', keyBindingLabel(bindings.decline, bindings.declineAlternate));
+    },
+    setVoiceTransmit: function (active) {
+      const transmitting = active === true;
+      voiceCard.classList.toggle('is-transmitting', transmitting);
+      voiceCard.setAttribute(
+        'aria-label',
+        transmitting ? 'Микрофон передаёт голос' : 'Микрофон не активен'
+      );
+      voiceStatus.hidden = !transmitting;
     },
     setVisible: function (visible) {
       root.classList.toggle('is-hidden', !visible);

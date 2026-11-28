@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>RageRP HUD</title>
-  <link rel="stylesheet" href="style.css?v=20261127-1">
+  <link rel="stylesheet" href="style.css?v=20261128-03">
 </head>
 <body>
   <main class="hud-root" id="hud-root">
@@ -23,10 +23,10 @@
       <p class="notification-message" id="notification-message"></p>
       <div class="notification-actions">
         <button class="decision decision-decline" id="decline-button" type="button">
-          <span id="decline-label">Отказаться</span><kbd>N</kbd>
+          <span id="decline-label">Отказаться</span><kbd id="decline-key">N</kbd>
         </button>
         <button class="decision decision-accept" id="accept-button" type="button">
-          <span id="accept-label">Принять</span><kbd>Y</kbd>
+          <span id="accept-label">Принять</span><kbd id="accept-key">Y</kbd>
         </button>
       </div>
     </section>
@@ -71,11 +71,11 @@
     <button class="task-reopen" id="show-tasks" type="button" hidden>ЗАДАНИЯ <span>›</span></button>
 
     <section class="wallet" aria-label="Деньги персонажа">
-      <article class="voice-card">
+      <article class="voice-card" id="voice-card" aria-label="Микрофон не активен">
         <span class="voice-mic" aria-hidden="true">
           <svg viewBox="0 0 24 24"><path d="M12 14.5a4 4 0 0 0 4-4v-5a4 4 0 1 0-8 0v5a4 4 0 0 0 4 4Zm-7-4h2a5 5 0 0 0 10 0h2a7 7 0 0 1-6 6.82V20h3v2H8v-2h3v-2.68A7 7 0 0 1 5 10.5Z"/></svg>
         </span>
-        <span class="voice-level" id="hud-voice-level">2</span>
+        <span class="voice-status" id="hud-voice-status" hidden>ГОВОРЮ</span>
       </article>
       <article class="character-card">
         <span class="character-name" id="hud-character-name">Персонаж</span>
@@ -91,6 +91,6 @@
       </article>
     </section>
   </main>
-  <script src="app.js?v=20261127-1"></script>
+  <script src="app.js?v=20261128-03"></script>
 </body>
 </html>

@@ -3,7 +3,6 @@
   const footerMessage = document.getElementById('footer-message');
   const toast = document.getElementById('settings-toast');
   const bindingButtons = Array.from(document.querySelectorAll('[data-bind]'));
-  const reservedRadioKeyCode = 81;
   const defaultSettings = {
     general: {
       showHud: true,
@@ -17,10 +16,51 @@
     },
     bindings: {
       phoneUp: 38,
-      phoneTab: 9,
       inventory: 73,
+      settings: 121,
+      adminMenu: 123,
+      interaction: 69,
+      radio: 81,
+      voiceTransmit: 90,
+      voiceToggle: 117,
       vehicleLock: 76,
-      engine: 50
+      engine: 50,
+      hudToggle: 122,
+      holster: 88,
+      crouch: 17,
+      animationMenu: 85,
+      stopAnimation: 32,
+      showFinger: 66,
+      quickSlot1: 49,
+      quickSlot2: 50,
+      quickSlot3: 51,
+      quickSlot4: 52,
+      hudAccept: 89,
+      hudDecline: 78
+    },
+    alternateBindings: {
+      phoneUp: 9,
+      inventory: null,
+      settings: null,
+      adminMenu: null,
+      interaction: null,
+      radio: null,
+      voiceTransmit: null,
+      voiceToggle: null,
+      vehicleLock: null,
+      engine: null,
+      hudToggle: null,
+      holster: null,
+      crouch: null,
+      animationMenu: null,
+      stopAnimation: null,
+      showFinger: null,
+      quickSlot1: null,
+      quickSlot2: null,
+      quickSlot3: null,
+      quickSlot4: null,
+      hudAccept: null,
+      hudDecline: null
     },
     graphics: { lodScale: 100 },
     combat: {
@@ -31,6 +71,7 @@
     },
     media: {
       voiceMuteUnderHours: 0,
+      radioVolume: 100,
       showCallNotifications: true,
       callNotificationSound: true,
       showChat: true
@@ -45,10 +86,14 @@
     'general.phoneBottom': [0, 15],
     'graphics.lodScale': [50, 150],
     'combat.crosshairScale': [60, 150],
-    'media.voiceMuteUnderHours': [0, 200]
+    'media.voiceMuteUnderHours': [0, 200],
+    'media.radioVolume': [0, 100]
   };
   const keyLabels = {
     9: 'TAB',
+    16: 'SHIFT',
+    17: 'CTRL',
+    18: 'ALT',
     13: 'ENTER',
     27: 'ESC',
     32: 'SPACE',
@@ -56,13 +101,32 @@
     38: '↑',
     39: '→',
     40: '↓',
+    33: 'PAGE UP',
+    34: 'PAGE DOWN',
+    35: 'END',
+    36: 'HOME',
     45: 'INSERT',
     46: 'DELETE',
-    81: 'Q'
+    186: ';',
+    187: '=',
+    188: ',',
+    189: '-',
+    190: '.',
+    191: '/',
+    192: '`',
+    219: '[',
+    220: '\\',
+    221: ']',
+    222: "'"
   };
   let state = null;
   let capturing = null;
   let toastTimer = null;
+
+  function canShareKey(firstAction, secondAction) {
+    return (firstAction === 'engine' && secondAction === 'quickSlot2') ||
+      (firstAction === 'quickSlot2' && secondAction === 'engine');
+  }
 
   function cloneDefaults() {
     return JSON.parse(JSON.stringify(defaultSettings));
@@ -90,9 +154,10 @@
         settingBounds[path][1],
         fallback
       );
-      normalized[parts[0]][parts[1]] = path === 'media.voiceMuteUnderHours'
-        ? Math.round(bounded)
-        : bounded;
+      normalized[parts[0]][parts[1]] =
+        path === 'media.voiceMuteUnderHours' || path === 'media.radioVolume'
+          ? Math.round(bounded)
+          : bounded;
     });
 
     ['showHud', 'showRadar'].forEach(function (key) {
@@ -116,23 +181,58 @@
 
     if (value.bindings && typeof value.bindings === 'object' && !Array.isArray(value.bindings)) {
       const actions = Object.keys(defaultSettings.bindings);
-      const candidate = {};
+      const candidate = Object.assign({}, defaultSettings.bindings);
+      const alternateCandidate = Object.assign({}, defaultSettings.alternateBindings);
       let valid = true;
       actions.forEach(function (action) {
+        if (!Object.prototype.hasOwnProperty.call(value.bindings, action)) return;
         const code = Number(value.bindings[action]);
-        if (!Number.isInteger(code) || code < 1 || code > 255 ||
-            code === 27 || code === 69 ||
-            code === reservedRadioKeyCode || code === 121 ||
-            Object.keys(candidate).some(function (key) { return candidate[key] === code; })) {
+        if (!Number.isInteger(code) || code < 1 || code > 255 || code === 27) {
           valid = false;
           return;
         }
         candidate[action] = code;
       });
-      if (valid && actions.every(function (action) {
-        return Object.prototype.hasOwnProperty.call(candidate, action);
-      })) {
+      if (value.alternateBindings && typeof value.alternateBindings === 'object' &&
+          !Array.isArray(value.alternateBindings)) {
+        actions.forEach(function (action) {
+          if (!Object.prototype.hasOwnProperty.call(value.alternateBindings, action)) return;
+          const valueForAction = value.alternateBindings[action];
+          if (valueForAction === null || valueForAction === '') {
+            alternateCandidate[action] = null;
+            return;
+          }
+          const code = Number(valueForAction);
+          if (!Number.isInteger(code) || code < 1 || code > 255 || code === 27) {
+            valid = false;
+            return;
+          }
+          alternateCandidate[action] = code;
+        });
+      } else if (Object.prototype.hasOwnProperty.call(value.bindings, 'phoneTab')) {
+        const legacyPhoneKey = Number(value.bindings.phoneTab);
+        if (!Number.isInteger(legacyPhoneKey) || legacyPhoneKey < 1 ||
+            legacyPhoneKey > 255 || legacyPhoneKey === 27) {
+          valid = false;
+        } else {
+          alternateCandidate.phoneUp = legacyPhoneKey;
+        }
+      }
+
+      const usedCodes = [];
+      actions.forEach(function (action) {
+        [candidate[action], alternateCandidate[action]].forEach(function (code) {
+          if (code === null || code === undefined) return;
+          const conflict = usedCodes.some(function (used) {
+            return used.code === code && !canShareKey(action, used.action);
+          });
+          if (conflict) valid = false;
+          usedCodes.push({ action, code });
+        });
+      });
+      if (valid) {
         normalized.bindings = candidate;
+        normalized.alternateBindings = alternateCandidate;
       }
     }
     return normalized;
@@ -220,9 +320,22 @@
     });
 
     bindingButtons.forEach(function (button) {
-      button.textContent = keyLabel(state.bindings[button.dataset.bind]);
+      const action = button.dataset.bind;
+      const code = button.hasAttribute('data-bind-alternate')
+        ? state.alternateBindings[action]
+        : state.bindings[action];
+      button.textContent = code === null || code === undefined ? '+' : keyLabel(code);
       button.classList.remove('is-capturing');
+      button.setAttribute('aria-label',
+        `${button.hasAttribute('data-bind-alternate') ? 'Дополнительная' : 'Основная'} клавиша: ${
+          code === null || code === undefined ? 'не назначена' : keyLabel(code)
+        }`);
     });
+    document.querySelectorAll('[data-bind-clear]').forEach(function (button) {
+      button.disabled = state.alternateBindings[button.dataset.bindClear] === null;
+    });
+    document.getElementById('settings-key-label').textContent =
+      keyLabel(state.bindings.settings);
   }
 
   function loadSettings() {
@@ -239,6 +352,7 @@
 
   function closeSettings() {
     capturing = null;
+    renderSettings();
     if (typeof mp !== 'undefined' && mp && typeof mp.trigger === 'function') {
       mp.trigger('ragerp:settings:close-request');
     }
@@ -274,14 +388,27 @@
   bindingButtons.forEach(function (button) {
     button.addEventListener('click', function () {
       if (capturing) {
-        const previous = document.querySelector(`[data-bind="${capturing}"]`);
+        const previous = document.querySelector(
+          `[data-bind="${capturing.action}"]${capturing.alternate ? '[data-bind-alternate]' : ':not([data-bind-alternate])'}`
+        );
         if (previous) previous.classList.remove('is-capturing');
       }
-      capturing = button.dataset.bind;
+      capturing = {
+        action: button.dataset.bind,
+        alternate: button.hasAttribute('data-bind-alternate')
+      };
       button.classList.add('is-capturing');
       button.textContent = 'НАЖМИ КЛАВИШУ';
       footerMessage.textContent = 'Нажми новую клавишу или Escape для отмены';
       footerMessage.classList.remove('is-error');
+    });
+  });
+
+  document.querySelectorAll('[data-bind-clear]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      state.alternateBindings[button.dataset.bindClear] = null;
+      renderSettings();
+      persistAndApply();
     });
   });
 
@@ -297,28 +424,53 @@
       }
 
       const code = Number(event.keyCode || event.which);
-      if (!Number.isInteger(code) || code < 1 || code > 255 ||
-          code === 27 || code === 69 || code === reservedRadioKeyCode || code === 121 ||
-          ['Shift', 'Control', 'Alt', 'Meta'].includes(event.key)) {
+      const standaloneModifier = ['Shift', 'Control', 'Alt'].includes(event.key);
+      const combinedModifier = (event.shiftKey && event.key !== 'Shift') ||
+        (event.ctrlKey && event.key !== 'Control') ||
+        (event.altKey && event.key !== 'Alt') ||
+        event.metaKey;
+      if (!Number.isInteger(code) || code < 1 || code > 255 || code === 27 ||
+          combinedModifier || (['Shift', 'Control', 'Alt', 'Meta'].includes(event.key) &&
+            !standaloneModifier)) {
         showToast('Эту клавишу нельзя назначить.');
         return;
       }
-      const conflict = Object.keys(state.bindings).find(function (action) {
-        return action !== capturing && state.bindings[action] === code;
+      let conflict = null;
+      Object.keys(state.bindings).some(function (action) {
+        const candidates = [
+          { alternate: false, code: state.bindings[action] },
+          { alternate: true, code: state.alternateBindings[action] }
+        ];
+        return candidates.some(function (candidate) {
+          if (candidate.code !== code ||
+              (action === capturing.action && candidate.alternate === capturing.alternate)) {
+            return false;
+          }
+          if (action === capturing.action || !canShareKey(capturing.action, action)) {
+            conflict = action;
+            return true;
+          }
+          return false;
+        });
       });
-      if (conflict) {
-        showToast(`Клавиша уже назначена: ${keyLabel(code)}.`);
+      if (conflict !== null) {
+        showToast(conflict === capturing.action
+          ? 'У этого действия уже назначена такая клавиша.'
+          : `Клавиша уже назначена: ${keyLabel(code)}.`);
         return;
       }
 
-      state.bindings[capturing] = code;
+      if (capturing.alternate) state.alternateBindings[capturing.action] = code;
+      else state.bindings[capturing.action] = code;
       capturing = null;
       renderSettings();
       persistAndApply();
       return;
     }
 
-    if (event.key === 'Escape' || event.key === 'F10') {
+    const keyCode = Number(event.keyCode || event.which);
+    if (event.key === 'Escape' || state.bindings.settings === keyCode ||
+        state.alternateBindings.settings === keyCode) {
       event.preventDefault();
       event.stopPropagation();
       closeSettings();
@@ -327,6 +479,7 @@
 
   document.getElementById('close-settings').addEventListener('click', closeSettings);
   document.getElementById('reset-settings').addEventListener('click', function () {
+    capturing = null;
     state = cloneDefaults();
     renderSettings();
     persistAndApply();
@@ -336,6 +489,12 @@
   window.ragerpSettings = {
     focus: function () {
       document.getElementById('close-settings').focus();
+    },
+    syncHudPreference: function (visible) {
+      if (typeof visible !== 'boolean') return;
+      state.general.showHud = visible;
+      renderSettings();
+      persistAndApply();
     }
   };
 

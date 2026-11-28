@@ -46,7 +46,7 @@
       if (!activeSince) activeSince = Date.now();
       label.textContent = 'RMRP · СОЕДИНЕНИЕ УСТАНОВЛЕНО';
       title.textContent = 'Разговор';
-      status.textContent = '00:00 · Удерживай Z, чтобы говорить';
+      status.textContent = '00:00 · Удерживай назначенную клавишу, чтобы говорить';
       actions.append(createButton('Завершить звонок', 'danger', endCall));
       return;
     }
@@ -74,7 +74,7 @@
       const elapsed = Math.floor((Date.now() - activeSince) / 1000);
       const minutes = String(Math.floor(elapsed / 60)).padStart(2, '0');
       const seconds = String(elapsed % 60).padStart(2, '0');
-      status.textContent = `${minutes}:${seconds} · Удерживай Z, чтобы говорить`;
+      status.textContent = `${minutes}:${seconds} · Удерживай назначенную клавишу, чтобы говорить`;
     }
   }, 1000);
 

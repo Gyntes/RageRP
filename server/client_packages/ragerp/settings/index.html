@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Настройки | Tula RP</title>
-  <link rel="stylesheet" href="style.css?v=20261127-3">
+  <link rel="stylesheet" href="style.css?v=20261128-04">
 </head>
 <body>
   <main class="settings-screen">
@@ -114,21 +114,21 @@
             <section class="settings-group control-group">
               <h2><span class="group-mark">01</span> Основное</h2>
               <div class="controls-list">
-                <div class="binding-row unavailable-control" title="Действие пока не подключено"><span><strong>Взаимодействие с игроком</strong></span><kbd>E</kbd></div>
+                <div class="binding-row"><span><strong>Взаимодействие с игроком</strong><small>Меню при наведении прицела</small></span><span class="binding-keys"><button type="button" class="key-button" data-bind="interaction">E</button><button type="button" class="key-button alternate-key-button" data-bind="interaction" data-bind-alternate aria-label="Добавить дополнительную клавишу">+</button><button type="button" class="binding-clear" data-bind-clear="interaction" aria-label="Убрать дополнительную клавишу">×</button></span></div>
                 <div class="binding-row unavailable-control" title="Действие пока не подключено"><span><strong>Взаимодействие с автомобилем</strong></span><kbd>E</kbd></div>
                 <div class="binding-row unavailable-control" title="Действие пока не подключено"><span><strong>Взаимодействие с предметом</strong></span><kbd>E</kbd></div>
-                <div class="binding-row"><span><strong>Телефон</strong><small>Основная клавиша</small></span><button type="button" class="key-button" data-bind="phoneUp">↑</button></div>
-                <div class="binding-row"><span><strong>Телефон</strong><small>Альтернативная клавиша</small></span><button type="button" class="key-button" data-bind="phoneTab">TAB</button></div>
-                <div class="binding-row"><span><strong>Инвентарь</strong><small>Открыть / закрыть</small></span><button type="button" class="key-button" data-bind="inventory">I</button></div>
-                <div class="binding-row fixed-binding"><span><strong>Настройки</strong><small>Открыть / закрыть</small></span><kbd>F10</kbd></div>
+                <div class="binding-row"><span><strong>Телефон</strong><small>Основная и дополнительная клавиши</small></span><span class="binding-keys"><button type="button" class="key-button" data-bind="phoneUp">↑</button><button type="button" class="key-button alternate-key-button" data-bind="phoneUp" data-bind-alternate aria-label="Изменить дополнительную клавишу">TAB</button><button type="button" class="binding-clear" data-bind-clear="phoneUp" aria-label="Убрать дополнительную клавишу">×</button></span></div>
+                <div class="binding-row"><span><strong>Инвентарь</strong><small>Открыть / закрыть</small></span><span class="binding-keys"><button type="button" class="key-button" data-bind="inventory">I</button><button type="button" class="key-button alternate-key-button" data-bind="inventory" data-bind-alternate aria-label="Добавить дополнительную клавишу">+</button><button type="button" class="binding-clear" data-bind-clear="inventory" aria-label="Убрать дополнительную клавишу">×</button></span></div>
+                <div class="binding-row"><span><strong>Настройки</strong><small>Открыть / закрыть</small></span><span class="binding-keys"><button type="button" class="key-button" data-bind="settings">F10</button><button type="button" class="key-button alternate-key-button" data-bind="settings" data-bind-alternate aria-label="Добавить дополнительную клавишу">+</button><button type="button" class="binding-clear" data-bind-clear="settings" aria-label="Убрать дополнительную клавишу">×</button></span></div>
+                <div class="binding-row"><span><strong>Админ-меню</strong><small>Только для администраторов</small></span><span class="binding-keys"><button type="button" class="key-button" data-bind="adminMenu">F12</button><button type="button" class="key-button alternate-key-button" data-bind="adminMenu" data-bind-alternate aria-label="Добавить дополнительную клавишу">+</button><button type="button" class="binding-clear" data-bind-clear="adminMenu" aria-label="Убрать дополнительную клавишу">×</button></span></div>
                 <div class="binding-row unavailable-control" title="Таблица счёта пока не реализована"><span><strong>Таблица счёта</strong></span><kbd>TAB</kbd></div>
                 <div class="binding-row unavailable-control" title="Таблица событий пока не реализована"><span><strong>Таблица счёта события</strong></span><kbd>TAB</kbd></div>
                 <div class="binding-row unavailable-control" title="Планшет пока не реализован"><span><strong>Планшет</strong></span><kbd>↓</kbd></div>
                 <div class="binding-row unavailable-control"><span><strong>Глушить полицейский радар</strong></span><kbd>H</kbd></div>
-                <div class="binding-row unavailable-control" title="Список анимаций пока не реализован"><span><strong>Список анимаций</strong></span><kbd>U</kbd></div>
-                <div class="binding-row unavailable-control" title="Управление анимациями пока не реализовано"><span><strong>Остановить анимацию</strong></span><kbd>SPACE</kbd></div>
-                <div class="binding-row unavailable-control"><span><strong>Включить / выключить HUD</strong></span><span class="unassigned-key">Не назначено</span></div>
-                <div class="binding-row unavailable-control"><span><strong>Убрать оружие</strong></span><span class="unassigned-key">Не назначено</span></div>
+                <div class="binding-row"><span><strong>Список анимаций</strong><small>Открыть меню жестов</small></span><span class="binding-keys"><button type="button" class="key-button" data-bind="animationMenu">U</button><button type="button" class="key-button alternate-key-button" data-bind="animationMenu" data-bind-alternate aria-label="Добавить дополнительную клавишу">+</button><button type="button" class="binding-clear" data-bind-clear="animationMenu" aria-label="Убрать дополнительную клавишу">×</button></span></div>
+                <div class="binding-row"><span><strong>Остановить анимацию</strong><small>Прервать текущий жест</small></span><span class="binding-keys"><button type="button" class="key-button" data-bind="stopAnimation">SPACE</button><button type="button" class="key-button alternate-key-button" data-bind="stopAnimation" data-bind-alternate aria-label="Добавить дополнительную клавишу">+</button><button type="button" class="binding-clear" data-bind-clear="stopAnimation" aria-label="Убрать дополнительную клавишу">×</button></span></div>
+                <div class="binding-row"><span><strong>Включить / выключить HUD</strong><small>Показать или скрыть HUD</small></span><span class="binding-keys"><button type="button" class="key-button" data-bind="hudToggle">F11</button><button type="button" class="key-button alternate-key-button" data-bind="hudToggle" data-bind-alternate aria-label="Добавить дополнительную клавишу">+</button><button type="button" class="binding-clear" data-bind-clear="hudToggle" aria-label="Убрать дополнительную клавишу">×</button></span></div>
+                <div class="binding-row"><span><strong>Убрать оружие</strong><small>Переключить на безоружное состояние</small></span><span class="binding-keys"><button type="button" class="key-button" data-bind="holster">X</button><button type="button" class="key-button alternate-key-button" data-bind="holster" data-bind-alternate aria-label="Добавить дополнительную клавишу">+</button><button type="button" class="binding-clear" data-bind-clear="holster" aria-label="Убрать дополнительную клавишу">×</button></span></div>
                 <div class="binding-row unavailable-control" title="Функция фракции пока не реализована"><span><strong>Потребовать паспорт</strong></span><span class="unassigned-key">Не назначено</span></div>
                 <div class="binding-row unavailable-control" title="Функция медика пока не реализована"><span><strong>Дать таблетки</strong></span><span class="unassigned-key">Не назначено</span></div>
                 <div class="binding-row unavailable-control"><span><strong>Надеть / снять наручники</strong></span><span class="unassigned-key">Не назначено</span></div>
@@ -141,12 +141,12 @@
                 <div class="binding-row unavailable-control"><span><strong>Выписать штраф</strong></span><kbd>8</kbd></div>
                 <div class="binding-row unavailable-control"><span><strong>Взять на руки</strong></span><span class="unassigned-key">Не назначено</span></div>
                 <div class="binding-row unavailable-control"><span><strong>Обыск</strong></span><span class="unassigned-key">Не назначено</span></div>
-                <div class="binding-row fixed-binding"><span><strong>Быстрый слот 1</strong><small>Использовать предмет</small></span><kbd>1</kbd></div>
-                <div class="binding-row fixed-binding"><span><strong>Быстрый слот 2</strong><small>Предмет вне машины</small></span><kbd>2</kbd></div>
-                <div class="binding-row fixed-binding"><span><strong>Быстрый слот 3</strong><small>Использовать предмет</small></span><kbd>3</kbd></div>
-                <div class="binding-row fixed-binding"><span><strong>Быстрый слот 4</strong><small>Использовать предмет</small></span><kbd>4</kbd></div>
+                <div class="binding-row"><span><strong>Быстрый слот 1</strong><small>Использовать предмет</small></span><span class="binding-keys"><button type="button" class="key-button" data-bind="quickSlot1">1</button><button type="button" class="key-button alternate-key-button" data-bind="quickSlot1" data-bind-alternate aria-label="Добавить дополнительную клавишу">+</button><button type="button" class="binding-clear" data-bind-clear="quickSlot1" aria-label="Убрать дополнительную клавишу">×</button></span></div>
+                <div class="binding-row"><span><strong>Быстрый слот 2</strong><small>Предмет вне машины</small></span><span class="binding-keys"><button type="button" class="key-button" data-bind="quickSlot2">2</button><button type="button" class="key-button alternate-key-button" data-bind="quickSlot2" data-bind-alternate aria-label="Добавить дополнительную клавишу">+</button><button type="button" class="binding-clear" data-bind-clear="quickSlot2" aria-label="Убрать дополнительную клавишу">×</button></span></div>
+                <div class="binding-row"><span><strong>Быстрый слот 3</strong><small>Использовать предмет</small></span><span class="binding-keys"><button type="button" class="key-button" data-bind="quickSlot3">3</button><button type="button" class="key-button alternate-key-button" data-bind="quickSlot3" data-bind-alternate aria-label="Добавить дополнительную клавишу">+</button><button type="button" class="binding-clear" data-bind-clear="quickSlot3" aria-label="Убрать дополнительную клавишу">×</button></span></div>
+                <div class="binding-row"><span><strong>Быстрый слот 4</strong><small>Использовать предмет</small></span><span class="binding-keys"><button type="button" class="key-button" data-bind="quickSlot4">4</button><button type="button" class="key-button alternate-key-button" data-bind="quickSlot4" data-bind-alternate aria-label="Добавить дополнительную клавишу">+</button><button type="button" class="binding-clear" data-bind-clear="quickSlot4" aria-label="Убрать дополнительную клавишу">×</button></span></div>
                 <div class="binding-row unavailable-control"><span><strong>Запросить помощь фракции</strong></span><span class="unassigned-key">Не назначено</span></div>
-                <div class="binding-row unavailable-control"><span><strong>Присесть</strong></span><span class="unassigned-key">Не назначено</span></div>
+                <div class="binding-row"><span><strong>Скрытное перемещение</strong><small>Переключить режим скрытного передвижения</small></span><span class="binding-keys"><button type="button" class="key-button" data-bind="crouch">CTRL</button><button type="button" class="key-button alternate-key-button" data-bind="crouch" data-bind-alternate aria-label="Добавить дополнительную клавишу">+</button><button type="button" class="binding-clear" data-bind-clear="crouch" aria-label="Убрать дополнительную клавишу">×</button></span></div>
                 <div class="binding-row unavailable-control"><span><strong>Сменить плечо при прицеливании</strong></span><span class="unassigned-key">Не назначено</span></div>
                 <div class="binding-row unavailable-control"><span><strong>Выкопать клад</strong></span><kbd>ALT</kbd></div>
                 <div class="binding-row unavailable-control"><span><strong>Бодикамера: пауза / продолжить</strong></span><kbd>I</kbd></div>
@@ -172,8 +172,8 @@
                 <div class="binding-row unavailable-control"><span><strong>Проблесковые маячки</strong></span><kbd>;</kbd></div>
                 <div class="binding-row unavailable-control"><span><strong>Уборочная машина: щётки</strong></span><kbd>;</kbd></div>
                 <div class="binding-row unavailable-control"><span><strong>Уборочная машина: полив</strong></span><span class="unassigned-key">Не назначено</span></div>
-                <div class="binding-row"><span><strong>Завести / заглушить</strong><small>С места водителя</small></span><button type="button" class="key-button" data-bind="engine">2</button></div>
-                <div class="binding-row"><span><strong>Закрыть / открыть машину</strong><small>Личная машина</small></span><button type="button" class="key-button" data-bind="vehicleLock">L</button></div>
+                <div class="binding-row"><span><strong>Завести / заглушить</strong><small>С места водителя</small></span><span class="binding-keys"><button type="button" class="key-button" data-bind="engine">2</button><button type="button" class="key-button alternate-key-button" data-bind="engine" data-bind-alternate aria-label="Добавить дополнительную клавишу">+</button><button type="button" class="binding-clear" data-bind-clear="engine" aria-label="Убрать дополнительную клавишу">×</button></span></div>
+                <div class="binding-row"><span><strong>Закрыть / открыть машину</strong><small>Личная машина</small></span><span class="binding-keys"><button type="button" class="key-button" data-bind="vehicleLock">L</button><button type="button" class="key-button alternate-key-button" data-bind="vehicleLock" data-bind-alternate aria-label="Добавить дополнительную клавишу">+</button><button type="button" class="binding-clear" data-bind-clear="vehicleLock" aria-label="Убрать дополнительную клавишу">×</button></span></div>
                 <div class="info-note"><span>i</span><p>На цифре 2 вне автомобиля остаётся быстрый слот 2.</p></div>
               </div>
             </section>
@@ -183,10 +183,13 @@
                 <div class="binding-row unavailable-control" title="Система рации пока не подключена"><span><strong>Говорить в рацию</strong></span><kbd>X</kbd></div>
                 <div class="binding-row unavailable-control"><span><strong>Говорить в мегафон</strong></span><kbd>H</kbd></div>
                 <div class="binding-row unavailable-control"><span><strong>Мегафон: выбор фразы</strong></span><kbd>F4</kbd></div>
-                <div class="binding-row"><span><strong>Говорить в голосовой чат</strong><small>Удерживать для передачи голоса</small></span><kbd>Z</kbd></div>
-                <div class="binding-row"><span><strong>Переключить голосовой чат</strong><small>Полностью включить или отключить</small></span><kbd>F6</kbd></div>
+                <div class="binding-row"><span><strong>Говорить в голосовой чат</strong><small>Удерживать для передачи голоса</small></span><span class="binding-keys"><button type="button" class="key-button" data-bind="voiceTransmit">Z</button><button type="button" class="key-button alternate-key-button" data-bind="voiceTransmit" data-bind-alternate aria-label="Добавить дополнительную клавишу">+</button><button type="button" class="binding-clear" data-bind-clear="voiceTransmit" aria-label="Убрать дополнительную клавишу">×</button></span></div>
+                <div class="binding-row"><span><strong>Переключить голосовой чат</strong><small>Полностью включить или отключить</small></span><span class="binding-keys"><button type="button" class="key-button" data-bind="voiceToggle">F6</button><button type="button" class="key-button alternate-key-button" data-bind="voiceToggle" data-bind-alternate aria-label="Добавить дополнительную клавишу">+</button><button type="button" class="binding-clear" data-bind-clear="voiceToggle" aria-label="Убрать дополнительную клавишу">×</button></span></div>
+                <div class="binding-row"><span><strong>Радио в автомобиле</strong><small>Удерживать для выбора станции</small></span><span class="binding-keys"><button type="button" class="key-button" data-bind="radio">Q</button><button type="button" class="key-button alternate-key-button" data-bind="radio" data-bind-alternate aria-label="Добавить дополнительную клавишу">+</button><button type="button" class="binding-clear" data-bind-clear="radio" aria-label="Убрать дополнительную клавишу">×</button></span></div>
+                <div class="binding-row"><span><strong>Уведомление: принять</strong><small>Ответ на приглашение</small></span><span class="binding-keys"><button type="button" class="key-button" data-bind="hudAccept">Y</button><button type="button" class="key-button alternate-key-button" data-bind="hudAccept" data-bind-alternate aria-label="Добавить дополнительную клавишу">+</button><button type="button" class="binding-clear" data-bind-clear="hudAccept" aria-label="Убрать дополнительную клавишу">×</button></span></div>
+                <div class="binding-row"><span><strong>Уведомление: отклонить</strong><small>Ответ на приглашение</small></span><span class="binding-keys"><button type="button" class="key-button" data-bind="hudDecline">N</button><button type="button" class="key-button alternate-key-button" data-bind="hudDecline" data-bind-alternate aria-label="Добавить дополнительную клавишу">+</button><button type="button" class="binding-clear" data-bind-clear="hudDecline" aria-label="Убрать дополнительную клавишу">×</button></span></div>
                 <div class="binding-row unavailable-control" title="Отдельный перезапуск голосового модуля не требуется"><span><strong>Перезагрузка голосового чата</strong><small>Подключение управляется клиентом RAGE MP</small></span><kbd>F7</kbd></div>
-                <div class="binding-row unavailable-control"><span><strong>Показать пальцем</strong></span><kbd>B</kbd></div>
+                <div class="binding-row"><span><strong>Показать пальцем</strong><small>Выполнить жест</small></span><span class="binding-keys"><button type="button" class="key-button" data-bind="showFinger">B</button><button type="button" class="key-button alternate-key-button" data-bind="showFinger" data-bind-alternate aria-label="Добавить дополнительную клавишу">+</button><button type="button" class="binding-clear" data-bind-clear="showFinger" aria-label="Убрать дополнительную клавишу">×</button></span></div>
                 <div class="binding-row unavailable-control"><span><strong>Открыть чат</strong></span><kbd>T</kbd></div>
                 <div class="binding-row unavailable-control"><span><strong>Проголосовать ДА</strong></span><kbd>Y</kbd></div>
                 <div class="binding-row unavailable-control"><span><strong>Проголосовать НЕТ</strong></span><kbd>N</kbd></div>
@@ -243,6 +246,11 @@
           <div class="settings-columns four-columns">
             <section class="settings-group">
               <h2><span class="group-mark">01</span> Основное</h2>
+              <label class="setting-row range-row">
+                <span class="row-title"><strong>Громкость радио в автомобиле</strong><output data-output="media.radioVolume"></output></span>
+                <input type="range" min="0" max="100" step="1" data-setting="media.radioVolume" aria-label="Громкость радио">
+                <span class="range-scale"><small>0%</small><small>100%</small></span>
+              </label>
               <label class="setting-row range-row">
                 <span class="row-title"><strong>Отключать звук у игроков, чьё время в игре меньше</strong><output data-output="media.voiceMuteUnderHours"></output></span>
                 <input type="range" min="0" max="200" step="1" data-setting="media.voiceMuteUnderHours" aria-label="Минимальное время в игре для голосового чата">
@@ -315,13 +323,13 @@
       </div>
 
       <footer class="settings-footer">
-        <span class="footer-hint"><kbd>F10</kbd> или <kbd>ESC</kbd> закрыть</span>
+        <span class="footer-hint"><kbd id="settings-key-label">F10</kbd> или <kbd>ESC</kbd> закрыть</span>
         <span class="footer-message" id="footer-message" role="status">Изменения сохраняются на этом устройстве</span>
         <button class="reset-button" id="reset-settings" type="button">Сбросить настройки</button>
       </footer>
     </section>
     <div class="settings-toast" id="settings-toast" role="status" aria-live="polite"></div>
   </main>
-  <script src="app.js?v=20261127-3"></script>
+  <script src="app.js?v=20261128-06"></script>
 </body>
 </html>

@@ -224,6 +224,11 @@ button { cursor: pointer; }
 
 .key-button:hover, .key-button.is-capturing { border-color: var(--green); background: rgba(46,143,111,.5); color: white; }
 .key-button.is-capturing { min-width: 94px; font-size: 7px; }
+.binding-keys { display: flex; flex: none; align-items: center; gap: 3px; }
+.alternate-key-button { min-width: 26px; }
+.binding-clear { display: grid; width: 18px; height: 22px; flex: none; place-items: center; padding: 0; border: 0; border-radius: 3px; background: transparent; color: #849397; font-size: 13px; }
+.binding-clear:hover:not(:disabled) { background: rgba(233,113,112,.12); color: #f0a3a1; }
+.binding-clear:disabled { visibility: hidden; }
 .binding-row kbd { border-color: rgba(211, 227, 233, .1); background: rgba(255,255,255,.045); color: #aebcc1; }
 .fixed-binding { opacity: .78; }
 

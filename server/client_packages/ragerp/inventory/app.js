@@ -3,18 +3,23 @@
   const quickbar = document.getElementById('quickbar');
   const toast = document.getElementById('inventory-toast');
   const itemAction = document.getElementById('item-action');
+  const transferAction = document.getElementById('transfer-action');
+  const storageSwitch = document.getElementById('storage-switch');
+  const storageTabs = Array.from(document.querySelectorAll('[data-storage-mode]'));
   const itemCatalog = Object.create(null);
   const iconMarkup = {
     medkit: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6v5h5v6h-5v5H9v-5H4V9h5z"/></svg>',
     armour: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 4 4 2 4-2 4 3-2 13H6L4 7zM9 10h6M12 6v14"/></svg>',
     pistol: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h13l3 2-2 3h-5l-1 6H8l1-6H5zM16 8V5h4v3M5 10h8"/></svg>',
-    carbine: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 9h12l2-2h3v2h3v3h-6l-2 2H8l-1 3H4l1-4-3-1zM18 7V5h2v2"/></svg>'
+    carbine: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 9h12l2-2h3v2h3v3h-6l-2 2H8l-1 3H4l1-4-3-1zM18 7V5h2v2"/></svg>',
+    lockpick: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20 15 9m-3-3 6 6m-2-9 5 5-3 3-5-5zM4 20l-1 1"/></svg>'
   };
   let state = null;
   let selectedSlot = null;
   let selectedEquipment = null;
   let dragSource = null;
   let toastTimer = null;
+  let containerMode = 'player';
 
   function escapeHtml(value) {
     return String(value == null ? '' : value)
@@ -65,10 +70,17 @@
     mp.trigger('ragerp:inventory:action', action, JSON.stringify(data || {}));
   }
 
-  function itemForSlot(slotIndex) {
-    if (!state || !Number.isInteger(slotIndex) || slotIndex < 0 ||
-        slotIndex >= state.inventory.slots.length) return null;
-    const stack = state.inventory.slots[slotIndex];
+  function activeInventory() {
+    return containerMode === 'trunk' && state && state.vehicleTrunk
+      ? state.vehicleTrunk.inventory
+      : state && state.inventory;
+  }
+
+  function itemForSlot(slotIndex, inventory) {
+    const source = inventory || activeInventory();
+    if (!source || !Number.isInteger(slotIndex) || slotIndex < 0 ||
+        slotIndex >= source.slots.length) return null;
+    const stack = source.slots[slotIndex];
     if (!stack || !itemCatalog[stack.itemId]) return null;
     return { stack, definition: itemCatalog[stack.itemId] };
   }
@@ -91,8 +103,9 @@
     document.getElementById('armour-value').textContent = `${armour}%`;
     document.getElementById('armour-status-value').textContent = `${armour}%`;
 
-    const weight = Math.max(0, Number(state.weight) || 0);
-    const capacity = Math.max(1, Number(state.capacity) || 30);
+    const trunk = containerMode === 'trunk' && state.vehicleTrunk;
+    const weight = Math.max(0, Number(trunk ? trunk.weight : state.weight) || 0);
+    const capacity = Math.max(1, Number(trunk ? trunk.capacity : state.capacity) || 30);
     const weightText = weight.toLocaleString('ru-RU', {
       minimumFractionDigits: 1,
       maximumFractionDigits: 1
@@ -120,14 +133,16 @@
   }
 
   function renderGrid() {
+    const active = activeInventory();
+    if (!active) return;
     inventoryGrid.innerHTML = '';
-    state.inventory.slots.forEach(function (stack, index) {
+    active.slots.forEach(function (stack, index) {
       const item = stack && itemCatalog[stack.itemId];
       const cell = document.createElement('button');
       cell.type = 'button';
       cell.className = `inventory-cell${selectedSlot === index ? ' is-selected' : ''}`;
       cell.dataset.inventorySlot = String(index);
-      cell.draggable = Boolean(item);
+      cell.draggable = Boolean(item) && containerMode === 'player';
       cell.setAttribute('aria-label', item
         ? `${item.name}${item.type === 'weapon' ? `, патронов ${stack.ammo}` : ''}, количество ${stack.quantity}, слот ${index + 1}`
         : `Пустой слот ${index + 1}`);
@@ -141,14 +156,14 @@
       inventoryGrid.appendChild(cell);
     });
     document.getElementById('empty-inventory').hidden =
-      state.inventory.slots.some(function (slot) { return slot !== null; });
+      active.slots.some(function (slot) { return slot !== null; });
   }
 
   function renderQuickbar() {
     quickbar.querySelectorAll('[data-quick-slot]').forEach(function (button) {
       const quickSlot = Number(button.dataset.quickSlot);
       const inventorySlot = state.inventory.quickSlots[quickSlot];
-      const item = inventorySlot === null ? null : itemForSlot(inventorySlot);
+      const item = inventorySlot === null ? null : itemForSlot(inventorySlot, state.inventory);
       button.classList.toggle('has-item', Boolean(item));
       button.draggable = Boolean(item);
       button.innerHTML = `<kbd>${quickSlot + 1}</kbd>` +
@@ -178,6 +193,10 @@
     }
 
     itemAction.disabled = !selectedItem;
+    transferAction.hidden = !state.vehicleTrunk || selectedSlot === null ||
+      !itemForSlot(selectedSlot);
+    transferAction.disabled = transferAction.hidden;
+    transferAction.textContent = containerMode === 'trunk' ? 'В рюкзак' : 'В багажник';
     if (!selectedItem) {
       icon.textContent = '?';
       icon.className = 'inspector-icon';
@@ -191,7 +210,9 @@
     const definition = selectedItem.definition;
     icon.className = 'inspector-icon';
     icon.innerHTML = iconFor(definition);
-    type.textContent = definition.type === 'weapon' ? 'ЭКИПИРОВКА' : 'РАСХОДУЕМЫЙ ПРЕДМЕТ';
+    type.textContent = definition.type === 'weapon'
+      ? 'ЭКИПИРОВКА'
+      : definition.type === 'tool' ? 'ИНСТРУМЕНТ' : 'РАСХОДУЕМЫЙ ПРЕДМЕТ';
     name.textContent = definition.name;
     const quantity = selectedItem.stack ? ` · Количество: ${selectedItem.stack.quantity}` : '';
     const ammo = selectedItem.stack && definition.type === 'weapon'
@@ -201,7 +222,7 @@
     itemAction.textContent = selectedItem.equipmentSlot
       ? 'Снять'
       : definition.type === 'weapon' ? 'Экипировать' : 'Использовать';
-    itemAction.disabled = false;
+    itemAction.disabled = containerMode === 'trunk' || definition.type === 'tool';
     copy.dataset.selected = selectedItem.equipmentSlot ? 'equipment' : 'inventory';
   }
 
@@ -211,6 +232,13 @@
     state.catalog.forEach(function (item) {
       if (item && typeof item.id === 'string') itemCatalog[item.id] = item;
     });
+    if (!state.vehicleTrunk) containerMode = 'player';
+    storageSwitch.hidden = !state.vehicleTrunk;
+    storageTabs.forEach(function (button) {
+      button.classList.toggle('is-active', button.dataset.storageMode === containerMode);
+    });
+    document.querySelector('.storage-header .section-heading h3').textContent =
+      containerMode === 'trunk' ? 'Багажник' : 'Рюкзак';
     document.getElementById('character-name').textContent = state.name || 'Персонаж';
     document.getElementById('character-static-id').textContent = state.staticId || '--- ---';
     renderVitals();
@@ -224,6 +252,7 @@
     const nextState = parseState(payload);
     if (!nextState) return;
     state = nextState;
+    containerMode = 'player';
     selectedSlot = null;
     selectedEquipment = null;
     render();
@@ -233,10 +262,12 @@
     const nextState = parseState(payload);
     if (!nextState) return;
     state = nextState;
+    if (!state.vehicleTrunk) containerMode = 'player';
     if (selectedEquipment && !state.inventory.equipment[selectedEquipment]) {
       selectedEquipment = null;
     }
-    if (selectedSlot !== null && !state.inventory.slots[selectedSlot]) {
+    const active = activeInventory();
+    if (selectedSlot !== null && (!active || !active.slots[selectedSlot])) {
       selectedSlot = null;
     }
     render();
@@ -263,6 +294,7 @@
   function startDrag(event) {
     const source = sourceFromEvent(event);
     if (!source) return;
+    if (containerMode === 'trunk' && source.type !== 'inventory') return;
     if (source.type === 'inventory' && !itemForSlot(source.slot)) return;
     if (source.type === 'equipment' && !state.inventory.equipment[source.equipmentSlot]) return;
     if (source.type === 'quick' && state.inventory.quickSlots[source.quickSlot] === null) return;
@@ -307,6 +339,13 @@
     const source = dragSource;
     endDrag();
 
+    if (containerMode === 'trunk') {
+      if (source.type === 'inventory' && target.type === 'inventory') {
+        sendAction('vehicle-move', { from: source.slot, to: target.slot });
+      }
+      return;
+    }
+
     if (target.type === 'inventory') {
       if (source.type === 'inventory') {
         sendAction('move', { from: source.slot, to: target.slot });
@@ -341,6 +380,16 @@
   inventoryGrid.addEventListener('dragleave', onDragLeave);
   inventoryGrid.addEventListener('drop', onDrop);
 
+  storageTabs.forEach(function (button) {
+    button.addEventListener('click', function () {
+      if (!state || !state.vehicleTrunk) return;
+      containerMode = button.dataset.storageMode === 'trunk' ? 'trunk' : 'player';
+      selectedSlot = null;
+      selectedEquipment = null;
+      render();
+    });
+  });
+
   document.querySelectorAll('[data-equipment-slot]').forEach(function (button) {
     button.addEventListener('click', function () {
       const slot = button.dataset.equipmentSlot;
@@ -360,7 +409,7 @@
     const button = event.target.closest('[data-quick-slot]');
     if (!button) return;
     const quickSlot = Number(button.dataset.quickSlot);
-    if (selectedSlot !== null) {
+    if (selectedSlot !== null && containerMode === 'player') {
       sendAction('assign-quick', { slot: selectedSlot, quickSlot });
       return;
     }
@@ -373,6 +422,7 @@
   quickbar.addEventListener('drop', onDrop);
 
   itemAction.addEventListener('click', function () {
+    if (containerMode !== 'player') return;
     if (selectedEquipment) {
       sendAction('unequip', { equipmentSlot: selectedEquipment });
       selectedEquipment = null;
@@ -380,13 +430,25 @@
       return;
     }
     if (selectedSlot === null) return;
-    const item = itemForSlot(selectedSlot);
+    const item = itemForSlot(selectedSlot, state.inventory);
     if (!item) return;
+    if (item.definition.type === 'tool') return;
     if (item.definition.type === 'weapon') {
       sendAction('equip', { slot: selectedSlot, equipmentSlot: item.definition.equipSlot });
     } else {
       sendAction('use', { slot: selectedSlot });
     }
+  });
+
+  transferAction.addEventListener('click', function () {
+    const active = activeInventory();
+    const stack = active && selectedSlot !== null ? active.slots[selectedSlot] : null;
+    if (!state || !state.vehicleTrunk || !stack) return;
+    sendAction('vehicle-transfer', {
+      direction: containerMode === 'trunk' ? 'to-player' : 'to-trunk',
+      slot: selectedSlot,
+      quantity: stack.quantity
+    });
   });
 
   document.getElementById('close-inventory').addEventListener('click', closeInventory);

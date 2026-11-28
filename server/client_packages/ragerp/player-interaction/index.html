@@ -8,16 +8,32 @@
 </head>
 <body>
   <main class="interaction-overlay" id="interaction-overlay">
-    <section class="interaction-wheel" role="dialog" aria-modal="true" aria-label="Взаимодействие с игроком">
+    <section class="interaction-wheel" role="dialog" aria-modal="true" aria-label="Взаимодействие">
       <div class="wheel-ring wheel-ring-outer"></div>
       <div class="wheel-ring wheel-ring-inner"></div>
-      <button class="interaction-action" id="show-passport" type="button">
+      <button class="interaction-action" id="show-passport" data-interaction-action="vehicle-passport" type="button">
         <span class="action-icon" aria-hidden="true">ПТС</span>
         <span class="action-label">Показать ПТС</span>
       </button>
+      <button class="interaction-action vehicle-action" id="vehicle-trunk" data-interaction-action="trunk" type="button" hidden>
+        <span class="action-icon" aria-hidden="true">▣</span>
+        <span class="action-label">Багажник</span>
+      </button>
+      <button class="interaction-action vehicle-action" id="vehicle-hood" data-interaction-action="hood" type="button" hidden>
+        <span class="action-icon" aria-hidden="true">▲</span>
+        <span class="action-label">Капот</span>
+      </button>
+      <button class="interaction-action vehicle-action" id="vehicle-lock" data-interaction-action="lock" type="button" hidden>
+        <span class="action-icon" aria-hidden="true">⌑</span>
+        <span class="action-label">Замок</span>
+      </button>
+      <button class="interaction-action vehicle-action" id="vehicle-lockpick" data-interaction-action="lockpick" type="button" hidden>
+        <span class="action-icon" aria-hidden="true">⌁</span>
+        <span class="action-label">Взломать</span>
+      </button>
       <div class="wheel-center">
         <span class="center-mark" aria-hidden="true">↗</span>
-        <p class="eyebrow">ВЗАИМОДЕЙСТВИЕ</p>
+        <p class="eyebrow" id="interaction-type">ВЗАИМОДЕЙСТВИЕ</p>
         <h1 id="target-name">ИГРОК</h1>
       </div>
       <p class="wheel-hint">ВЫБЕРИ ДЕЙСТВИЕ · ESC — ЗАКРЫТЬ</p>

@@ -49,6 +49,15 @@ const ITEM_DEFINITIONS = Object.freeze(Object.assign(Object.create(null), {
     weight: 4.5,
     maxStack: 1,
     icon: 'carbine'
+  }),
+  lockpick: Object.freeze({
+    id: 'lockpick',
+    name: 'Отмычка',
+    description: 'Инструмент для попытки взлома закрытого автомобиля.',
+    type: 'tool',
+    weight: 0.2,
+    maxStack: 5,
+    icon: 'lockpick'
   })
 }));
 
@@ -173,12 +182,14 @@ function inventoryWeight(inventory) {
   return Math.round(weight * 10) / 10;
 }
 
-function addItems(inventory, itemId, quantity, ammoOverride) {
+function addItems(inventory, itemId, quantity, ammoOverride, maxWeight) {
   const definition = ITEM_DEFINITIONS[itemId];
+  const capacity = maxWeight === undefined ? MAX_WEIGHT : Number(maxWeight);
   if (!definition || !Number.isInteger(quantity) || quantity < 1 || quantity > 100) {
     return { error: 'invalid-item' };
   }
-  if (inventoryWeight(inventory) + definition.weight * quantity > MAX_WEIGHT) {
+  if (!Number.isFinite(capacity) || capacity <= 0) return { error: 'invalid-capacity' };
+  if (inventoryWeight(inventory) + definition.weight * quantity > capacity) {
     return { error: 'too-heavy' };
   }
 
@@ -351,6 +362,64 @@ function consumeItem(inventory, inventorySlot) {
   };
 }
 
+function countItems(inventory, itemId) {
+  return inventory.slots.reduce((count, slot) =>
+    slot && slot.itemId === itemId ? count + slot.quantity : count, 0);
+}
+
+function removeItems(inventory, itemId, quantity) {
+  if (!ITEM_DEFINITIONS[itemId] || !Number.isInteger(quantity) || quantity < 1) {
+    return { error: 'invalid-item' };
+  }
+  if (countItems(inventory, itemId) < quantity) return { error: 'insufficient-items' };
+
+  const next = cloneInventory(inventory);
+  let remaining = quantity;
+  for (let index = 0; index < next.slots.length && remaining > 0; index += 1) {
+    const slot = next.slots[index];
+    if (!slot || slot.itemId !== itemId) continue;
+    const removed = Math.min(slot.quantity, remaining);
+    slot.quantity -= removed;
+    remaining -= removed;
+    if (slot.quantity === 0) {
+      next.slots[index] = null;
+      next.quickSlots = next.quickSlots.map((assigned) => assigned === index ? null : assigned);
+    }
+  }
+  return { inventory: next };
+}
+
+function transferItems(source, target, sourceSlot, quantity, targetMaxWeight) {
+  if (!Number.isInteger(sourceSlot) || sourceSlot < 0 || sourceSlot >= SLOT_COUNT) {
+    return { error: 'invalid-slot' };
+  }
+  const stack = source.slots[sourceSlot];
+  if (!stack) return { error: 'empty-slot' };
+  if (!Number.isInteger(quantity) || quantity < 1 || quantity > stack.quantity) {
+    return { error: 'invalid-quantity' };
+  }
+
+  const definition = ITEM_DEFINITIONS[stack.itemId];
+  const added = addItems(
+    target,
+    stack.itemId,
+    quantity,
+    definition.type === 'weapon' ? stack.ammo : undefined,
+    targetMaxWeight
+  );
+  if (added.error) return added;
+
+  const nextSource = cloneInventory(source);
+  nextSource.slots[sourceSlot].quantity -= quantity;
+  if (nextSource.slots[sourceSlot].quantity === 0) {
+    nextSource.slots[sourceSlot] = null;
+    nextSource.quickSlots = nextSource.quickSlots.map((assigned) =>
+      assigned === sourceSlot ? null : assigned
+    );
+  }
+  return { sourceInventory: nextSource, targetInventory: added.inventory };
+}
+
 function inventoryForClient(inventory) {
   return {
     slots: inventory.slots.map((slot) => slot ? {
@@ -379,6 +448,7 @@ module.exports = {
   addItems,
   assignQuickSlot,
   cloneInventory,
+  countItems,
   consumeItem,
   createEmptyInventory,
   equipItem,
@@ -386,5 +456,7 @@ module.exports = {
   inventoryWeight,
   moveSlot,
   normalizeInventory,
+  removeItems,
+  transferItems,
   unequipItem
 };

@@ -88,6 +88,10 @@
                 <h3>Рюкзак</h3>
               </div>
               <p>Перетаскивай предметы, чтобы разложить их по слотам.</p>
+              <div class="storage-switch" id="storage-switch" hidden>
+                <button class="storage-tab is-active" type="button" data-storage-mode="player">Рюкзак</button>
+                <button class="storage-tab" type="button" data-storage-mode="trunk">Багажник</button>
+              </div>
             </div>
             <div class="capacity" aria-label="Занятый вес">
               <div class="capacity-label"><span>ВЕС</span><strong id="weight-value">0.0 <small>/ 30 кг</small></strong></div>
@@ -112,6 +116,7 @@
               <span id="inspector-description">Нажми на предмет, чтобы посмотреть его описание и доступные действия.</span>
             </div>
             <button class="primary-action" id="item-action" type="button" disabled>Использовать</button>
+            <button class="primary-action transfer-action" id="transfer-action" type="button" hidden>Переложить</button>
           </footer>
         </section>
       </div>

@@ -59,6 +59,7 @@
   let hlsLoadPromise = null;
   let audioContext = null;
   let inVehicle = false;
+  let radioVolume = 1;
   let lastReportedError = null;
 
   function triggerClient(eventName, first, second) {
@@ -102,7 +103,7 @@
 
   function unlockAudioOutput() {
     audio.muted = false;
-    audio.volume = 1;
+    audio.volume = radioVolume;
     if (!window.AudioContext && !window.webkitAudioContext) return;
 
     try {
@@ -123,7 +124,7 @@
   function playAudio(station) {
     if (activeStation !== station || !inVehicle) return;
     audio.muted = false;
-    audio.volume = 1;
+    audio.volume = radioVolume;
     const playRequest = audio.play();
     if (playRequest && typeof playRequest.catch === 'function') {
       playRequest.catch(function (error) {
@@ -280,6 +281,15 @@
   });
 
   window.ragerpRadio = {
+    setVolume: function (value) {
+      const volume = Number(value);
+      if (!Number.isFinite(volume)) {
+        console.error('[RageRP radio] Received an invalid volume.');
+        return;
+      }
+      radioVolume = Math.max(0, Math.min(1, volume));
+      audio.volume = radioVolume;
+    },
     setVisible: function (visible) {
       overlay.classList.toggle('is-open', visible === true);
       overlay.setAttribute('aria-hidden', visible === true ? 'false' : 'true');

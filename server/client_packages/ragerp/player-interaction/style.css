@@ -130,7 +130,7 @@ button {
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
   cursor: pointer;
   transform: translate(-50%, 0);
-  transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
+  transition: background 120ms ease, border-color 120ms ease;
 }
 
 .interaction-action:hover,
@@ -138,7 +138,34 @@ button {
   border-color: var(--accent);
   background: #2b3b31;
   outline: none;
-  transform: translate(-50%, -3px);
+}
+
+.vehicle-action {
+  width: 118px;
+  height: 94px;
+}
+
+#vehicle-hood {
+  top: 38%;
+  left: 83%;
+  transform: translate(-50%, -50%);
+}
+
+#vehicle-lock {
+  top: 38%;
+  left: 17%;
+  transform: translate(-50%, -50%);
+}
+
+#vehicle-lockpick {
+  top: 76%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.vehicle-action:hover,
+.vehicle-action:focus-visible {
+  transform: translate(-50%, -50%);
 }
 
 .action-icon {
