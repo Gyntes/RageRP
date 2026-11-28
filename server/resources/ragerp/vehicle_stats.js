@@ -4,7 +4,7 @@ const DIRT_LEVELS_PER_KILOMETER = 1;
 const MAX_TRACKED_SPEED_METERS_PER_SECOND = 120;
 const CAR_WASH_RADIUS_METERS = 14;
 const CAR_WASH_PRICE = 500;
-const SUPPORTED_VEHICLE_MODELS = new Set(['blista', 'bmwm5g90']);
+const SUPPORTED_VEHICLE_MODELS = new Set(['blista', 'bmwm5g90', '2103']);
 
 const CAR_WASHES = Object.freeze([
   { x: 25.72, y: -1391.91, z: 29.37 },
@@ -27,17 +27,19 @@ function normalizedDirt(value) {
   return Math.round(Math.max(0, Math.min(MAX_DIRT_LEVEL, dirtLevel)) * 10000) / 10000;
 }
 
-function statsForAccount(account, model) {
+function statsForAccount(account, model, vehicleId) {
   if (!account || typeof account !== 'object' || !isSupportedModel(model)) return null;
-  if (!account.vehicleStatsByModel || typeof account.vehicleStatsByModel !== 'object' ||
-      Array.isArray(account.vehicleStatsByModel)) {
-    account.vehicleStatsByModel = {};
+  const storageField = vehicleId ? 'vehicleStatsById' : 'vehicleStatsByModel';
+  if (!account[storageField] || typeof account[storageField] !== 'object' ||
+      Array.isArray(account[storageField])) {
+    account[storageField] = {};
   }
 
-  let stats = account.vehicleStatsByModel[model];
+  const storageKey = vehicleId || model;
+  let stats = account[storageField][storageKey];
   if (!stats || typeof stats !== 'object' || Array.isArray(stats)) {
     stats = {};
-    account.vehicleStatsByModel[model] = stats;
+    account[storageField][storageKey] = stats;
   }
   stats.odometerKm = normalizedOdometer(stats.odometerKm);
   stats.dirtLevel = normalizedDirt(stats.dirtLevel);

@@ -3,7 +3,7 @@ const MAX_FUEL_PERCENT = 100;
 const FUEL_CONSUMPTION_PERCENT_PER_MINUTE = 0.45;
 const REFUEL_PRICE_PER_PERCENT = 25;
 const GAS_STATION_RADIUS_METERS = 14;
-const SUPPORTED_VEHICLE_MODELS = new Set(['blista', 'bmwm5g90']);
+const SUPPORTED_VEHICLE_MODELS = new Set(['blista', 'bmwm5g90', '2103']);
 
 const GAS_STATIONS = Object.freeze([
   { x: 49.42, y: 2778.79, z: 58.04 },
@@ -48,26 +48,29 @@ function normalizeFuel(value) {
   return Math.round(Math.max(0, Math.min(MAX_FUEL_PERCENT, fuel)) * 10000) / 10000;
 }
 
-function fuelForAccount(account, model) {
+function fuelForAccount(account, model, vehicleId) {
   if (!account || typeof account !== 'object' || !isSupportedModel(model)) {
     return DEFAULT_FUEL_PERCENT;
   }
-  if (!account.vehicleFuelByModel || typeof account.vehicleFuelByModel !== 'object' ||
-      Array.isArray(account.vehicleFuelByModel)) {
-    account.vehicleFuelByModel = {};
+  const storageField = vehicleId ? 'vehicleFuelById' : 'vehicleFuelByModel';
+  if (!account[storageField] || typeof account[storageField] !== 'object' ||
+      Array.isArray(account[storageField])) {
+    account[storageField] = {};
   }
 
-  const stored = account.vehicleFuelByModel[model];
+  const storageKey = vehicleId || model;
+  const stored = account[storageField][storageKey];
   const fuel = stored === undefined ? DEFAULT_FUEL_PERCENT : normalizeFuel(stored);
-  account.vehicleFuelByModel[model] = fuel;
+  account[storageField][storageKey] = fuel;
   return fuel;
 }
 
-function setFuelForAccount(account, model, value) {
+function setFuelForAccount(account, model, value, vehicleId) {
   if (!account || typeof account !== 'object' || !isSupportedModel(model)) return null;
-  fuelForAccount(account, model);
+  fuelForAccount(account, model, vehicleId);
   const fuel = normalizeFuel(value);
-  account.vehicleFuelByModel[model] = fuel;
+  const storageField = vehicleId ? 'vehicleFuelById' : 'vehicleFuelByModel';
+  account[storageField][vehicleId || model] = fuel;
   return fuel;
 }
 

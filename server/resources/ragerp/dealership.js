@@ -1,11 +1,14 @@
+const PersonalVehicles = require('./personal-vehicles');
+
 const DEALERSHIP_POSITION = Object.freeze({ x: -56.0, y: -1096.5, z: 26.4 });
 const INTERACTION_RADIUS = 5;
 
 const VEHICLES = Object.freeze([
   {
-    id: 'zhiga-2105',
-    name: '«Жига» 2105',
-    price: 155000,
+    id: PersonalVehicles.VEHICLE_ID,
+    name: PersonalVehicles.NAME,
+    model: PersonalVehicles.MODEL,
+    price: PersonalVehicles.PRICE,
     seats: 4,
     maxSpeed: 143,
     acceleration: 0.14,

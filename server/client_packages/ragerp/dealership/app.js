@@ -4,6 +4,7 @@
   const count = document.getElementById('vehicle-count');
   const emptyState = document.getElementById('empty-state');
   const closeButton = document.getElementById('close-dealership');
+  const noticeText = document.getElementById('catalog-notice-text');
   const currencyFormatter = new Intl.NumberFormat('ru-RU');
   let vehicles = [];
 
@@ -82,8 +83,43 @@
 
     const status = document.createElement('div');
     status.className = 'vehicle-status';
-    status.textContent = 'Модель не подключена · просмотр';
-    card.append(heading, art, specs, status);
+    if (vehicle.purchasable) {
+      status.textContent = vehicle.canPurchase
+        ? `Модель подключена · доступно ${vehicle.purchaseLimit - vehicle.purchasedCount} из ${vehicle.purchaseLimit}`
+        : `Лимит автомобилей достигнут · ${vehicle.purchasedCount}/${vehicle.purchaseLimit}`;
+      const actions = document.createElement('div');
+      actions.className = 'vehicle-purchase';
+      const paymentLabel = document.createElement('label');
+      paymentLabel.className = 'purchase-method';
+      paymentLabel.textContent = 'Способ оплаты';
+      const paymentSelect = document.createElement('select');
+      paymentSelect.className = 'input purchase-select';
+      paymentSelect.setAttribute('aria-label', 'Способ оплаты');
+      const cashOption = document.createElement('option');
+      cashOption.value = 'cash';
+      cashOption.textContent = 'Наличные';
+      const bankOption = document.createElement('option');
+      bankOption.value = 'bank';
+      bankOption.textContent = 'Банковский счёт';
+      paymentSelect.append(cashOption, bankOption);
+      paymentLabel.append(paymentSelect);
+
+      const purchaseButton = document.createElement('button');
+      purchaseButton.className = 'button primary purchase-button';
+      purchaseButton.type = 'button';
+      purchaseButton.textContent = 'Купить';
+      purchaseButton.disabled = !vehicle.canPurchase;
+      purchaseButton.addEventListener('click', () => {
+        if (typeof mp === 'undefined' || !mp || typeof mp.trigger !== 'function') return;
+        purchaseButton.disabled = true;
+        mp.trigger('ragerp:dealership:purchase', vehicle.id, paymentSelect.value);
+      });
+      actions.append(paymentLabel, purchaseButton);
+      card.append(heading, art, specs, status, actions);
+    } else {
+      status.textContent = 'Модель не подключена · просмотр';
+      card.append(heading, art, specs, status);
+    }
     return card;
   }
 
@@ -115,11 +151,18 @@
     render();
   }
 
+  function showPurchaseResult(payload) {
+    if (!payload || typeof payload !== 'object' ||
+        typeof payload.notice !== 'string') return;
+    noticeText.textContent = payload.notice;
+    if (Array.isArray(payload.vehicles)) setCatalog(payload.vehicles);
+  }
+
   closeButton.addEventListener('click', close);
   search.addEventListener('input', render);
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') close();
   });
 
-  window.ragerpDealership = { setCatalog };
+  window.ragerpDealership = { setCatalog, showPurchaseResult };
 })();

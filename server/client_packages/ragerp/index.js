@@ -64,6 +64,7 @@ let dashboardVisible = false;
 let dashboardVehicleId = null;
 let dashboardLastRenderAt = 0;
 let dashboardSignalLastPressedAt = 0;
+const adminMenuDefaultKey = 0x7B;
 const dashboardFuelStates = new Map();
 const dashboardSignalStates = new Map();
 const dashboardNativeErrors = new Set();
@@ -82,7 +83,8 @@ function joaatHash(value) {
 }
 const dashboardSupportedModels = new Set([
   joaatHash('blista'),
-  joaatHash('bmwm5g90')
+  joaatHash('bmwm5g90'),
+  joaatHash('2103')
 ]);
 const clientSettings = {
   general: {
@@ -98,7 +100,7 @@ const clientSettings = {
     phoneUp: 0x26,
     inventory: 0x49,
     settings: 0x79,
-    adminMenu: 0x7B,
+    adminMenu: adminMenuDefaultKey,
     interaction: 0x45,
     radio: 0x51,
     voiceTransmit: 0x5A,
@@ -1319,7 +1321,7 @@ function toggleStealthMovement() {
 }
 
 function dispatchClientKey(keyCode) {
-  if (isClientKeyBound('adminMenu', keyCode)) {
+  if (keyCode === adminMenuDefaultKey || isClientKeyBound('adminMenu', keyCode)) {
     if (adminOpen) {
       closeAdmin(true);
     } else if (!radioOpen && !registrationOpen && !settingsOpen && !dealershipOpen &&
@@ -1505,7 +1507,7 @@ function applyKeyBindings(bindings, alternateBindings) {
     keys.push(normalized.primary[action]);
     if (normalized.alternate[action] !== null) keys.push(normalized.alternate[action]);
     return keys;
-  }, [])));
+  }, [adminMenuDefaultKey])));
   activeKeyBindings.forEach((keyCode) => {
     mp.keys.bind(keyCode, false, () => dispatchClientKey(keyCode));
     mp.keys.bind(keyCode, true, () => releaseClientKey(keyCode));
@@ -2240,6 +2242,33 @@ mp.events.add('ragerp:dealership:open', (payload) => {
 
 mp.events.add('ragerp:dealership:close-request', () => {
   if (dealershipOpen) closeDealership(true);
+});
+
+mp.events.add('ragerp:dealership:purchase', (vehicleId, paymentMethod) => {
+  if (!dealershipOpen || typeof vehicleId !== 'string' ||
+      typeof paymentMethod !== 'string' ||
+      !['cash', 'bank'].includes(paymentMethod)) return;
+  const vehicle = Array.isArray(dealershipBootstrap)
+    ? dealershipBootstrap.find((entry) => entry && entry.id === vehicleId)
+    : null;
+  if (!vehicle || vehicle.purchasable !== true || vehicle.canPurchase !== true) return;
+  mp.events.callRemote('ragerp:dealership:purchase', vehicleId, paymentMethod);
+});
+
+mp.events.add('ragerp:dealership:purchase-result', (payload) => {
+  if (!dealershipOpen || typeof payload !== 'string' || payload.length > 20000) return;
+  let result;
+  try {
+    result = JSON.parse(payload);
+  } catch (error) {
+    console.error('[RageRP dealership] Could not parse vehicle purchase result:', error);
+    return;
+  }
+  if (!result || typeof result !== 'object' || typeof result.notice !== 'string') return;
+  if (Array.isArray(result.vehicles) && result.vehicles.length === 21) {
+    dealershipBootstrap = result.vehicles;
+  }
+  executeDealership('showPurchaseResult', result);
 });
 
 function setPhoneWaypoint(payload) {

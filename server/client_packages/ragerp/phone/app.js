@@ -51,6 +51,7 @@
     taxiCalls: [],
     starterVehicle: null,
     vehicleKeys: [],
+    ownedVehicles: [],
     vehiclePassport: null,
     vehiclePassportDisplay: null,
     vehiclePassportTargets: null,
@@ -467,6 +468,41 @@
       return '<div class="empty-state">Загружаем данные стартового автомобиля…</div>';
     }
 
+    function accessHtml(record, holders) {
+      const vehicleId = String(record.vehicleId || '');
+      return `<form class="form" data-form="vehicle-key" data-vehicle-id="${escapeHtml(vehicleId)}">
+        <input type="hidden" name="vehicleId" value="${escapeHtml(vehicleId)}">
+        <input class="input" name="staticId" maxlength="7" pattern="[0-9]{3}-[0-9]{3}" placeholder="Статик ID игрока" required>
+        <button class="button primary" type="submit">Выдать ключ</button>
+      </form>
+      <div class="number-list">${holders.length
+        ? holders.map(function (holder) {
+          return `<article class="card">
+            <div class="card-title">${escapeHtml(holder.name || 'Персонаж')}</div>
+            <div class="card-subtitle">${escapeHtml(holder.staticId)}</div>
+            <button class="button" type="button" data-action="vehicle-key-revoke"
+              data-static-id="${escapeHtml(holder.staticId)}"
+              data-vehicle-id="${escapeHtml(vehicleId)}">Отозвать доступ</button>
+          </article>`;
+        }).join('')
+        : '<div class="empty-state">Ключи выданы только владельцу.</div>'}</div>`;
+    }
+
+    const purchasedVehicles = state.ownedVehicles.map(function (ownedVehicle) {
+      return `<article class="card vehicle-card">
+        <div class="vehicle-symbol">◈</div>
+        <div class="card-title">${escapeHtml(ownedVehicle.name || 'ВАЗ-2106')}</div>
+        <div class="card-subtitle">${escapeHtml(ownedVehicle.model || '2103')} · ${ownedVehicle.isOut ? 'в городе' : 'в гараже'}</div>
+        <div class="vehicle-plate">${escapeHtml(`${ownedVehicle.plate || '---'} ${ownedVehicle.region || ''}`.trim())}</div>
+        <button class="button primary vehicle-button" data-action="owned-vehicle"
+          data-vehicle-id="${escapeHtml(ownedVehicle.vehicleId)}" type="button">
+          ${ownedVehicle.isOut ? 'Переспавнить автомобиль' : 'Вызвать автомобиль'}
+        </button>
+      </article>
+      <p class="section-title">Доступ: ${escapeHtml(ownedVehicle.name || 'ВАЗ-2106')}</p>
+      ${accessHtml(ownedVehicle, Array.isArray(ownedVehicle.keyHolders) ? ownedVehicle.keyHolders : [])}`;
+    }).join('');
+
     return `<p class="section-title">Твой стартовый автомобиль</p>
       <article class="card vehicle-card">
         <div class="vehicle-symbol">◈</div>
@@ -479,19 +515,8 @@
       </article>
       <div class="notice">Автомобиль закреплён за персонажем. Ключи доступа не меняют владельца и хранятся на аккаунте.</div>
       <p class="section-title">Доступ к автомобилю</p>
-      <form class="form" data-form="vehicle-key">
-        <input class="input" name="staticId" maxlength="7" pattern="[0-9]{3}-[0-9]{3}" placeholder="Статик ID игрока" required>
-        <button class="button primary" type="submit">Выдать ключ</button>
-      </form>
-      <div class="number-list">${state.vehicleKeys.length
-        ? state.vehicleKeys.map(function (holder) {
-          return `<article class="card">
-            <div class="card-title">${escapeHtml(holder.name || 'Персонаж')}</div>
-            <div class="card-subtitle">${escapeHtml(holder.staticId)}</div>
-            <button class="button" type="button" data-action="vehicle-key-revoke" data-static-id="${escapeHtml(holder.staticId)}">Отозвать доступ</button>
-          </article>`;
-        }).join('')
-        : '<div class="empty-state">Ключи выданы только владельцу.</div>'}</div>`;
+      ${accessHtml(vehicle, state.vehicleKeys)}
+      ${purchasedVehicles ? `<p class="section-title">Личные автомобили (${state.ownedVehicles.length}/5)</p>${purchasedVehicles}` : ''}`;
   }
 
   function numbersHtml() {
@@ -1680,9 +1705,22 @@
       return;
     }
 
+    if (action === 'owned-vehicle') {
+      const vehicleId = String(button.dataset.vehicleId || '');
+      if (/^[a-f0-9]{32}$/.test(vehicleId)) {
+        sendAction('owned-vehicle', { vehicleId: vehicleId });
+      }
+      return;
+    }
+
     if (action === 'vehicle-key-revoke') {
       const staticId = validStaticId(button.dataset.staticId);
-      if (staticId) sendAction('vehicle-key:revoke', { staticId: staticId });
+      if (staticId) {
+        sendAction('vehicle-key:revoke', {
+          staticId: staticId,
+          vehicleId: String(button.dataset.vehicleId || '')
+        });
+      }
       return;
     }
 
@@ -1742,11 +1780,16 @@
 
     if (form.dataset.form === 'vehicle-key') {
       const staticId = validStaticId(String(values.get('staticId') || '').trim());
+      const vehicleId = String(values.get('vehicleId') || '');
       if (!staticId || staticId === state.staticId) {
         showToast('Укажи корректный статик ID другого игрока.');
         return;
       }
-      sendAction('vehicle-key:grant', { staticId: staticId });
+      if (!/^[a-f0-9]{32}$/.test(vehicleId)) {
+        showToast('Не удалось определить личный автомобиль.');
+        return;
+      }
+      sendAction('vehicle-key:grant', { staticId: staticId, vehicleId: vehicleId });
       form.reset();
       return;
     }
@@ -1804,6 +1847,7 @@
       state.taxiCalls = Array.isArray(data.taxiCalls) ? data.taxiCalls : [];
       state.starterVehicle = data.starterVehicle || null;
       state.vehicleKeys = Array.isArray(data.vehicleKeys) ? data.vehicleKeys : [];
+      state.ownedVehicles = Array.isArray(data.ownedVehicles) ? data.ownedVehicles : [];
       state.vehiclePassport = data.vehiclePassport || null;
       state.vehiclePassportDisplay = null;
       state.vehiclePassportTargets = null;
@@ -1840,6 +1884,9 @@
       if (data.starterVehicle !== undefined) state.starterVehicle = data.starterVehicle;
       if (data.vehicleKeys !== undefined) {
         state.vehicleKeys = Array.isArray(data.vehicleKeys) ? data.vehicleKeys : [];
+      }
+      if (data.ownedVehicles !== undefined) {
+        state.ownedVehicles = Array.isArray(data.ownedVehicles) ? data.ownedVehicles : [];
       }
       if (data.vehiclePassport !== undefined) state.vehiclePassport = data.vehiclePassport || null;
       if (data.vehiclePassportTargets !== undefined) {

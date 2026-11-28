@@ -61,7 +61,12 @@ button, input { font: inherit; }
   grid-template-columns: 260px 300px minmax(280px, 1fr);
 }
 .admin-column { min-height: 0; padding: 18px 16px; }
-.categories-column { border-right: 1px solid rgba(255, 255, 255, .055); }
+.categories-column {
+  overflow-y: auto;
+  border-right: 1px solid rgba(255, 255, 255, .055);
+  scrollbar-width: thin;
+  scrollbar-color: #6e746f #24282d;
+}
 .players-column { border-right: 1px solid rgba(255, 255, 255, .055); }
 .admin-column h2 { margin: 0 0 13px; color: #f3f4f1; font-size: 13px; }
 

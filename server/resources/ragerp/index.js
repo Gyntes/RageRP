@@ -11,6 +11,7 @@ const VehicleFuel = require('./vehicle_fuel');
 const VehicleStats = require('./vehicle_stats');
 const VehicleAccess = require('./vehicle-access');
 const VehicleTheftConfig = require('./vehicle-theft.config');
+const PersonalVehicles = require('./personal-vehicles');
 
 const dataDirectory = path.join(__dirname, 'data');
 const accountsFile = path.join(dataDirectory, 'accounts.json');
@@ -32,6 +33,7 @@ const vehiclePassportShareCooldowns = new Map();
 const phoneCallCooldowns = new Map();
 const vehicleLockCooldowns = new Map();
 const spawnedStarterVehicles = new Map();
+const spawnedPurchasedVehicles = new Map();
 const adminTestVehicles = new Map();
 const vehicleFuelRecords = new WeakMap();
 const trackedFuelVehicles = new Map();
@@ -134,7 +136,7 @@ function backupAccountsBeforeVehicleMigration() {
   vehicleMigrationBackupCreated = true;
 }
 
-function registerVehicleFuel(vehicle, accountKey, model) {
+function registerVehicleFuel(vehicle, accountKey, model, personalVehicleId) {
   if (!vehicle || !accountKey || !VehicleFuel.isSupportedModel(model)) return null;
   const account = accounts[accountKey];
   if (!account) return null;
@@ -142,8 +144,9 @@ function registerVehicleFuel(vehicle, accountKey, model) {
   const record = {
     accountKey,
     model,
-    fuel: VehicleFuel.fuelForAccount(account, model),
-    stats: VehicleStats.statsForAccount(account, model),
+    vehicleId: personalVehicleId || null,
+    fuel: VehicleFuel.fuelForAccount(account, model, personalVehicleId),
+    stats: VehicleStats.statsForAccount(account, model, personalVehicleId),
     lastEngineTickAt: now,
     lastPosition: isValidPosition(vehicle.position)
       ? {
@@ -246,7 +249,7 @@ function updateVehicleFuel() {
     if (record.fuel === previousFuel) return;
     const account = accounts[record.accountKey];
     if (!account) return;
-    VehicleFuel.setFuelForAccount(account, record.model, record.fuel);
+    VehicleFuel.setFuelForAccount(account, record.model, record.fuel, record.vehicleId);
     vehicleAccountsDirty = true;
     if (record.fuel <= 0) {
       vehicle.engine = false;
@@ -728,7 +731,6 @@ function performVehicleInventoryTransfer(player, data) {
   if (transfer.error) return transfer;
 
   const previousPlayerInventory = character.inventory;
-  const previousVehicleRecord = vehicleInfo.account.character.starterVehicle;
   const updatedVehicle = Object.assign({}, vehicleInfo.vehicle, {
     trunkInventory: direction === 'to-trunk'
       ? transfer.targetInventory
@@ -737,12 +739,10 @@ function performVehicleInventoryTransfer(player, data) {
   character.inventory = direction === 'to-trunk'
     ? transfer.sourceInventory
     : transfer.targetInventory;
-  vehicleInfo.account.character.starterVehicle = updatedVehicle;
   try {
-    saveAccounts();
+    persistVehicleRecord(vehicleInfo.account, updatedVehicle);
   } catch (error) {
     character.inventory = previousPlayerInventory;
-    vehicleInfo.account.character.starterVehicle = previousVehicleRecord;
     throw error;
   }
 
@@ -770,14 +770,12 @@ function performVehicleInventoryMove(player, data) {
     data.to
   );
   if (moved.error) return moved;
-  const previous = vehicleInfo.account.character.starterVehicle;
-  vehicleInfo.account.character.starterVehicle = Object.assign({}, vehicleInfo.vehicle, {
+  const updatedVehicle = Object.assign({}, vehicleInfo.vehicle, {
     trunkInventory: moved.inventory
   });
   try {
-    saveAccounts();
+    persistVehicleRecord(vehicleInfo.account, updatedVehicle);
   } catch (error) {
-    vehicleInfo.account.character.starterVehicle = previous;
     throw error;
   }
   updateInventoryClient(player);
@@ -803,13 +801,76 @@ function newVehicleId() {
   return crypto.randomBytes(16).toString('hex');
 }
 
+function purchasedVehiclesFor(account) {
+  if (!account || !account.character) return [];
+  const vehicles = account.character.purchasedVehicles;
+  if (vehicles === undefined) return [];
+  if (!Array.isArray(vehicles)) {
+    throw new Error('Purchased vehicle data must be an array.');
+  }
+  return vehicles;
+}
+
+function purchasedVehicleById(account, vehicleId) {
+  return purchasedVehiclesFor(account).find((vehicle) =>
+    vehicle && vehicle.vehicleId === vehicleId &&
+    vehicle.model === PersonalVehicles.MODEL
+  ) || null;
+}
+
+function newVehiclePlate() {
+  const usedPlates = new Set();
+  Object.keys(accounts).forEach((accountKey) => {
+    const character = accounts[accountKey] && accounts[accountKey].character;
+    if (!character) return;
+    const vehicles = [character.starterVehicle].concat(
+      Array.isArray(character.purchasedVehicles) ? character.purchasedVehicles : []
+    );
+    vehicles.forEach((vehicle) => {
+      if (vehicle && typeof vehicle.plate === 'string') usedPlates.add(vehicle.plate);
+    });
+  });
+
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    const digits = String(crypto.randomBytes(4).readUInt32BE(0) % 1000000).padStart(6, '0');
+    const plate = russianPlateForStaticId(digits);
+    if (!usedPlates.has(plate)) return plate;
+  }
+  throw new Error('Could not generate a unique vehicle plate.');
+}
+
 function persistVehicleRecord(account, vehicleRecord) {
-  const previous = account.character.starterVehicle;
-  account.character.starterVehicle = vehicleRecord;
+  if (!account || !account.character || !vehicleRecord) {
+    throw new Error('Cannot persist an invalid personal vehicle record.');
+  }
+
+  const character = account.character;
+  const starterVehicle = character.starterVehicle;
+  const purchasedVehicles = purchasedVehiclesFor(account);
+  const purchasedIndex = purchasedVehicles.findIndex((vehicle) =>
+    vehicle && vehicle.vehicleId === vehicleRecord.vehicleId
+  );
+  let previous;
+  if (starterVehicle && starterVehicle.vehicleId === vehicleRecord.vehicleId) {
+    previous = starterVehicle;
+    character.starterVehicle = vehicleRecord;
+  } else if (purchasedIndex >= 0) {
+    previous = character.purchasedVehicles;
+    const updatedVehicles = purchasedVehicles.slice();
+    updatedVehicles[purchasedIndex] = vehicleRecord;
+    character.purchasedVehicles = updatedVehicles;
+  } else {
+    throw new Error('Personal vehicle record was not found on its owner account.');
+  }
+
   try {
     saveAccounts();
   } catch (error) {
-    account.character.starterVehicle = previous;
+    if (starterVehicle && starterVehicle.vehicleId === vehicleRecord.vehicleId) {
+      character.starterVehicle = previous;
+    } else {
+      character.purchasedVehicles = previous;
+    }
     throw error;
   }
 }
@@ -852,7 +913,6 @@ function ensureStarterVehicle(account) {
 }
 
 function starterVehicleForEntity(entity) {
-  let result = null;
   for (const [accountKey, spawnedVehicle] of spawnedStarterVehicles) {
     if (!spawnedVehicle || !mp.vehicles.exists(spawnedVehicle)) {
       spawnedStarterVehicles.delete(accountKey);
@@ -864,16 +924,38 @@ function starterVehicleForEntity(entity) {
     if (!account || !account.character) return null;
     const vehicle = ensureStarterVehicle(account);
     if (!vehicle) return null;
-    result = {
+    return {
       accountKey,
       account,
       vehicle,
       entity: spawnedVehicle,
-      ownerStaticId: ensureStaticId(account)
+      ownerStaticId: ensureStaticId(account),
+      vehicleType: 'starter'
     };
-    break;
   }
-  return result;
+
+  for (const [vehicleId, spawned] of spawnedPurchasedVehicles) {
+    const spawnedVehicle = spawned && spawned.entity;
+    if (!spawnedVehicle || !mp.vehicles.exists(spawnedVehicle)) {
+      spawnedPurchasedVehicles.delete(vehicleId);
+      continue;
+    }
+    if (spawnedVehicle !== entity) continue;
+
+    const account = accounts[spawned.accountKey];
+    if (!account || !account.character) return null;
+    const vehicle = purchasedVehicleById(account, vehicleId);
+    if (!vehicle) return null;
+    return {
+      accountKey: spawned.accountKey,
+      account,
+      vehicle,
+      entity: spawnedVehicle,
+      ownerStaticId: ensureStaticId(account),
+      vehicleType: 'purchased'
+    };
+  }
+  return null;
 }
 
 function hasVehicleAccess(player, vehicleInfo) {
@@ -911,11 +993,15 @@ function clearVehicleRuntimeState(entity) {
       }
     }
   }
+  if (vehicleInfo.vehicleType === 'purchased') {
+    const spawned = spawnedPurchasedVehicles.get(vehicleId);
+    if (spawned && spawned.entity === entity) spawnedPurchasedVehicles.delete(vehicleId);
+  }
 }
 
-function vehicleKeysFor(player) {
+function vehicleKeysFor(player, selectedVehicle) {
   const account = getAccount(player);
-  const vehicle = ensureStarterVehicle(account);
+  const vehicle = selectedVehicle || ensureStarterVehicle(account);
   if (!vehicle) return [];
   return vehicle.keyHolderStaticIds.map((staticId) => {
     const target = accountByStaticId(staticId);
@@ -941,6 +1027,7 @@ function starterVehicleState(player) {
   }
 
   const state = {
+    vehicleId: starterVehicle.vehicleId,
     model: starterVehicle.model,
     name: starterVehicleName,
     plate: starterVehicle.plate,
@@ -958,13 +1045,42 @@ function starterVehicleState(player) {
   return state;
 }
 
-function phoneNumbersFor(starterVehicle) {
-  if (!starterVehicle) return [];
-  return [{
-    plate: starterVehicle.plate,
-    region: starterVehicle.region,
-    vehicleName: starterVehicle.name
-  }];
+function purchasedVehicleStatesFor(player) {
+  const account = getAccount(player);
+  return purchasedVehiclesFor(account).map((vehicle) => {
+    const spawned = spawnedPurchasedVehicles.get(vehicle.vehicleId);
+    const entity = spawned && mp.vehicles.exists(spawned.entity)
+      ? spawned.entity
+      : null;
+    if (!entity && spawned) spawnedPurchasedVehicles.delete(vehicle.vehicleId);
+    const vehicleInfo = entity ? starterVehicleForEntity(entity) : null;
+    const state = {
+      vehicleId: vehicle.vehicleId,
+      model: vehicle.model,
+      name: vehicle.name || PersonalVehicles.NAME,
+      plate: vehicle.plate,
+      region: vehicle.region,
+      locked: entity ? vehicleIsLocked(vehicleInfo) : Boolean(vehicle.locked),
+      isOut: Boolean(entity),
+      keyHolders: vehicleKeysFor(player, vehicle)
+    };
+    if (entity) {
+      state.x = Number(entity.position.x);
+      state.y = Number(entity.position.y);
+      state.z = Number(entity.position.z);
+    }
+    return state;
+  });
+}
+
+function phoneNumbersFor(starterVehicle, purchasedVehicles) {
+  return [starterVehicle].concat(purchasedVehicles || [])
+    .filter((vehicle) => vehicle && vehicle.plate)
+    .map((vehicle) => ({
+      plate: vehicle.plate,
+      region: vehicle.region,
+      vehicleName: vehicle.name
+    }));
 }
 
 function summonStarterVehicle(player) {
@@ -1048,10 +1164,12 @@ function summonStarterVehicle(player) {
       y: parkingSpot.y
     })]);
     const vehicleState = starterVehicleState(player);
+    const ownedVehicles = purchasedVehicleStatesFor(player);
     updatePhone(player, {
       starterVehicle: vehicleState,
+      ownedVehicles,
       vehiclePassport: vehiclePassportFor(player),
-      numbers: phoneNumbersFor(vehicleState),
+      numbers: phoneNumbersFor(vehicleState, ownedVehicles),
       notice: `Твоя ${starterVehicleName} переспавнена на ближайшей парковке. Метка GPS обновлена.`
     });
     return;
@@ -1118,11 +1236,119 @@ function summonStarterVehicle(player) {
   })]);
   const plateLabel = `${starterVehicle.plate} ${starterVehicle.region}`;
   const vehicleState = starterVehicleState(player);
+  const ownedVehicles = purchasedVehicleStatesFor(player);
   updatePhone(player, {
     starterVehicle: vehicleState,
+    ownedVehicles,
     vehiclePassport: vehiclePassportFor(player),
-    numbers: phoneNumbersFor(vehicleState),
+    numbers: phoneNumbersFor(vehicleState, ownedVehicles),
     notice: `Твоя ${starterVehicleName} припаркована. Метка GPS добавлена. Номер: ${plateLabel}.`
+  });
+}
+
+function summonPurchasedVehicle(player, vehicleId) {
+  const account = getAccount(player);
+  const vehicle = purchasedVehicleById(account, vehicleId);
+  if (!vehicle) {
+    phoneNotice(player, 'Этот автомобиль не найден в твоём гараже.');
+    return;
+  }
+  if (player.vehicle) {
+    phoneNotice(player, 'Выйди из машины перед вызовом личного автомобиля.');
+    return;
+  }
+
+  const lastCall = vehicleCallCooldowns.get(player.id) || 0;
+  if (Date.now() - lastCall < 3000) {
+    phoneNotice(player, 'Подожди немного перед следующим вызовом машины.');
+    return;
+  }
+
+  const key = sessions.get(player.id);
+  const spawned = spawnedPurchasedVehicles.get(vehicle.vehicleId);
+  let existing = spawned && spawned.entity;
+  if (existing && !mp.vehicles.exists(existing)) {
+    spawnedPurchasedVehicles.delete(vehicle.vehicleId);
+    existing = null;
+  }
+  if (existing) {
+    let occupied = false;
+    mp.players.forEach((otherPlayer) => {
+      if (otherPlayer.vehicle === existing) occupied = true;
+    });
+    if (occupied) {
+      phoneNotice(player, 'Сначала дождись, пока другие игроки выйдут из автомобиля.');
+      return;
+    }
+  }
+
+  const occupants = [];
+  mp.vehicles.forEach((otherVehicle) => {
+    if (otherVehicle === existing ||
+        otherVehicle.dimension !== player.dimension ||
+        !isValidPosition(otherVehicle.position)) return;
+    occupants.push({
+      x: Number(otherVehicle.position.x),
+      y: Number(otherVehicle.position.y),
+      z: Number(otherVehicle.position.z),
+      dimension: otherVehicle.dimension
+    });
+  });
+  mp.players.forEach((otherPlayer) => {
+    if (otherPlayer.dimension !== player.dimension ||
+        !isValidPosition(otherPlayer.position)) return;
+    occupants.push({
+      x: Number(otherPlayer.position.x),
+      y: Number(otherPlayer.position.y),
+      z: Number(otherPlayer.position.z),
+      dimension: otherPlayer.dimension
+    });
+  });
+
+  const parkingSpot = Parking.nearestFreeParkingSpot(
+    player.position,
+    occupants,
+    player.dimension
+  );
+  if (!parkingSpot) {
+    phoneNotice(player, 'Свободных мест на парковках нет. Попробуй вызвать машину позже.');
+    return;
+  }
+
+  vehicleCallCooldowns.set(player.id, Date.now());
+  if (existing) {
+    clearVehicleRuntimeState(existing);
+    existing.destroy();
+    unregisterVehicleFuel(existing);
+  }
+
+  const entity = mp.vehicles.new(
+    mp.joaat(vehicle.model),
+    new mp.Vector3(parkingSpot.x, parkingSpot.y, parkingSpot.z),
+    {
+      heading: parkingSpot.heading,
+      dimension: player.dimension,
+      numberPlate: `${vehicle.plate}${vehicle.region}`,
+      locked: false,
+      engine: false
+    }
+  );
+  if (!entity) {
+    phoneNotice(player, 'Не удалось создать автомобиль. Попробуй ещё раз.');
+    return;
+  }
+
+  spawnedPurchasedVehicles.set(vehicle.vehicleId, { accountKey: key, entity });
+  registerVehicleFuel(entity, key, vehicle.model, vehicle.vehicleId);
+  player.call('ragerp:phone:waypoint', [JSON.stringify({
+    x: parkingSpot.x,
+    y: parkingSpot.y
+  })]);
+  const ownedVehicles = purchasedVehicleStatesFor(player);
+  updatePhone(player, {
+    ownedVehicles,
+    numbers: phoneNumbersFor(starterVehicleState(player), ownedVehicles),
+    notice: `Твоя ${vehicle.name || PersonalVehicles.NAME} припаркована. Метка GPS добавлена.`
   });
 }
 
@@ -1468,6 +1694,7 @@ function phoneStateFor(player) {
   ensureStarterVehicle(account);
   if (!Array.isArray(account.messages)) account.messages = [];
   const starterVehicle = starterVehicleState(player);
+  const ownedVehicles = purchasedVehicleStatesFor(player);
   const passportRequest = vehiclePassportShareRequests.get(player.id);
   return {
     staticId: account.staticId,
@@ -1487,11 +1714,12 @@ function phoneStateFor(player) {
     taxiCalls: taxiCalls.slice(-20),
     starterVehicle,
     vehicleKeys: vehicleKeysFor(player),
+    ownedVehicles,
     vehiclePassport: vehiclePassportFor(player),
     passportShareRequest: passportRequest
       ? { requestId: passportRequest.requestId, fromName: passportRequest.fromName }
       : null,
-    numbers: phoneNumbersFor(starterVehicle),
+    numbers: phoneNumbersFor(starterVehicle, ownedVehicles),
     firstName: account.character.firstName,
     lastName: account.character.lastName,
     criminalRecords: criminalRecordsFor(account.character),
@@ -2627,6 +2855,26 @@ mp.events.add('ragerp:client:ui-ready', (player) => {
   player.call('ragerp:hud:show', [JSON.stringify(hudStateFor(player))]);
 });
 
+function dealershipCatalogFor(player) {
+  const purchase = PersonalVehicles.purchaseState(purchasedVehiclesFor(getAccount(player)));
+  return Dealership.VEHICLES.map((vehicle) => vehicle.id === PersonalVehicles.VEHICLE_ID
+    ? Object.assign({}, vehicle, {
+        purchasable: true,
+        purchasedCount: purchase.count,
+        purchaseLimit: purchase.limit,
+        canPurchase: purchase.canPurchase
+      })
+    : vehicle);
+}
+
+function sendDealershipPurchaseResult(player, success, notice) {
+  player.call('ragerp:dealership:purchase-result', [JSON.stringify({
+    success,
+    notice,
+    vehicles: dealershipCatalogFor(player)
+  })]);
+}
+
 mp.events.add('ragerp:dealership:request-open', (player) => {
   if (!characterFor(player) || openDealerships.has(player.id) ||
       openPhones.has(player.id) || openInventories.has(player.id) ||
@@ -2637,12 +2885,94 @@ mp.events.add('ragerp:dealership:request-open', (player) => {
 
   try {
     openDealerships.add(player.id);
-    player.call('ragerp:dealership:open', [JSON.stringify(Dealership.VEHICLES)]);
+    player.call('ragerp:dealership:open', [JSON.stringify(dealershipCatalogFor(player))]);
   } catch (error) {
     openDealerships.delete(player.id);
     console.error('[RageRP dealership] Could not open vehicle catalog:', error);
     message(player, 'Не удалось открыть каталог автосалона.');
   }
+});
+
+mp.events.add('ragerp:dealership:purchase', (player, vehicleId, paymentMethod) => {
+  if (!characterFor(player) || player.dimension !== 0 ||
+      !openDealerships.has(player.id) ||
+      !Dealership.isNearDealership(player.position, player.dimension)) {
+    return;
+  }
+
+  const account = getAccount(player);
+  const character = account.character;
+  const vehicles = purchasedVehiclesFor(account);
+  const quote = PersonalVehicles.purchaseQuote(
+    vehicleId,
+    vehicles,
+    paymentMethod,
+    character
+  );
+  if (quote.error) {
+    const notices = {
+      'vehicle-limit': `Достигнут лимит: не более ${PersonalVehicles.LIMIT} личных автомобилей.`,
+      'insufficient-funds': 'Недостаточно средств на выбранном способе оплаты.',
+      'invalid-payment-method': 'Выбери наличные или банковский счёт.',
+      'vehicle-not-purchasable': 'Эту модель пока нельзя купить.'
+    };
+    try {
+      sendDealershipPurchaseResult(
+        player,
+        false,
+        notices[quote.error] || 'Не удалось проверить покупку.'
+      );
+    } catch (error) {
+      console.error('[RageRP dealership] Could not return purchase status:', error);
+    }
+    return;
+  }
+
+  let vehicleRecord;
+  try {
+    vehicleRecord = PersonalVehicles.createVehicleRecord(newVehicleId(), newVehiclePlate());
+    if (vehicleRecord.error) throw new Error('Could not create a VAZ-2106 vehicle record.');
+    const normalized = VehicleAccess.normalizeVehicleRecord(
+      vehicleRecord,
+      ensureStaticId(account),
+      newVehicleId
+    );
+    if (normalized.error) throw new Error('Could not normalize a VAZ-2106 vehicle record.');
+    vehicleRecord = normalized.vehicle;
+  } catch (error) {
+    console.error('[RageRP dealership] Could not prepare vehicle purchase:', error);
+    sendDealershipPurchaseResult(
+      player,
+      false,
+      'Не удалось подготовить документы автомобиля. Попробуй позже.'
+    );
+    return;
+  }
+
+  const previousVehicles = character.purchasedVehicles;
+  const previousBalance = character[quote.paymentMethod];
+  character.purchasedVehicles = vehicles.concat([vehicleRecord]);
+  character[quote.paymentMethod] = quote.balanceAfter;
+  try {
+    saveAccounts();
+  } catch (error) {
+    character.purchasedVehicles = previousVehicles;
+    character[quote.paymentMethod] = previousBalance;
+    console.error('[RageRP dealership] Could not save vehicle purchase:', error);
+    sendDealershipPurchaseResult(
+      player,
+      false,
+      'Покупка отменена: не удалось сохранить данные. Деньги не списаны.'
+    );
+    return;
+  }
+
+  updateHud(player);
+  sendDealershipPurchaseResult(
+    player,
+    true,
+    `Куплен ${PersonalVehicles.NAME}. Вызови его через приложение «Моя машина».`
+  );
 });
 
 mp.events.add('ragerp:dealership:close', (player) => {
@@ -2817,7 +3147,7 @@ mp.events.add('ragerp:vehicle:toggle-lock', (player) => {
   vehicleLockCooldowns.set(player.id, Date.now());
 
   const key = sessions.get(player.id);
-  const vehicle = spawnedStarterVehicles.get(key);
+  const vehicle = player.vehicle || spawnedStarterVehicles.get(key);
   if (!vehicle || !mp.vehicles.exists(vehicle)) {
     spawnedStarterVehicles.delete(key);
     message(player, 'Твоя личная машина сейчас не находится в городе.');
@@ -2825,6 +3155,10 @@ mp.events.add('ragerp:vehicle:toggle-lock', (player) => {
   }
 
   const vehicleInfo = starterVehicleForEntity(vehicle);
+  if (!vehicleInfo) {
+    message(player, 'У тебя нет доступа к этому автомобилю.');
+    return;
+  }
   try {
     toggleVehicleLock(player, vehicleInfo);
   } catch (error) {
@@ -2944,7 +3278,7 @@ mp.events.add('ragerp:vehicle:service', (player) => {
   }
   const record = vehicleFuelRecords.get(vehicle);
   if (!record) {
-    message(player, 'Обслуживание доступно только для стартовой Blista и тестового BMW M5.');
+    message(player, 'Обслуживание доступно только для личных автомобилей и тестового BMW M5.');
     return;
   }
   if (!VehicleFuel.isAccountOwner(sessions.get(player.id), record.accountKey)) {
@@ -3022,7 +3356,7 @@ mp.events.add('ragerp:vehicle:service', (player) => {
   const previousCash = character.cash;
   const previousFuel = record.fuel;
   character.cash = cash - quote.cost;
-  record.fuel = VehicleFuel.setFuelForAccount(account, record.model, 100);
+  record.fuel = VehicleFuel.setFuelForAccount(account, record.model, 100, record.vehicleId);
   try {
     saveAccounts();
     lastFuelAccountsSaveAt = now;
@@ -3030,7 +3364,7 @@ mp.events.add('ragerp:vehicle:service', (player) => {
   } catch (error) {
     character.cash = previousCash;
     record.fuel = previousFuel;
-    VehicleFuel.setFuelForAccount(account, record.model, previousFuel);
+    VehicleFuel.setFuelForAccount(account, record.model, previousFuel, record.vehicleId);
     console.error('[RageRP vehicle] Could not save refueling transaction:', error);
     message(player, 'Заправка отменена: не удалось сохранить оплату. Попробуй позже.');
     return;
@@ -3194,6 +3528,16 @@ mp.events.add('ragerp:phone:action', (player, action, payload) => {
     return;
   }
 
+  if (action === 'owned-vehicle') {
+    try {
+      summonPurchasedVehicle(player, String(data.vehicleId || ''));
+    } catch (error) {
+      console.error('[RageRP] Purchased vehicle summon failed:', error);
+      phoneNotice(player, 'Не удалось вызвать автомобиль. Попробуй позже.');
+    }
+    return;
+  }
+
   if (action === 'vehicle-key:grant' || action === 'vehicle-key:revoke') {
     const targetStaticId = String(data.staticId || '').trim();
     if (!VehicleAccess.STATIC_ID_PATTERN.test(targetStaticId)) {
@@ -3208,7 +3552,20 @@ mp.events.add('ragerp:phone:action', (player, action, payload) => {
     }
 
     const ownerStaticId = ensureStaticId(account);
-    const vehicle = ensureStarterVehicle(account);
+    const vehicleId = data.vehicleId === undefined
+      ? ''
+      : String(data.vehicleId).trim();
+    if (vehicleId && !VehicleAccess.VEHICLE_ID_PATTERN.test(vehicleId)) {
+      phoneNotice(player, 'Не удалось определить личный автомобиль.');
+      return;
+    }
+    const vehicle = vehicleId
+      ? purchasedVehicleById(account, vehicleId)
+      : ensureStarterVehicle(account);
+    if (!vehicle) {
+      phoneNotice(player, 'Этот автомобиль не найден в твоём гараже.');
+      return;
+    }
     const result = action === 'vehicle-key:grant'
       ? VehicleAccess.grantKey(vehicle, ownerStaticId, targetStaticId)
       : VehicleAccess.revokeKey(vehicle, targetStaticId);
@@ -3236,7 +3593,11 @@ mp.events.add('ragerp:phone:action', (player, action, payload) => {
     );
     if (onlineTarget) {
       if (action === 'vehicle-key:revoke') {
-        const spawnedVehicle = spawnedStarterVehicles.get(sessions.get(player.id));
+        const starterVehicle = ensureStarterVehicle(account);
+        const spawnedPurchased = spawnedPurchasedVehicles.get(vehicle.vehicleId);
+        const spawnedVehicle = starterVehicle.vehicleId === vehicle.vehicleId
+          ? spawnedStarterVehicles.get(sessions.get(player.id))
+          : spawnedPurchased && spawnedPurchased.entity;
         if (spawnedVehicle && onlineTarget.player.vehicle === spawnedVehicle) {
           spawnedVehicle.engine = false;
         }
@@ -3248,13 +3609,17 @@ mp.events.add('ragerp:phone:action', (player, action, payload) => {
         }
         message(onlineTarget.player, 'Доступ к автомобилю отозван владельцем.');
       } else {
-        message(onlineTarget.player, `Владелец выдал тебе ключ от автомобиля ${vehicle.plate}.`);
+        message(onlineTarget.player,
+          `Владелец выдал тебе ключ от автомобиля ${vehicle.name || vehicle.plate}.`);
       }
     }
 
+    const ownedVehicles = purchasedVehicleStatesFor(player);
     updatePhone(player, {
       starterVehicle: starterVehicleState(player),
-      vehicleKeys: vehicleKeysFor(player)
+      vehicleKeys: vehicleKeysFor(player),
+      ownedVehicles,
+      numbers: phoneNumbersFor(starterVehicleState(player), ownedVehicles)
     });
     phoneNotice(player, action === 'vehicle-key:grant'
       ? `Ключ выдан игроку ${targetStaticId}.`
@@ -3870,6 +4235,16 @@ mp.events.add('playerQuit', (player) => {
     starterVehicle.destroy();
   }
   spawnedStarterVehicles.delete(key);
+  for (const [vehicleId, spawned] of spawnedPurchasedVehicles) {
+    if (!spawned || spawned.accountKey !== key) continue;
+    const vehicle = spawned.entity;
+    if (vehicle && mp.vehicles.exists(vehicle)) {
+      clearVehicleRuntimeState(vehicle);
+      unregisterVehicleFuel(vehicle);
+      vehicle.destroy();
+    }
+    spawnedPurchasedVehicles.delete(vehicleId);
+  }
 
   const accountFromKey = accounts[key];
   const character = accountFromKey && accountFromKey.character;

@@ -16,6 +16,15 @@ test('catalog contains 21 unique, priced vehicles with valid visible specificati
   });
 });
 
+test('VAZ-2106 replaces the old Zhiga catalog entry and is the configured game model', () => {
+  const vaz = dealership.VEHICLES.find((vehicle) => vehicle.id === 'vaz2106');
+  assert.ok(vaz);
+  assert.equal(vaz.name, 'ВАЗ-2106');
+  assert.equal(vaz.model, '2103');
+  assert.equal(vaz.price, 155000);
+  assert.equal(dealership.VEHICLES.some((vehicle) => vehicle.id === 'zhiga-2105'), false);
+});
+
 test('opens the catalog only within the configured physical dealership and public dimension', () => {
   const position = dealership.DEALERSHIP_POSITION;
   assert.equal(dealership.isNearDealership(position, 0), true);
