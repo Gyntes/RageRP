@@ -6,6 +6,7 @@ from pathlib import Path
 
 import bpy
 import bmesh
+import numpy as np
 from mathutils import Matrix, Vector
 
 
@@ -14,6 +15,7 @@ PROJECT_DIR = os.path.dirname(SCRIPT_DIR)
 SOURCE_BLEND = os.path.join(SCRIPT_DIR, "bmw_m5_g90_downloaded_source.blend")
 OUTPUT_DIR = os.path.join(SCRIPT_DIR, "bmw_m5_g90_yft_build")
 ASSET_NAME = "bmwm5g90"
+BODY_SCALE_CORRECTION = 100.0
 WHEEL_ROOTS = {
     "3DWheel Front L": "wheel_lf",
     "3DWheel Front R": "wheel_rf",
@@ -627,9 +629,16 @@ def main():
         set_recommended_bone_properties,
     )
 
-    body = join_model(body_meshes, ASSET_NAME + ".body", drawable, SollumType, LODLevel)
+    body = join_model(
+        body_meshes,
+        ASSET_NAME + ".body",
+        drawable,
+        SollumType,
+        LODLevel,
+    )
     if body is None:
         raise RuntimeError("Failed to combine the static body geometry")
+    body.data.transform(Matrix.Scale(BODY_SCALE_CORRECTION, 4))
 
     wheel_models = {}
     for source_name, bone_name in WHEEL_ROOTS.items():
@@ -759,6 +768,25 @@ def main():
         raise RuntimeError("The generated YFT does not contain a physics LOD")
     if len(exported_asset.drawable.shader_group.embedded_textures) < 10:
         raise RuntimeError("The generated YFT does not contain the source vehicle textures")
+    static_models = [
+        model
+        for lod_models in exported_asset.drawable.models.values()
+        for model in lod_models
+        if not model.has_skin and model.geometries
+    ]
+    if not static_models:
+        raise RuntimeError("The generated YFT has no static body drawable")
+    body_positions = np.concatenate([
+        geometry.vertex_buffer["Position"]
+        for model in static_models
+        for geometry in model.geometries
+    ])
+    body_dimensions = body_positions.max(axis=0) - body_positions.min(axis=0)
+    if body_dimensions[1] < 4.0 or body_dimensions[0] < 1.0 or body_dimensions[2] < 0.8:
+        raise RuntimeError(
+            "The exported static vehicle body is too small: "
+            + ", ".join(f"{dimension:.3f} m" for dimension in body_dimensions)
+        )
     physics_groups = {group.name: group for group in exported_asset.physics.lod1.groups}
     physics_children = exported_asset.physics.lod1.children
     wheel_child_count = 0
@@ -812,6 +840,7 @@ def main():
     print("BMW_STEERING_FACES", steering_face_count)
     print("BMW_STEERING_PIVOT", tuple(round(value, 3) for value in steering_pivot))
     print("BMW_EMBEDDED_TEXTURES", embedded_texture_count)
+    print("BMW_BODY_DIMENSIONS", tuple(round(float(value), 3) for value in body_dimensions))
     print("BMW_ROUNDTRIP_TEXTURES", len(exported_asset.drawable.shader_group.embedded_textures))
     print("BMW_ROUNDTRIP_WHEELS", wheel_child_count)
     print("BMW_ROUNDTRIP_PANELS", panel_child_count)

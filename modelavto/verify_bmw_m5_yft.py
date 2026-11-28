@@ -3,6 +3,7 @@ import sys
 from pathlib import Path
 
 import bpy
+import numpy as np
 
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -31,6 +32,23 @@ embedded_textures = asset.drawable.shader_group.embedded_textures
 models = [model for level_models in asset.drawable.models.values() for model in level_models]
 geometry_count = sum(len(model.geometries) for model in models)
 bone_names = {bone.name for bone in asset.drawable.skeleton.bones}
+static_models = [
+    model for model in models
+    if not model.has_skin and model.geometries
+]
+if not static_models:
+    raise RuntimeError("The YFT is missing its static vehicle body")
+body_positions = np.concatenate([
+    geometry.vertex_buffer["Position"]
+    for model in static_models
+    for geometry in model.geometries
+])
+body_dimensions = body_positions.max(axis=0) - body_positions.min(axis=0)
+if body_dimensions[0] < 1.0 or body_dimensions[1] < 4.0 or body_dimensions[2] < 0.8:
+    raise RuntimeError(
+        "The YFT static body is smaller than the vehicle: "
+        + ", ".join(f"{dimension:.3f} m" for dimension in body_dimensions)
+    )
 groups = {group.name: (index, group) for index, group in enumerate(lod.groups)}
 children_by_group = {child.group_index: child for child in lod.children}
 wheel_bones = ("wheel_lf", "wheel_rf", "wheel_lr", "wheel_rr")
@@ -74,5 +92,6 @@ print("PHYSICS_CHILDREN", len(lod.children))
 print("WHEEL_DRAWABLES", len(wheel_bones))
 print("PANEL_DRAWABLES", len(panel_bones))
 print("EMBEDDED_TEXTURES", len(embedded_textures))
+print("BODY_DIMENSIONS", tuple(round(float(value), 3) for value in body_dimensions))
 print("MODELS", len(models))
 print("GEOMETRIES", geometry_count)
