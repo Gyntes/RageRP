@@ -6,6 +6,8 @@ const Dealership = require('./dealership');
 const Voice = require('./voice');
 const Admin = require('./admin');
 const VehiclePassport = require('./vehicle-passport');
+const VehicleFuel = require('./vehicle_fuel');
+const VehicleStats = require('./vehicle_stats');
 
 const dataDirectory = path.join(__dirname, 'data');
 const accountsFile = path.join(dataDirectory, 'accounts.json');
@@ -27,6 +29,13 @@ const vehiclePassportShareCooldowns = new Map();
 const phoneCallCooldowns = new Map();
 const vehicleLockCooldowns = new Map();
 const spawnedStarterVehicles = new Map();
+const adminTestVehicles = new Map();
+const vehicleFuelRecords = new WeakMap();
+const trackedFuelVehicles = new Map();
+const vehicleFuelDisplayStates = new Map();
+const vehicleRefuelCooldowns = new Map();
+const vehicleStatsRequestCooldowns = new Map();
+const vehicleSignalCooldowns = new Map();
 const hudNotifications = new Map();
 const playtimeCheckpointAt = new Map();
 const voiceRouteStates = new Map();
@@ -42,6 +51,7 @@ const voiceProximityRange = 15;
 const phoneCallTimeoutMs = 30000;
 const vehiclePassportRequestTimeoutMs = 30000;
 let vehiclePassportRequestSequence = 0;
+const vehicleAccountsSaveIntervalMs = 30000;
 const starterVehicleModel = 'blista';
 const starterVehicleName = 'Blista';
 const starterVehicleRegion = '97';
@@ -98,9 +108,187 @@ function loadAccounts() {
 }
 
 const accounts = loadAccounts();
+let lastFuelAccountsSaveAt = Date.now();
+let vehicleAccountsDirty = false;
 
 function saveAccounts() {
   fs.writeFileSync(accountsFile, JSON.stringify(accounts, null, 2), 'utf8');
+}
+
+function registerVehicleFuel(vehicle, accountKey, model) {
+  if (!vehicle || !accountKey || !VehicleFuel.isSupportedModel(model)) return null;
+  const account = accounts[accountKey];
+  if (!account) return null;
+  const now = Date.now();
+  const record = {
+    accountKey,
+    model,
+    fuel: VehicleFuel.fuelForAccount(account, model),
+    stats: VehicleStats.statsForAccount(account, model),
+    lastEngineTickAt: now,
+    lastPosition: isValidPosition(vehicle.position)
+      ? {
+          x: Number(vehicle.position.x),
+          y: Number(vehicle.position.y),
+          z: Number(vehicle.position.z),
+          dimension: vehicle.dimension
+        }
+      : null,
+    lastPositionAt: now,
+    signals: { left: false, right: false, hazards: false }
+  };
+  vehicleFuelRecords.set(vehicle, record);
+  trackedFuelVehicles.set(vehicle, record);
+  broadcastVehicleDirt(vehicle, record);
+  if (record.fuel <= 0) vehicle.engine = false;
+  return record;
+}
+
+function unregisterVehicleFuel(vehicle) {
+  if (!vehicle) return;
+  vehicleFuelRecords.delete(vehicle);
+  trackedFuelVehicles.delete(vehicle);
+}
+
+function vehicleFuelPayload(vehicle, record) {
+  return {
+    fuel: record.fuel,
+    engineOn: vehicle.engine === true,
+    model: record.model,
+    odometerKm: record.stats.odometerKm,
+    dirtLevel: record.stats.dirtLevel
+  };
+}
+
+function sendVehicleFuel(player, vehicle, record) {
+  if (!player || !vehicle || !record) return;
+  player.call('ragerp:vehicle:fuel:update', [
+    vehicle.id,
+    JSON.stringify(vehicleFuelPayload(vehicle, record))
+  ]);
+}
+
+function broadcastVehicleDirt(vehicle, record) {
+  mp.players.forEach((observer) => {
+    if (observer.dimension !== vehicle.dimension) return;
+    observer.call('ragerp:vehicle:dirt:update', [vehicle.id, record.stats.dirtLevel]);
+  });
+}
+
+function broadcastVehicleSignals(vehicle, record) {
+  const payload = JSON.stringify(record.signals);
+  mp.players.forEach((observer) => {
+    observer.call('ragerp:vehicle:signals:update', [vehicle.id, payload]);
+  });
+}
+
+function updateVehicleFuel() {
+  const now = Date.now();
+  trackedFuelVehicles.forEach((record, vehicle) => {
+    if (!mp.vehicles.exists(vehicle)) {
+      unregisterVehicleFuel(vehicle);
+      return;
+    }
+
+    const currentPosition = isValidPosition(vehicle.position)
+      ? {
+          x: Number(vehicle.position.x),
+          y: Number(vehicle.position.y),
+          z: Number(vehicle.position.z),
+          dimension: vehicle.dimension
+        }
+      : null;
+    const positionElapsedMs = Math.max(0, now - record.lastPositionAt);
+    const previousPosition = record.lastPosition;
+    record.lastPosition = currentPosition;
+    record.lastPositionAt = now;
+    if (vehicle.engine === true && currentPosition && previousPosition &&
+        currentPosition.dimension === previousPosition.dimension && positionElapsedMs > 0) {
+      const distance = VehicleStats.distanceMeters(previousPosition, currentPosition);
+      const maxDistance = VehicleStats.MAX_TRACKED_SPEED_METERS_PER_SECOND *
+        positionElapsedMs / 1000;
+      if (distance !== null && distance > 0 && distance <= maxDistance) {
+        const previousDirtDecile = Math.floor(record.stats.dirtLevel * 10);
+        VehicleStats.addDistance(record.stats, distance);
+        vehicleAccountsDirty = true;
+        const dirtDecile = Math.floor(record.stats.dirtLevel * 10);
+        if (dirtDecile !== previousDirtDecile) {
+          broadcastVehicleDirt(vehicle, record);
+        }
+      }
+    }
+
+    const elapsed = Math.max(0, now - record.lastEngineTickAt);
+    record.lastEngineTickAt = now;
+    if (vehicle.engine !== true || elapsed === 0) return;
+
+    const previousFuel = record.fuel;
+    record.fuel = VehicleFuel.consumeFuel(record.fuel, elapsed, true);
+    if (record.fuel === previousFuel) return;
+    const account = accounts[record.accountKey];
+    if (!account) return;
+    VehicleFuel.setFuelForAccount(account, record.model, record.fuel);
+    vehicleAccountsDirty = true;
+    if (record.fuel <= 0) {
+      vehicle.engine = false;
+      mp.players.forEach((driver) => {
+        if (driver.vehicle === vehicle && driver.seat === -1) {
+          message(driver, 'Топливо закончилось. Заправь автомобиль на АЗС.');
+          vehicleFuelDisplayStates.delete(driver.id);
+        }
+      });
+    }
+  });
+
+  mp.players.forEach((player) => {
+    const vehicle = player.vehicle;
+    if (!vehicle || !mp.vehicles.exists(vehicle)) {
+      vehicleFuelDisplayStates.delete(player.id);
+      return;
+    }
+
+    const record = vehicleFuelRecords.get(vehicle);
+    if (!record || player.dimension !== vehicle.dimension) {
+      vehicleFuelDisplayStates.delete(player.id);
+      return;
+    }
+
+    const previousDisplay = vehicleFuelDisplayStates.get(player.id);
+    const fuelRounded = Math.round(record.fuel);
+    const engineOn = vehicle.engine === true;
+    const odometerTenths = Math.round(record.stats.odometerKm * 10);
+    const dirtDecile = Math.floor(record.stats.dirtLevel * 10);
+    if (!previousDisplay || previousDisplay.vehicle !== vehicle ||
+        previousDisplay.fuel !== fuelRounded || previousDisplay.engineOn !== engineOn ||
+        previousDisplay.odometerTenths !== odometerTenths ||
+        previousDisplay.dirtDecile !== dirtDecile) {
+      sendVehicleFuel(player, vehicle, record);
+      if (!previousDisplay || previousDisplay.vehicle !== vehicle) {
+        player.call('ragerp:vehicle:signals:update', [
+          vehicle.id,
+          JSON.stringify(record.signals)
+        ]);
+      }
+      vehicleFuelDisplayStates.set(player.id, {
+        vehicle,
+        fuel: fuelRounded,
+        engineOn,
+        odometerTenths,
+        dirtDecile
+      });
+    }
+
+  });
+
+  if (vehicleAccountsDirty && now - lastFuelAccountsSaveAt >= vehicleAccountsSaveIntervalMs) {
+    try {
+      saveAccounts();
+      lastFuelAccountsSaveAt = now;
+      vehicleAccountsDirty = false;
+    } catch (error) {
+      console.error('[RageRP vehicle] Could not persist vehicle state:', error);
+    }
+  }
 }
 
 const adminInitialization = Admin.initialize({
@@ -585,6 +773,7 @@ function summonStarterVehicle(player) {
 
     const starterVehicle = ensureStarterVehicle(account);
     existing.destroy();
+    unregisterVehicleFuel(existing);
     const respawned = mp.vehicles.new(
       mp.joaat(starterVehicle.model),
       new mp.Vector3(parkingSpot.x, parkingSpot.y, parkingSpot.z),
@@ -603,6 +792,7 @@ function summonStarterVehicle(player) {
     }
 
     spawnedStarterVehicles.set(key, respawned);
+    registerVehicleFuel(respawned, key, starterVehicle.model);
     player.call('ragerp:phone:waypoint', [JSON.stringify({
       x: parkingSpot.x,
       y: parkingSpot.y
@@ -671,6 +861,7 @@ function summonStarterVehicle(player) {
   }
 
   spawnedStarterVehicles.set(key, vehicle);
+  registerVehicleFuel(vehicle, key, starterVehicle.model);
   player.call('ragerp:phone:waypoint', [JSON.stringify({
     x: parkingSpot.x,
     y: parkingSpot.y
@@ -1349,6 +1540,8 @@ function showHelp(player) {
   message(player, '/conviction <статик ID> <месяцев> <причина> — добавить приговор (для разрешённых ID)');
   message(player, 'Телефон: стрелка вверх или Tab. Доступны SMS, банк, GPS, такси и объявления.');
   message(player, 'Автосалон: нажми E у отметки в городе, чтобы посмотреть каталог машин.');
+  message(player, 'Машина: двигатель 2, замок L, радио Q; поворотники [ ] и аварийка \\. Заправка — E у АЗС.');
+  message(player, 'Администраторам: /bmwm5g90 — создать тестовый BMW M5 рядом с собой.');
   message(player, 'Тестовая карта: /maptest — перейти к пилоту Тулы. HUD: /hudtest — проверить уведомление.');
 }
 
@@ -1502,6 +1695,54 @@ function handleCommand(player, command) {
   const parts = String(command || '').trim().replace(/^\/+/, '').split(/\s+/);
   const name = (parts.shift() || '').toLowerCase();
   const args = parts;
+
+  if (name === 'bmwm5g90') {
+    if (!requireCharacter(player)) return;
+    if (!adminIsAuthorized(player)) {
+      message(player, 'Доступ к тестовому автомобилю запрещён.');
+      return;
+    }
+    if (player.vehicle) {
+      message(player, 'Выйди из текущей машины перед тестовым спавном.');
+      return;
+    }
+    if (!isValidPosition(player.position)) {
+      message(player, 'Не удалось определить позицию для тестового спавна.');
+      return;
+    }
+
+    const heading = Number(player.heading) || 0;
+    const radians = heading * Math.PI / 180;
+    const position = new mp.Vector3(
+      Number(player.position.x) - Math.sin(radians) * 5,
+      Number(player.position.y) + Math.cos(radians) * 5,
+      Number(player.position.z) + 0.3
+    );
+    const vehicle = mp.vehicles.new(mp.joaat('bmwm5g90'), position, {
+      heading,
+      dimension: player.dimension,
+      numberPlate: 'TESTM5',
+      locked: false,
+      engine: false
+    });
+    if (!vehicle) {
+      message(player, 'RAGE:MP не смог создать BMW M5. Проверь загрузку vehicle DLC.');
+      return;
+    }
+
+    const previousVehicle = adminTestVehicles.get(player.id);
+    if (previousVehicle && mp.vehicles.exists(previousVehicle)) {
+      previousVehicle.destroy();
+      unregisterVehicleFuel(previousVehicle);
+    }
+    adminTestVehicles.set(player.id, vehicle);
+    const account = getAccount(player);
+    registerVehicleFuel(vehicle, sessions.get(player.id), 'bmwm5g90');
+    Admin.recordLog('admin_online', 'test_vehicle_spawn', ensureStaticId(account), null,
+      'Создан тестовый BMW M5 G90.');
+    message(player, 'Тестовый BMW M5 G90 создан рядом.');
+    return;
+  }
 
   if (name === 'admin') {
     if (!requireCharacter(player)) return;
@@ -2064,7 +2305,19 @@ mp.events.add('ragerp:vehicle:toggle-engine', (player) => {
     return;
   }
 
+  const fuelRecord = vehicleFuelRecords.get(vehicle);
+  if (!vehicle.engine && fuelRecord && fuelRecord.fuel <= 0) {
+    message(player, 'Топливо закончилось. Заправь автомобиль на АЗС.');
+    sendVehicleFuel(player, vehicle, fuelRecord);
+    return;
+  }
+
   vehicle.engine = !vehicle.engine;
+  if (fuelRecord) {
+    fuelRecord.lastEngineTickAt = Date.now();
+    sendVehicleFuel(player, vehicle, fuelRecord);
+    vehicleFuelDisplayStates.delete(player.id);
+  }
   message(player, vehicle.engine ? 'Двигатель запущен.' : 'Двигатель заглушён.');
 });
 
@@ -2081,6 +2334,173 @@ mp.events.add('ragerp:vehicle-passport:share-to', (player, targetId) => {
     return;
   }
   requestVehiclePassportShare(player, target);
+});
+
+mp.events.add('ragerp:vehicle:service', (player) => {
+  if (!characterFor(player) || player.dimension !== 0 ||
+      openPhones.has(player.id) || openInventories.has(player.id) ||
+      openDealerships.has(player.id)) return;
+
+  const now = Date.now();
+  const lastAttempt = vehicleRefuelCooldowns.get(player.id) || 0;
+  if (now - lastAttempt < 1500) return;
+  vehicleRefuelCooldowns.set(player.id, now);
+
+  const vehicle = player.vehicle;
+  if (!vehicle) {
+    message(player, 'Сядь в автомобиль, чтобы заправиться или помыть его.');
+    return;
+  }
+  if (player.seat !== -1) {
+    message(player, 'Обслуживать автомобиль может только водитель.');
+    return;
+  }
+  const record = vehicleFuelRecords.get(vehicle);
+  if (!record) {
+    message(player, 'Обслуживание доступно только для стартовой Blista и тестового BMW M5.');
+    return;
+  }
+  if (!VehicleFuel.isAccountOwner(sessions.get(player.id), record.accountKey)) {
+    message(player, 'Обслуживать этот автомобиль может только его владелец.');
+    return;
+  }
+  if (vehicle.engine === true) {
+    message(player, 'Заглуши двигатель перед обслуживанием.');
+    return;
+  }
+
+  const account = accounts[record.accountKey];
+  const character = account && account.character;
+  if (!character) return;
+  const cash = Number(character.cash);
+
+  if (VehicleStats.isNearCarWash(player.position)) {
+    if (record.stats.dirtLevel <= 0) {
+      message(player, 'Автомобиль уже чистый.');
+      return;
+    }
+    const quote = VehicleStats.washQuote(cash);
+    if (!quote) {
+      message(player, 'Не удалось проверить наличные для оплаты мойки.');
+      return;
+    }
+    if (!quote.affordable) {
+      message(player, `Недостаточно наличных. Мойка стоит ${formatMoney(quote.cost)}.`);
+      return;
+    }
+
+    const previousCash = character.cash;
+    const previousDirt = record.stats.dirtLevel;
+    character.cash = cash - quote.cost;
+    VehicleStats.setDirtLevel(record.stats, 0);
+    try {
+      saveAccounts();
+      lastFuelAccountsSaveAt = now;
+      vehicleAccountsDirty = false;
+    } catch (error) {
+      character.cash = previousCash;
+      VehicleStats.setDirtLevel(record.stats, previousDirt);
+      console.error('[RageRP vehicle] Could not save car wash transaction:', error);
+      message(player, 'Мойка отменена: не удалось сохранить оплату. Попробуй позже.');
+      return;
+    }
+
+    broadcastVehicleDirt(vehicle, record);
+    vehicleFuelDisplayStates.delete(player.id);
+    sendVehicleFuel(player, vehicle, record);
+    message(player, `Автомобиль помыт. Списано ${formatMoney(quote.cost)}.`);
+    updateHud(player);
+    return;
+  }
+
+  if (!VehicleFuel.isNearGasStation(player.position)) {
+    message(player, 'Подъедь к стандартной АЗС или автомойке GTA V.');
+    return;
+  }
+
+  const quote = VehicleFuel.refillQuote(record.fuel, cash);
+  if (!quote) {
+    message(player, 'Не удалось проверить наличные для оплаты топлива.');
+    return;
+  }
+  if (quote.amount <= 0) {
+    message(player, 'Топливный бак уже полон.');
+    return;
+  }
+  if (!quote.affordable) {
+    message(player, `Недостаточно наличных. Заправка стоит ${formatMoney(quote.cost)}.`);
+    return;
+  }
+
+  const previousCash = character.cash;
+  const previousFuel = record.fuel;
+  character.cash = cash - quote.cost;
+  record.fuel = VehicleFuel.setFuelForAccount(account, record.model, 100);
+  try {
+    saveAccounts();
+    lastFuelAccountsSaveAt = now;
+    vehicleAccountsDirty = false;
+  } catch (error) {
+    character.cash = previousCash;
+    record.fuel = previousFuel;
+    VehicleFuel.setFuelForAccount(account, record.model, previousFuel);
+    console.error('[RageRP vehicle] Could not save refueling transaction:', error);
+    message(player, 'Заправка отменена: не удалось сохранить оплату. Попробуй позже.');
+    return;
+  }
+
+  vehicleFuelDisplayStates.delete(player.id);
+  sendVehicleFuel(player, vehicle, record);
+  message(player, `Заправлено ${quote.amount.toLocaleString('ru-RU')}%. Списано ${formatMoney(quote.cost)}.`);
+  updateHud(player);
+});
+
+mp.events.add('ragerp:vehicle:stats:request', (player, vehicleIdValue) => {
+  const vehicleId = Number(vehicleIdValue);
+  if (!Number.isInteger(vehicleId)) return;
+  const now = Date.now();
+  let playerRequests = vehicleStatsRequestCooldowns.get(player.id);
+  if (!playerRequests) {
+    playerRequests = new Map();
+    vehicleStatsRequestCooldowns.set(player.id, playerRequests);
+  }
+  const lastRequest = playerRequests.get(vehicleId) || 0;
+  if (now - lastRequest < 500) return;
+  playerRequests.set(vehicleId, now);
+  trackedFuelVehicles.forEach((record, vehicle) => {
+    if (Number(vehicle.id) !== vehicleId ||
+        !mp.vehicles.exists(vehicle) || player.dimension !== vehicle.dimension) return;
+    const distance = VehicleStats.distanceMeters(player.position, vehicle.position);
+    if (distance === null || distance > 250) return;
+    player.call('ragerp:vehicle:dirt:update', [vehicle.id, record.stats.dirtLevel]);
+  });
+});
+
+mp.events.add('ragerp:vehicle:signals:set', (player, signal) => {
+  if (typeof signal !== 'string' ||
+      !['left', 'right', 'hazards'].includes(signal) ||
+      !characterFor(player) || player.dimension !== 0) return;
+  const vehicle = player.vehicle;
+  if (!vehicle || player.seat !== -1) return;
+  const record = vehicleFuelRecords.get(vehicle);
+  if (!record) return;
+  const now = Date.now();
+  const lastSignalChange = vehicleSignalCooldowns.get(player.id) || 0;
+  if (now - lastSignalChange < 250) return;
+  vehicleSignalCooldowns.set(player.id, now);
+
+  if (signal === 'hazards') {
+    const enabled = !record.signals.hazards;
+    record.signals = { left: false, right: false, hazards: enabled };
+  } else {
+    const enabled = !record.signals[signal] || record.signals.hazards;
+    record.signals = {
+      left: signal === 'left' && enabled,
+      right: signal === 'right' && enabled,
+      hazards: false
+    };
+  }
+  broadcastVehicleSignals(vehicle, record);
 });
 
 mp.events.add('ragerp:phone:action', (player, action, payload) => {
@@ -2730,6 +3150,12 @@ mp.events.add('ragerp:admin:action', (player, payload) => {
 
 mp.events.add('playerQuit', (player) => {
   const playtimeUpdated = checkpointPlayerPlaytime(player, Date.now());
+  const adminTestVehicle = adminTestVehicles.get(player.id);
+  if (adminTestVehicle && mp.vehicles.exists(adminTestVehicle)) {
+    adminTestVehicle.destroy();
+    unregisterVehicleFuel(adminTestVehicle);
+  }
+  adminTestVehicles.delete(player.id);
   const account = getAccount(player);
   if (account && account.character) {
     Admin.recordLog('auth_logs', 'player_disconnected', null,
@@ -2766,13 +3192,20 @@ mp.events.add('playerQuit', (player) => {
   vehicleCallCooldowns.delete(player.id);
   vehiclePassportShareCooldowns.delete(player.id);
   vehicleLockCooldowns.delete(player.id);
+  vehicleRefuelCooldowns.delete(player.id);
+  vehicleStatsRequestCooldowns.delete(player.id);
+  vehicleSignalCooldowns.delete(player.id);
+  vehicleFuelDisplayStates.delete(player.id);
   hudNotifications.delete(player.id);
   playtimeCheckpointAt.delete(player.id);
   broadcastHudOnlineCount(player.id);
   if (!key) return;
 
   const starterVehicle = spawnedStarterVehicles.get(key);
-  if (starterVehicle && mp.vehicles.exists(starterVehicle)) starterVehicle.destroy();
+  if (starterVehicle && mp.vehicles.exists(starterVehicle)) {
+    starterVehicle.destroy();
+    unregisterVehicleFuel(starterVehicle);
+  }
   spawnedStarterVehicles.delete(key);
 
   const accountFromKey = accounts[key];
@@ -2837,3 +3270,4 @@ setInterval(() => {
 }, 60000);
 
 setInterval(updateVoiceRoutes, 1000);
+setInterval(updateVehicleFuel, 1000);

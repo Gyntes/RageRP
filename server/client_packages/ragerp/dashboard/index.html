@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RageRP — спидометр</title>
+  <link rel="stylesheet" href="style.css?v=20261128-5">
+</head>
+<body>
+  <main class="dashboard" id="dashboard" aria-label="Спидометр автомобиля" hidden>
+    <section class="cluster" id="cluster" aria-label="Приборная панель">
+      <svg class="gauge-arc" viewBox="0 0 280 190" aria-hidden="true">
+        <path class="arc-track" d="M 40 158 A 101 101 0 1 1 240 158" />
+        <path class="fuel-arc" id="fuel-arc" pathLength="100" d="M 240 158 A 101 101 0 1 0 40 158" />
+      </svg>
+      <div class="gauge-heading">
+        <span class="signal" id="signal-left-state" aria-hidden="true">‹</span>
+        <span class="gear" id="gear">P</span>
+        <span class="signal" id="signal-right-state" aria-hidden="true">›</span>
+      </div>
+      <div class="speed">
+        <strong id="speed">0</strong>
+        <span>КМ/Ч</span>
+      </div>
+      <div class="engine-state" id="engine-state">ДВИГАТЕЛЬ ВЫКЛ.</div>
+      <div class="rpm-readout">
+        <span id="rpm-value">0 об/мин</span>
+        <span class="rpm-track" role="meter" aria-label="Обороты двигателя" aria-valuemin="0" aria-valuemax="8000" aria-valuenow="0">
+          <span id="rpm-bar"></span>
+        </span>
+      </div>
+      <div class="vehicle-details">
+        <div class="vehicle-condition" role="meter" aria-label="Загрязнение автомобиля: 0 из 15" aria-valuemin="0" aria-valuemax="15">
+          <span class="condition-icon" aria-hidden="true">✦</span>
+          <strong id="dirt-value">0</strong>
+          <small>ЗАГРЯЗНЕНИЕ</small>
+        </div>
+        <div class="odometer">
+          <strong id="odometer">0000000.0</strong>
+          <small>КМ</small>
+        </div>
+        <div class="fuel-readout" role="meter" aria-label="Уровень топлива: 100%" aria-valuemin="0" aria-valuemax="100">
+          <span class="fuel-icon" aria-hidden="true">▰</span>
+          <strong id="fuel-value">100%</strong>
+          <small>ТОПЛИВО</small>
+        </div>
+      </div>
+      <div class="indicator-controls">
+        <button class="indicator-button" id="signal-left" type="button" aria-label="Включить левый указатель поворота" aria-pressed="false">‹</button>
+        <span class="status-light" id="check-engine" role="status" aria-label="Check Engine: не горит"><i aria-hidden="true"></i>CHECK</span>
+        <button class="status-light" id="hazard-status" type="button" aria-label="Включить аварийную сигнализацию" aria-pressed="false">HAZARD</button>
+        <button class="indicator-button" id="signal-right" type="button" aria-label="Включить правый указатель поворота" aria-pressed="false">›</button>
+      </div>
+      <div class="service-hint">АЗС · МОЙКА 500 ₽ · E</div>
+    </section>
+  </main>
+  <script src="logic.js?v=20261128-5"></script>
+  <script src="app.js?v=20261128-5"></script>
+</body>
+</html>

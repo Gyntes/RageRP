@@ -47,6 +47,32 @@ let hudVisible = false;
 let hudNotificationOpen = false;
 let hudNotificationId = '';
 let hudNotificationPayload = null;
+let dashboardBrowser = null;
+let dashboardBrowserReady = false;
+let dashboardVisible = false;
+let dashboardVehicleId = null;
+let dashboardLastRenderAt = 0;
+let dashboardSignalLastPressedAt = 0;
+const dashboardFuelStates = new Map();
+const dashboardSignalStates = new Map();
+const dashboardNativeErrors = new Set();
+function joaatHash(value) {
+  const text = String(value).toLowerCase();
+  let hash = 0;
+  for (let index = 0; index < text.length; index += 1) {
+    hash += text.charCodeAt(index);
+    hash += hash << 10;
+    hash ^= hash >>> 6;
+  }
+  hash += hash << 3;
+  hash ^= hash >>> 11;
+  hash += hash << 15;
+  return hash >>> 0;
+}
+const dashboardSupportedModels = new Set([
+  joaatHash('blista'),
+  joaatHash('bmwm5g90')
+]);
 const clientSettings = {
   general: {
     showHud: true,
@@ -101,6 +127,152 @@ function executeHud(method, payload) {
   hudBrowser.execute(
     `window.ragerpHud && window.ragerpHud.${method}(${JSON.stringify(payload)})`
   );
+}
+
+function executeDashboard(method, payload) {
+  if (!dashboardBrowser || !dashboardBrowserReady) return;
+  dashboardBrowser.execute(
+    `window.ragerpDashboard && window.ragerpDashboard.${method}(${JSON.stringify(payload)})`
+  );
+}
+
+function dashboardModelSupported(vehicle) {
+  return Boolean(vehicle && dashboardSupportedModels.has(Number(vehicle.model) >>> 0));
+}
+
+function dashboardVehicleRemoteId(vehicle) {
+  const remoteId = Number(vehicle && vehicle.remoteId);
+  if (Number.isInteger(remoteId)) return remoteId;
+  const id = Number(vehicle && vehicle.id);
+  return Number.isInteger(id) ? id : null;
+}
+
+function dashboardVehicleIsTracked(vehicle) {
+  const vehicleId = dashboardVehicleRemoteId(vehicle);
+  return dashboardModelSupported(vehicle) &&
+    vehicleId !== null && dashboardFuelStates.has(vehicleId);
+}
+
+function setDashboardVisible(visible) {
+  dashboardVisible = visible === true;
+  if (dashboardVisible && !dashboardBrowser) {
+    dashboardBrowserReady = false;
+    dashboardBrowser = mp.browsers.new('package://ragerp/dashboard/index.html');
+  }
+  executeDashboard('setVisible', dashboardVisible);
+}
+
+function getDashboardNativeValue(hash, handle, fallback) {
+  try {
+    const value = Number(mp.game.invoke(hash, handle));
+    return Number.isFinite(value) ? value : fallback;
+  } catch (error) {
+    if (!dashboardNativeErrors.has(hash)) {
+      dashboardNativeErrors.add(hash);
+      console.error('[RageRP dashboard] Could not read vehicle telemetry:', error);
+    }
+    return fallback;
+  }
+}
+
+function syncVehicleDashboard() {
+  const player = mp.players.local;
+  const vehicle = player && player.vehicle;
+  if (!dashboardModelSupported(vehicle)) {
+    if (dashboardVisible) setDashboardVisible(false);
+    if (dashboardVehicleId !== null) {
+      dashboardFuelStates.delete(dashboardVehicleId);
+      dashboardSignalStates.delete(dashboardVehicleId);
+    }
+    dashboardVehicleId = null;
+    return;
+  }
+
+  const vehicleId = dashboardVehicleRemoteId(vehicle);
+  if (vehicleId === null) return;
+  if (!dashboardFuelStates.has(vehicleId)) {
+    if (dashboardVisible) setDashboardVisible(false);
+    if (dashboardVehicleId !== null && dashboardVehicleId !== vehicleId) {
+      dashboardFuelStates.delete(dashboardVehicleId);
+      dashboardSignalStates.delete(dashboardVehicleId);
+    }
+    dashboardVehicleId = null;
+    return;
+  }
+  if (!dashboardVisible || dashboardVehicleId !== vehicleId) {
+    if (dashboardVehicleId !== null && dashboardVehicleId !== vehicleId) {
+      dashboardFuelStates.delete(dashboardVehicleId);
+      dashboardSignalStates.delete(dashboardVehicleId);
+    }
+    dashboardVehicleId = vehicleId;
+    setDashboardVisible(true);
+    dashboardLastRenderAt = 0;
+  }
+  if (!dashboardBrowserReady || Date.now() - dashboardLastRenderAt < 100) return;
+  dashboardLastRenderAt = Date.now();
+
+  const metersPerSecond = getDashboardNativeValue(
+    '0xD4C4642CB7F50B5D',
+    vehicle.handle,
+    0
+  );
+  const rpm = getDashboardNativeValue('0xE7B12B54', vehicle.handle, 0);
+  const currentGear = Math.round(getDashboardNativeValue('0xB4F4E566', vehicle.handle, 0));
+  const engineHealth = getDashboardNativeValue('0xC45D23BAF168AAB8', vehicle.handle, 1000);
+  const engineOn = getDashboardNativeValue('0xAE31E7DF9B5B132E', vehicle.handle, 0) === 1;
+  const fuelState = dashboardFuelStates.get(vehicleId) || {};
+  const indicators = dashboardSignalStates.get(vehicleId) || {};
+  executeDashboard('update', {
+    speed: Math.max(0, metersPerSecond * 3.6),
+    rpm: Math.max(0, Math.min(1, rpm)),
+    gear: currentGear > 0 ? String(currentGear) : engineOn ? 'N' : 'P',
+    engineHealth,
+    engineOn,
+    fuel: fuelState.fuel,
+    model: fuelState.model,
+    odometerKm: fuelState.odometerKm,
+    dirtLevel: fuelState.dirtLevel,
+    indicators
+  });
+}
+
+function requestDashboardSignal(signal) {
+  if (!dashboardVisible || !mp.players.local || !mp.players.local.vehicle ||
+      !dashboardVehicleIsTracked(mp.players.local.vehicle) ||
+      mp.players.local.seat !== -1 ||
+      radioOpen || phoneOpen || inventoryOpen || dealershipOpen ||
+      registrationOpen || settingsOpen || hudNotificationOpen) return;
+  const now = Date.now();
+  if (now - dashboardSignalLastPressedAt < 250) return;
+  dashboardSignalLastPressedAt = now;
+  mp.events.callRemote('ragerp:vehicle:signals:set', signal);
+}
+
+function applyVehicleSignalState(vehicle, state) {
+  if (!vehicle || !state || typeof state !== 'object') return;
+  const left = state.left === true || state.hazards === true;
+  const right = state.right === true || state.hazards === true;
+  try {
+    mp.game.invoke('0xB5D45264751B7DF0', vehicle.handle, 0, left);
+    mp.game.invoke('0xB5D45264751B7DF0', vehicle.handle, 1, right);
+  } catch (error) {
+    console.error('[RageRP dashboard] Could not apply vehicle indicators:', error);
+  }
+}
+
+function applyVehicleDirtLevel(vehicle, value) {
+  const dirtLevel = Number(value);
+  if (!dashboardModelSupported(vehicle) || !Number.isFinite(dirtLevel) ||
+      dirtLevel < 0 || dirtLevel > 15) return;
+  try {
+    mp.game.invoke('0x79D3B596FE44EE8B', vehicle.handle, dirtLevel);
+  } catch (error) {
+    const nativeHash = '0x79D3B596FE44EE8B';
+    if (!dashboardNativeErrors.has(nativeHash)) {
+      dashboardNativeErrors.add(nativeHash);
+      console.error('[RageRP vehicle] Could not apply vehicle dirt level:', error);
+    }
+  }
 }
 
 function mergeHudState(update) {
@@ -682,8 +854,14 @@ function dealershipIsNearby(maxDistance) {
 function requestDealershipOpen() {
   if (dealershipOpen || phoneOpen || inventoryOpen || registrationOpen ||
       settingsOpen || hudNotificationOpen || playerInteractionOpen ||
-      !dealershipIsNearby(dealershipInteractionRadius) ||
-      (mp.players.local && mp.players.local.vehicle)) return;
+      currentPhoneCall || radioOpen) return;
+  if (mp.players.local && mp.players.local.vehicle) {
+    if (dashboardVehicleIsTracked(mp.players.local.vehicle)) {
+      mp.events.callRemote('ragerp:vehicle:service');
+    }
+    return;
+  }
+  if (!dealershipIsNearby(dealershipInteractionRadius)) return;
   mp.events.callRemote('ragerp:dealership:request-open');
 }
 
@@ -1081,6 +1259,9 @@ mp.keys.bind(0x45, false, requestPlayerInteraction);
 mp.keys.bind(0x1B, false, () => {
   if (playerInteractionOpen) closePlayerInteraction();
 });
+mp.keys.bind(0xDB, false, () => requestDashboardSignal('left'));
+mp.keys.bind(0xDD, false, () => requestDashboardSignal('right'));
+mp.keys.bind(0xDC, false, () => requestDashboardSignal('hazards'));
 mp.keys.bind(0x51, false, openRadioWheel);
 mp.keys.bind(0x51, true, closeRadioWheel);
 
@@ -1139,6 +1320,10 @@ mp.events.add('browserDomReady', (browser) => {
     if (hudNotificationPayload) {
       executeHud('showNotification', hudNotificationPayload);
     }
+  } else if (browser === dashboardBrowser) {
+    dashboardBrowserReady = true;
+    executeDashboard('setVisible', dashboardVisible);
+    syncVehicleDashboard();
   }
 });
 
@@ -1220,6 +1405,72 @@ mp.events.add('ragerp:hud:notification', (payload) => {
 
 mp.events.add('ragerp:hud:answer', (answer) => {
   if (answer === 'accept' || answer === 'decline') answerHudNotification(answer);
+});
+
+mp.events.add('ragerp:vehicle:fuel:update', (vehicleIdValue, payload) => {
+  const vehicleId = Number(vehicleIdValue);
+  if (!Number.isInteger(vehicleId) || typeof payload !== 'string' || payload.length > 256) return;
+  let state;
+  try {
+    state = JSON.parse(payload);
+  } catch (error) {
+    console.error('[RageRP dashboard] Could not parse fuel state:', error);
+    return;
+  }
+  if (!state || typeof state !== 'object' ||
+      typeof state.fuel !== 'number' || !Number.isFinite(state.fuel) ||
+      state.fuel < 0 || state.fuel > 100 ||
+      typeof state.odometerKm !== 'number' || !Number.isFinite(state.odometerKm) ||
+      state.odometerKm < 0 ||
+      typeof state.dirtLevel !== 'number' || !Number.isFinite(state.dirtLevel) ||
+      state.dirtLevel < 0 || state.dirtLevel > 15 ||
+      typeof state.engineOn !== 'boolean' ||
+      !['blista', 'bmwm5g90'].includes(state.model)) return;
+  dashboardFuelStates.set(vehicleId, state);
+  const vehicle = mp.players.local && mp.players.local.vehicle;
+  if (dashboardVehicleRemoteId(vehicle) === vehicleId) {
+    applyVehicleDirtLevel(vehicle, state.dirtLevel);
+  }
+});
+
+mp.events.add('ragerp:vehicle:dirt:update', (vehicleIdValue, dirtLevelValue) => {
+  const vehicleId = Number(vehicleIdValue);
+  const dirtLevel = Number(dirtLevelValue);
+  if (!Number.isInteger(vehicleId) || !Number.isFinite(dirtLevel) ||
+      dirtLevel < 0 || dirtLevel > 15 ||
+      !mp.vehicles || typeof mp.vehicles.atRemoteId !== 'function') return;
+  const vehicle = mp.vehicles.atRemoteId(vehicleId);
+  if (vehicle) applyVehicleDirtLevel(vehicle, dirtLevel);
+  const fuelState = dashboardFuelStates.get(vehicleId);
+  if (fuelState) fuelState.dirtLevel = dirtLevel;
+});
+
+mp.events.add('ragerp:vehicle:signals:update', (vehicleIdValue, payload) => {
+  const vehicleId = Number(vehicleIdValue);
+  if (!Number.isInteger(vehicleId) || typeof payload !== 'string' || payload.length > 128) return;
+  let state;
+  try {
+    state = JSON.parse(payload);
+  } catch (error) {
+    console.error('[RageRP dashboard] Could not parse indicator state:', error);
+    return;
+  }
+  if (!state || typeof state !== 'object' ||
+      typeof state.left !== 'boolean' || typeof state.right !== 'boolean' ||
+      typeof state.hazards !== 'boolean') return;
+
+  dashboardSignalStates.set(vehicleId, state);
+  if (dashboardSignalStates.size > 128) {
+    const oldestVehicleId = dashboardSignalStates.keys().next().value;
+    dashboardSignalStates.delete(oldestVehicleId);
+  }
+  if (!mp.vehicles || typeof mp.vehicles.atRemoteId !== 'function') return;
+  const vehicle = mp.vehicles.atRemoteId(vehicleId);
+  if (vehicle) applyVehicleSignalState(vehicle, state);
+});
+
+mp.events.add('ragerp:dashboard:signal', (signal) => {
+  if (['left', 'right', 'hazards'].includes(signal)) requestDashboardSignal(signal);
 });
 
 mp.events.add('ragerp:registration:request-drawables', () => {
@@ -1309,8 +1560,20 @@ mp.events.add('ragerp:phone:call:state', (payload) => {
   showPhoneCallUi(state);
 });
 
-mp.events.add('entityStreamIn', () => {
+mp.events.add('entityStreamIn', (entity) => {
   updatePhoneCallVoiceTarget();
+  const vehicleId = dashboardVehicleRemoteId(entity);
+  if (vehicleId === null || !mp.vehicles ||
+      typeof mp.vehicles.atRemoteId !== 'function') return;
+  const vehicle = mp.vehicles.atRemoteId(vehicleId);
+  if (!vehicle || vehicle !== entity) return;
+  if (dashboardModelSupported(vehicle)) {
+    mp.events.callRemote('ragerp:vehicle:stats:request', vehicleId);
+    const fuelState = dashboardFuelStates.get(vehicleId);
+    if (fuelState) applyVehicleDirtLevel(vehicle, fuelState.dirtLevel);
+  }
+  const signalState = dashboardSignalStates.get(vehicleId);
+  if (signalState) applyVehicleSignalState(vehicle, signalState);
 });
 
 mp.events.add('ragerp:phone:call:answer-request', (callId, accepted) => {
@@ -1411,6 +1674,7 @@ mp.events.add('ragerp:radio:error', handleRadioError);
 
 mp.events.add('render', () => {
   syncRadioVehicleState();
+  syncVehicleDashboard();
   mp.game.ui.hideHudComponentThisFrame(16);
 
   if (phoneOpen || inventoryOpen || dealershipOpen || settingsOpen ||

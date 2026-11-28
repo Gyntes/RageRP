@@ -1,0 +1,68 @@
+BMW M5 G90 2025 - procedural Blender model
+
+Status
+------
+This is an original, manually generated proportions-based base model.
+It is not a source-CAD, scan-derived or photogrammetry model.
+It is suitable as a first-pass Blender/GTA asset and preview mesh,
+but it requires a second high-detail pass for exact production accuracy.
+
+Approximate real-world dimensions
+---------------------------------
+Length: 5096 mm
+Width: 1981 mm
+Height: 1510 mm
+Wheelbase: 3006 mm
+
+Scene scale
+-----------
+Blender units: metres
+Overall lower-body width: 1.99 m
+Overall lower-body length: 5.10 m
+Main object count: 152
+Mesh object count: 149
+
+Configured theme
+----------------
+Exterior: Carbon Black Metallic
+Interior: Black Merino leather
+Wheels: 20/21-inch forged-style M wheels
+Calipers: M blue
+
+Collections
+-----------
+Exterior
+Wheels
+Interior
+
+Included details
+----------------
+- Carbon-black body shell
+- M-style bumper and kidney grilles
+- Split LED headlight approximations
+- Red rear light approximations
+- Dual exhaust exits
+- Side skirts and door handles
+- Window glazing and chrome trim
+- Mirrors
+- Four wheel assemblies
+- Brake discs and M-blue calipers
+- Black leather seats
+- Dashboard and dual display approximations
+- Steering wheel
+- Center console
+- Engine bay cover and coil covers
+- Studio ground and preview camera
+
+RAGE:MP/FiveM production requirements
+--------------------------------------
+The generated universal model is not an in-game GTA vehicle yet.
+Production GTA conversion still requires:
+- GTA LOD hierarchy
+- GTA collision mesh
+- Named dummy nodes
+- Vehicle flags and handling
+- Realistic wheel, door and bonnet pivot transforms
+- UV/texture baking
+- GTA-compatible YDR/FIVEM resource package
+- Platform-specific export workflow

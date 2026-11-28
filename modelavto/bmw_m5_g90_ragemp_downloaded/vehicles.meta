@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CVehicleModelInfo__InitDataList>
+  <InitDatas>
+    <Item>
+      <modelName>bmwm5g90</modelName>
+      <txdName>bmwm5g90</txdName>
+      <handlingId>bmwm5g90</handlingId>
+      <gameName>BMWM5G90</gameName>
+      <vehicleMakeName>BMW</vehicleMakeName>
+      <expressionDictName>null</expressionDictName>
+      <animConvRoofDictName>null</animConvRoofDictName>
+      <animConvRoofName>null</animConvRoofName>
+      <animConvRoofWindowsAffectedName>null</animConvRoofWindowsAffectedName>
+      <ptfxAssetName>null</ptfxAssetName>
+      <audioNameHash>schlagen</audioNameHash>
+      <layout>LAYOUT_STD_HIGHWINDOW</layout>
+      <class>VC_SEDAN</class>
+      <secondaryClass>VC_SPORT</secondaryClass>
+      <seats value="5"/>
+      <seatBoneName>seat_dside_f</seatBoneName>
+      <spawnBoneName>chassis</spawnBoneName>
+      <trailers />
+      <additionalTrailers />
+      <doorsWithCollision />
+      <drivetrain>DT_AWD</drivetrain>
+      <modelFlags>0x44010010</modelFlags>
+      <handlingFlags>0x0</handlingFlags>
+      <damageFlags>0x0</damageFlags>
+      <aiHandling>SPORT</aiHandling>
+    </Item>
+  </InitDatas>
+</CVehicleModelInfo__InitDataList>

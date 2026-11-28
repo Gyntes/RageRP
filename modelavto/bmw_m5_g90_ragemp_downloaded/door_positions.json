@@ -1,0 +1,9 @@
+{
+  "model": "bmwm5g90",
+  "door_dside_f": {"position": [-0.99, 0.78, 1.02], "open_angle_deg": 68, "hinge_axis": "Y"},
+  "door_pside_f": {"position": [0.99, 0.78, 1.02], "open_angle_deg": 68, "hinge_axis": "Y"},
+  "door_dside_r": {"position": [-0.99, -0.72, 1.02], "open_angle_deg": 62, "hinge_axis": "Y"},
+  "door_pside_r": {"position": [0.99, -0.72, 1.02], "open_angle_deg": 62, "hinge_axis": "Y"},
+  "bonnet": {"position": [0.0, 1.92, 1.16], "open_angle_deg": 58, "hinge_axis": "X"},
+  "boot": {"position": [0.0, -1.78, 1.15], "open_angle_deg": 48, "hinge_axis": "X"}
+}

@@ -1,0 +1,53 @@
+BMW M5 G90 2025 - RAGE:MP test build
+
+Ready-to-stage files
+--------------------
+- Vehicle fragment: bmw_m5_g90_yft_build\stream\gen8\bmwm5g90.yft
+- Server DLC: server\client_packages\game_resources\dlcpacks\bmwm5g90\dlc.rpf
+- Test command: /bmwm5g90 (authorized administrators only)
+
+The vehicle is exported as a GTA V YFT fragment. YDR is a drawable format and
+does not replace the vehicle fragment format needed by a drivable vehicle.
+The RPF contains content.xml, setup2.xml, vehicles.meta, handling.meta, and
+the vehicle RPF with bmwm5g90.yft. The YFT round-trip check found 18 bones,
+11 physics groups, four wheel drawables, six panel drawables, one skinned
+steering-wheel drawable, 29 embedded textures, and 34 geometry entries.
+
+Local test procedure
+--------------------
+1. Copy the project server files to a local or staging RAGE:MP server.
+2. Start that test server and connect with an authorized administrator account.
+3. Use /bmwm5g90 to spawn the BMW nearby. Repeating the command replaces the
+   previous test car for that administrator; disconnecting removes it.
+4. Check model orientation, materials, wheel motion, collision, all six
+   movable panels, and steering-wheel rotation in the game client.
+
+Do not use the test command on production before validating the DLC with a
+local RAGE:MP client/server. No production server was started or modified.
+
+Known limitations
+-----------------
+- The exporter separates door, bonnet, and boot geometry heuristically from
+  the downloaded source mesh; inspect panel seams and glass/mirror attachment
+  in-game before treating the asset as final.
+- Standard wheel, panel, and steeringwheel bones are present; none of their
+  animations have been confirmed in a RAGE:MP client. The JSON hinge file is
+  reference-only; custom bonnet/boot interaction logic is not included.
+- Panel and wheel collision uses simple box bounds; it is intended for testing
+  and may need tuning against the vehicle in-game.
+- The YFT has a single high-detail drawable LOD and has not been tested in-game.
+- The instrument cluster and center display use the source model's static
+  emissive texture; live readings are shown by the separate CEF dashboard.
+- door_positions.json records the exported hinge pivots and axes for reference;
+  RAGE:MP does not consume this JSON file.
+- The exporter rotates the source root 180 degrees around Z because the source
+  model faces negative Y while GTA vehicle coordinates expect the front at +Y.
+
+Rebuilding the DLC
+------------------
+Run build_bmw_m5_g90_dlc.ps1 with a locally built CodeWalker.Core.dll and its
+NuGet package directory:
+
+  .\modelavto\build_bmw_m5_g90_dlc.ps1 -CodeWalkerCorePath <CodeWalker.Core.dll> -NugetPackagesPath <NuGet packages path>
+
+Use -Force only when intentionally replacing the staged dlc.rpf.
