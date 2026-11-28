@@ -4,8 +4,8 @@
   <residentAnims />
   <InitDatas>
     <Item>
-      <modelName>2103</modelName>
-      <txdName>2103</txdName>
+      <modelName>ragerp_vaz2106</modelName>
+      <txdName>ragerp_vaz2106</txdName>
       <handlingId>vaz2106</handlingId>
       <gameName>VAZ2106</gameName>
       <vehicleMakeName>LADA</vehicleMakeName>
@@ -120,7 +120,7 @@
   <txdRelationships>
     <Item>
       <parent>vehicles_sedan_generic</parent>
-      <child>2103</child>
+      <child>ragerp_vaz2106</child>
     </Item>
   </txdRelationships>
 </CVehicleModelInfo__InitDataList>

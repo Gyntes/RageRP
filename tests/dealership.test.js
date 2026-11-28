@@ -16,13 +16,21 @@ test('catalog contains 21 unique, priced vehicles with valid visible specificati
   });
 });
 
-test('VAZ-2106 replaces the old Zhiga catalog entry and is the configured game model', () => {
+test('VAZ-2106 and VAZ-2114 replace the old Zhiga and Pyatnashka entries', () => {
   const vaz = dealership.VEHICLES.find((vehicle) => vehicle.id === 'vaz2106');
   assert.ok(vaz);
   assert.equal(vaz.name, 'ВАЗ-2106');
-  assert.equal(vaz.model, '2103');
+  assert.equal(vaz.model, 'ragerp_vaz2106');
   assert.equal(vaz.price, 155000);
+
+  const samara = dealership.VEHICLES.find((vehicle) => vehicle.id === 'vaz2114');
+  assert.ok(samara);
+  assert.equal(samara.name, 'ВАЗ-2114 «Самара»');
+  assert.equal(samara.model, 'ragerp_vaz2114');
+  assert.equal(samara.price, 502000);
+
   assert.equal(dealership.VEHICLES.some((vehicle) => vehicle.id === 'zhiga-2105'), false);
+  assert.equal(dealership.VEHICLES.some((vehicle) => vehicle.id === 'pyatnashka'), false);
 });
 
 test('opens the catalog only within the configured physical dealership and public dimension', () => {

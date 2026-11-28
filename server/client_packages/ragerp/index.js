@@ -9,6 +9,10 @@ let settingsCloseInputLockUntil = 0;
 let adminBrowser = null;
 let adminOpen = false;
 let adminBootstrap = null;
+let adminFlyEnabled = false;
+let adminFlyPedHandle = null;
+let adminFlyLastUpdateAt = 0;
+let chatInputOpen = false;
 let phoneBrowser = null;
 let phoneOpen = false;
 let phoneBootstrap = null;
@@ -65,6 +69,9 @@ let dashboardVehicleId = null;
 let dashboardLastRenderAt = 0;
 let dashboardSignalLastPressedAt = 0;
 const adminMenuDefaultKey = 0x7B;
+const chatInputOpenKey = 0x54;
+const chatInputSubmitKey = 0x0D;
+const chatInputCancelKey = 0x1B;
 const dashboardFuelStates = new Map();
 const dashboardSignalStates = new Map();
 const dashboardNativeErrors = new Set();
@@ -84,7 +91,10 @@ function joaatHash(value) {
 const dashboardSupportedModels = new Set([
   joaatHash('blista'),
   joaatHash('bmwm5g90'),
-  joaatHash('2103')
+  joaatHash('2103'),
+  joaatHash('vaz2114'),
+  joaatHash('ragerp_vaz2106'),
+  joaatHash('ragerp_vaz2114')
 ]);
 const clientSettings = {
   general: {
@@ -1320,7 +1330,116 @@ function toggleStealthMovement() {
   );
 }
 
+function isChatInputAvailable() {
+  return clientSettings.media.showChat &&
+    !radioOpen && !registrationOpen && !settingsOpen && !dealershipOpen &&
+    !emoteMenuOpen && !adminOpen && !phoneOpen && !inventoryOpen &&
+    !playerInteractionOpen && !hudNotificationOpen;
+}
+
+function setAdminFlyEnabled(enabled) {
+  if (typeof enabled !== 'boolean') return;
+  if (enabled === adminFlyEnabled) return;
+
+  adminFlyEnabled = enabled;
+  adminFlyLastUpdateAt = Date.now();
+  const player = mp.players.local;
+  if (enabled) {
+    if (!player) return;
+    adminFlyPedHandle = player.handle;
+    mp.game.entity.setEntityCollision(player.handle, false, false);
+    mp.game.entity.setEntityHasGravity(player.handle, false);
+    return;
+  }
+
+  if (player) {
+    mp.game.entity.setEntityCollision(player.handle, true, true);
+    mp.game.entity.setEntityHasGravity(player.handle, true);
+  }
+  adminFlyPedHandle = null;
+}
+
+function updateAdminFly() {
+  if (!adminFlyEnabled || !mp.players.local) return;
+
+  const player = mp.players.local;
+  if (player.handle !== adminFlyPedHandle) {
+    adminFlyPedHandle = player.handle;
+    mp.game.entity.setEntityCollision(player.handle, false, false);
+    mp.game.entity.setEntityHasGravity(player.handle, false);
+  }
+
+  mp.game.controls.disableAllControlActions(0);
+  if (player.vehicle || chatInputOpen || phoneOpen || inventoryOpen ||
+      registrationOpen || settingsOpen || adminOpen || dealershipOpen ||
+      emoteMenuOpen || playerInteractionOpen || hudNotificationOpen || radioOpen) return;
+
+  const now = Date.now();
+  const elapsedSeconds = Math.min(Math.max((now - adminFlyLastUpdateAt) / 1000, 0), 0.05);
+  adminFlyLastUpdateAt = now;
+  const pressed = (control) => mp.game.controls.isDisabledControlPressed(0, control);
+  const cameraRotation = mp.game.cam.getGameplayCamRot(2);
+  const pitch = cameraRotation.x * Math.PI / 180;
+  const yaw = cameraRotation.z * Math.PI / 180;
+  const forwardX = -Math.sin(yaw) * Math.abs(Math.cos(pitch));
+  const forwardY = Math.cos(yaw) * Math.abs(Math.cos(pitch));
+  const forwardZ = Math.sin(pitch);
+  const rightX = Math.cos(yaw);
+  const rightY = Math.sin(yaw);
+
+  let moveX = 0;
+  let moveY = 0;
+  let moveZ = 0;
+  if (pressed(32)) {
+    moveX += forwardX;
+    moveY += forwardY;
+    moveZ += forwardZ;
+  }
+  if (pressed(33)) {
+    moveX -= forwardX;
+    moveY -= forwardY;
+    moveZ -= forwardZ;
+  }
+  if (pressed(34)) {
+    moveX -= rightX;
+    moveY -= rightY;
+  }
+  if (pressed(35)) {
+    moveX += rightX;
+    moveY += rightY;
+  }
+  if (pressed(22)) moveZ += 1;
+  if (pressed(36)) moveZ -= 1;
+
+  const magnitude = Math.sqrt(moveX * moveX + moveY * moveY + moveZ * moveZ);
+  if (magnitude === 0) return;
+
+  const speed = pressed(21) ? 24 : 8;
+  const distance = speed * elapsedSeconds / magnitude;
+  const position = player.position;
+  mp.game.entity.setEntityCoordsNoOffset(
+    player.handle,
+    position.x + moveX * distance,
+    position.y + moveY * distance,
+    position.z + moveZ * distance,
+    false,
+    false,
+    false
+  );
+}
+
 function dispatchClientKey(keyCode) {
+  if (keyCode === chatInputOpenKey) {
+    chatInputOpen = isChatInputAvailable();
+    return;
+  }
+  if (chatInputOpen) {
+    if (keyCode === chatInputSubmitKey || keyCode === chatInputCancelKey) {
+      chatInputOpen = false;
+    }
+    return;
+  }
+
   if (keyCode === adminMenuDefaultKey || isClientKeyBound('adminMenu', keyCode)) {
     if (adminOpen) {
       closeAdmin(true);
@@ -1507,7 +1626,7 @@ function applyKeyBindings(bindings, alternateBindings) {
     keys.push(normalized.primary[action]);
     if (normalized.alternate[action] !== null) keys.push(normalized.alternate[action]);
     return keys;
-  }, [adminMenuDefaultKey])));
+  }, [adminMenuDefaultKey, chatInputOpenKey, chatInputSubmitKey, chatInputCancelKey])));
   activeKeyBindings.forEach((keyCode) => {
     mp.keys.bind(keyCode, false, () => dispatchClientKey(keyCode));
     mp.keys.bind(keyCode, true, () => releaseClientKey(keyCode));
@@ -1773,6 +1892,7 @@ function closeSettings() {
 mp.nametags.enabled = false;
 
 function togglePhone() {
+  if (chatInputOpen) return;
   if (radioOpen || registrationOpen || inventoryOpen || dealershipOpen || playerInteractionOpen ||
       emoteMenuOpen ||
       settingsOpen || hudNotificationOpen) return;
@@ -1784,6 +1904,7 @@ function togglePhone() {
 }
 
 function toggleInventory() {
+  if (chatInputOpen) return;
   if (radioOpen || registrationOpen || phoneOpen || dealershipOpen || playerInteractionOpen ||
       emoteMenuOpen ||
       settingsOpen || hudNotificationOpen) return;
@@ -1909,6 +2030,8 @@ mp.events.add('ragerp:settings:close-request', () => {
 mp.events.add('ragerp:admin:open', (payload) => {
   openAdmin(payload);
 });
+
+mp.events.add('ragerp:admin:fly', setAdminFlyEnabled);
 
 mp.events.add('ragerp:admin:close', () => {
   if (adminOpen) closeAdmin(true);
@@ -2302,6 +2425,7 @@ mp.events.add('ragerp:emotes:select', handleEmoteSelection);
 mp.events.add('ragerp:emotes:close', closeEmoteMenu);
 
 mp.events.add('render', () => {
+  updateAdminFly();
   syncRadioVehicleState();
   syncVehicleDashboard();
   mp.game.ui.hideHudComponentThisFrame(16);

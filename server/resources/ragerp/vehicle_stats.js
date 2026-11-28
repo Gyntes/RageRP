@@ -4,7 +4,14 @@ const DIRT_LEVELS_PER_KILOMETER = 1;
 const MAX_TRACKED_SPEED_METERS_PER_SECOND = 120;
 const CAR_WASH_RADIUS_METERS = 14;
 const CAR_WASH_PRICE = 500;
-const SUPPORTED_VEHICLE_MODELS = new Set(['blista', 'bmwm5g90', '2103']);
+const SUPPORTED_VEHICLE_MODELS = new Set([
+  'blista',
+  'bmwm5g90',
+  'ragerp_vaz2106',
+  'ragerp_vaz2114',
+  '2103',
+  'vaz2114'
+]);
 
 const CAR_WASHES = Object.freeze([
   { x: 25.72, y: -1391.91, z: 29.37 },

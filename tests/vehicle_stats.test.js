@@ -19,12 +19,15 @@ test('odometer and dirt are saved additively for supported vehicle models', () =
 
 test('maintenance statistics are independent by personal vehicle ID', () => {
   const account = {};
-  const first = stats.statsForAccount(account, '2103', 'vehicle-one');
-  const second = stats.statsForAccount(account, '2103', 'vehicle-two');
+  const first = stats.statsForAccount(account, 'ragerp_vaz2106', 'vehicle-one');
+  const second = stats.statsForAccount(account, 'ragerp_vaz2106', 'vehicle-two');
+  const samara = stats.statsForAccount(account, 'ragerp_vaz2114', 'samara-one');
   stats.addDistance(first, 1500);
+  stats.addDistance(samara, 500);
 
   assert.equal(first.odometerKm, 1.5);
   assert.equal(second.odometerKm, 0);
+  assert.equal(samara.odometerKm, 0.5);
   assert.notEqual(first, second);
 });
 

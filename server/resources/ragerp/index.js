@@ -12,6 +12,7 @@ const VehicleStats = require('./vehicle_stats');
 const VehicleAccess = require('./vehicle-access');
 const VehicleTheftConfig = require('./vehicle-theft.config');
 const PersonalVehicles = require('./personal-vehicles');
+const AdminTestVehicles = require('./admin-test-vehicles');
 
 const dataDirectory = path.join(__dirname, 'data');
 const accountsFile = path.join(dataDirectory, 'accounts.json');
@@ -52,6 +53,7 @@ const voiceRouteStates = new Map();
 const phoneCalls = new Map();
 const phoneCallByPlayer = new Map();
 const adminFrozenPlayers = new Map();
+const adminFlyingPlayers = new Set();
 const phoneAds = [];
 const taxiCalls = [];
 let taxiCallSequence = 0;
@@ -814,7 +816,7 @@ function purchasedVehiclesFor(account) {
 function purchasedVehicleById(account, vehicleId) {
   return purchasedVehiclesFor(account).find((vehicle) =>
     vehicle && vehicle.vehicleId === vehicleId &&
-    vehicle.model === PersonalVehicles.MODEL
+    PersonalVehicles.isSupportedModel(vehicle.model)
   ) || null;
 }
 
@@ -1056,8 +1058,8 @@ function purchasedVehicleStatesFor(player) {
     const vehicleInfo = entity ? starterVehicleForEntity(entity) : null;
     const state = {
       vehicleId: vehicle.vehicleId,
-      model: vehicle.model,
-      name: vehicle.name || PersonalVehicles.NAME,
+      model: PersonalVehicles.canonicalModel(vehicle.model),
+      name: vehicle.name || PersonalVehicles.nameForModel(vehicle.model) || 'Личный автомобиль',
       plate: vehicle.plate,
       region: vehicle.region,
       locked: entity ? vehicleIsLocked(vehicleInfo) : Boolean(vehicle.locked),
@@ -1322,8 +1324,9 @@ function summonPurchasedVehicle(player, vehicleId) {
     unregisterVehicleFuel(existing);
   }
 
+  const model = PersonalVehicles.canonicalModel(vehicle.model);
   const entity = mp.vehicles.new(
-    mp.joaat(vehicle.model),
+    mp.joaat(model),
     new mp.Vector3(parkingSpot.x, parkingSpot.y, parkingSpot.z),
     {
       heading: parkingSpot.heading,
@@ -1339,7 +1342,7 @@ function summonPurchasedVehicle(player, vehicleId) {
   }
 
   spawnedPurchasedVehicles.set(vehicle.vehicleId, { accountKey: key, entity });
-  registerVehicleFuel(entity, key, vehicle.model, vehicle.vehicleId);
+  registerVehicleFuel(entity, key, model, vehicle.vehicleId);
   player.call('ragerp:phone:waypoint', [JSON.stringify({
     x: parkingSpot.x,
     y: parkingSpot.y
@@ -1348,7 +1351,8 @@ function summonPurchasedVehicle(player, vehicleId) {
   updatePhone(player, {
     ownedVehicles,
     numbers: phoneNumbersFor(starterVehicleState(player), ownedVehicles),
-    notice: `Твоя ${vehicle.name || PersonalVehicles.NAME} припаркована. Метка GPS добавлена.`
+    notice: `Твоя ${vehicle.name || PersonalVehicles.nameForModel(vehicle.model) ||
+      'личная машина'} припаркована. Метка GPS добавлена.`
   });
 }
 
@@ -2291,7 +2295,7 @@ function showHelp(player) {
   message(player, 'Автомобиль: наведи камеру на машину и нажми E. Управляй ключами в приложении «Моя машина».');
   message(player, 'Автосалон: нажми E у отметки в городе, чтобы посмотреть каталог машин.');
   message(player, 'Машина: двигатель 2, замок L, радио Q; поворотники [ ] и аварийка \\. Заправка — E у АЗС.');
-  message(player, 'Администраторам: /bmwm5g90 — создать тестовый BMW M5 рядом с собой.');
+  message(player, 'Администраторам: /veh <blista|bmwm5g90|ragerp_vaz2106|ragerp_vaz2114> — тестовый автомобиль; /fly — полёт.');
   message(player, 'Тестовая карта: /maptest — перейти к пилоту Тулы. HUD: /hudtest — проверить уведомление.');
 }
 
@@ -2459,56 +2463,101 @@ function openAdminMenu(player) {
   })]);
 }
 
+function spawnAdminTestVehicle(player, modelId) {
+  if (!requireCharacter(player)) return;
+  if (!adminIsAuthorized(player)) {
+    message(player, 'Доступ к тестовому автомобилю запрещён.');
+    return;
+  }
+
+  const config = AdminTestVehicles.getVehicle(modelId);
+  if (!config) {
+    message(player, `Используй /veh <${AdminTestVehicles.getSupportedModelIds().join('|')}>.`);
+    return;
+  }
+  if (player.vehicle) {
+    message(player, 'Выйди из текущей машины перед тестовым спавном.');
+    return;
+  }
+  if (!isValidPosition(player.position)) {
+    message(player, 'Не удалось определить позицию для тестового спавна.');
+    return;
+  }
+
+  const numericHeading = Number(player.heading);
+  const heading = Number.isFinite(numericHeading) ? numericHeading : 0;
+  const position = AdminTestVehicles.spawnPosition(player.position, heading);
+  if (!position) {
+    message(player, 'Не удалось определить позицию для тестового спавна.');
+    return;
+  }
+  const normalizedModelId = modelId.trim().toLowerCase();
+  const vehicle = mp.vehicles.new(mp.joaat(normalizedModelId),
+    new mp.Vector3(position.x, position.y, position.z), {
+      heading,
+      dimension: player.dimension,
+      numberPlate: config.plate,
+      locked: false,
+      engine: false
+    });
+  if (!vehicle) {
+    message(player, `RAGE:MP не смог создать ${config.name}. Проверь загрузку модели.`);
+    return;
+  }
+
+  const previousVehicle = adminTestVehicles.get(player.id);
+  if (previousVehicle && mp.vehicles.exists(previousVehicle)) {
+    previousVehicle.destroy();
+    unregisterVehicleFuel(previousVehicle);
+  }
+  adminTestVehicles.set(player.id, vehicle);
+  registerVehicleFuel(vehicle, sessions.get(player.id), normalizedModelId);
+  const account = getAccount(player);
+  Admin.recordLog('admin_online', 'test_vehicle_spawn', ensureStaticId(account), null,
+    `Создан тестовый автомобиль: ${config.name}.`);
+  message(player, `Тестовый автомобиль ${config.name} создан рядом.`);
+}
+
 function handleCommand(player, command) {
   const parts = String(command || '').trim().replace(/^\/+/, '').split(/\s+/);
   const name = (parts.shift() || '').toLowerCase();
   const args = parts;
 
+  if (name === 'veh') {
+    spawnAdminTestVehicle(player, args.length === 1 ? args[0] : '');
+    return;
+  }
+
   if (name === 'bmwm5g90') {
+    spawnAdminTestVehicle(player, 'bmwm5g90');
+    return;
+  }
+
+  if (name === 'fly') {
     if (!requireCharacter(player)) return;
     if (!adminIsAuthorized(player)) {
-      message(player, 'Доступ к тестовому автомобилю запрещён.');
-      return;
-    }
-    if (player.vehicle) {
-      message(player, 'Выйди из текущей машины перед тестовым спавном.');
-      return;
-    }
-    if (!isValidPosition(player.position)) {
-      message(player, 'Не удалось определить позицию для тестового спавна.');
+      message(player, 'Доступ к режиму fly запрещён.');
       return;
     }
 
-    const heading = Number(player.heading) || 0;
-    const radians = heading * Math.PI / 180;
-    const position = new mp.Vector3(
-      Number(player.position.x) - Math.sin(radians) * 5,
-      Number(player.position.y) + Math.cos(radians) * 5,
-      Number(player.position.z) + 0.3
-    );
-    const vehicle = mp.vehicles.new(mp.joaat('bmwm5g90'), position, {
-      heading,
-      dimension: player.dimension,
-      numberPlate: 'TESTM5',
-      locked: false,
-      engine: false
-    });
-    if (!vehicle) {
-      message(player, 'RAGE:MP не смог создать BMW M5. Проверь загрузку vehicle DLC.');
+    const enabled = !adminFlyingPlayers.has(player.id);
+    if (enabled && player.vehicle) {
+      message(player, 'Выйди из автомобиля перед включением режима fly.');
       return;
     }
-
-    const previousVehicle = adminTestVehicles.get(player.id);
-    if (previousVehicle && mp.vehicles.exists(previousVehicle)) {
-      previousVehicle.destroy();
-      unregisterVehicleFuel(previousVehicle);
+    if (enabled) {
+      adminFlyingPlayers.add(player.id);
+    } else {
+      adminFlyingPlayers.delete(player.id);
     }
-    adminTestVehicles.set(player.id, vehicle);
+    player.call('ragerp:admin:fly', [enabled]);
     const account = getAccount(player);
-    registerVehicleFuel(vehicle, sessions.get(player.id), 'bmwm5g90');
-    Admin.recordLog('admin_online', 'test_vehicle_spawn', ensureStaticId(account), null,
-      'Создан тестовый BMW M5 G90.');
-    message(player, 'Тестовый BMW M5 G90 создан рядом.');
+    const staticId = ensureStaticId(account);
+    Admin.recordLog('admin_online', enabled ? 'fly_on' : 'fly_off', staticId, null,
+      enabled ? 'Администратор включил режим fly.' : 'Администратор выключил режим fly.');
+    message(player, enabled
+      ? 'Режим fly включён. WASD — движение, Space/Ctrl — вверх/вниз, Shift — ускорение.'
+      : 'Режим fly выключен.');
     return;
   }
 
@@ -2857,14 +2906,15 @@ mp.events.add('ragerp:client:ui-ready', (player) => {
 
 function dealershipCatalogFor(player) {
   const purchase = PersonalVehicles.purchaseState(purchasedVehiclesFor(getAccount(player)));
-  return Dealership.VEHICLES.map((vehicle) => vehicle.id === PersonalVehicles.VEHICLE_ID
-    ? Object.assign({}, vehicle, {
+  return Dealership.VEHICLES.map((vehicle) =>
+    PersonalVehicles.getVehicleConfig(vehicle.id)
+      ? Object.assign({}, vehicle, {
         purchasable: true,
         purchasedCount: purchase.count,
         purchaseLimit: purchase.limit,
         canPurchase: purchase.canPurchase
       })
-    : vehicle);
+      : vehicle);
 }
 
 function sendDealershipPurchaseResult(player, success, notice) {
@@ -2930,14 +2980,18 @@ mp.events.add('ragerp:dealership:purchase', (player, vehicleId, paymentMethod) =
 
   let vehicleRecord;
   try {
-    vehicleRecord = PersonalVehicles.createVehicleRecord(newVehicleId(), newVehiclePlate());
-    if (vehicleRecord.error) throw new Error('Could not create a VAZ-2106 vehicle record.');
+    vehicleRecord = PersonalVehicles.createVehicleRecord(
+      newVehicleId(),
+      newVehiclePlate(),
+      vehicleId
+    );
+    if (vehicleRecord.error) throw new Error('Could not create the purchased vehicle record.');
     const normalized = VehicleAccess.normalizeVehicleRecord(
       vehicleRecord,
       ensureStaticId(account),
       newVehicleId
     );
-    if (normalized.error) throw new Error('Could not normalize a VAZ-2106 vehicle record.');
+    if (normalized.error) throw new Error('Could not normalize the purchased vehicle record.');
     vehicleRecord = normalized.vehicle;
   } catch (error) {
     console.error('[RageRP dealership] Could not prepare vehicle purchase:', error);
@@ -2971,7 +3025,7 @@ mp.events.add('ragerp:dealership:purchase', (player, vehicleId, paymentMethod) =
   sendDealershipPurchaseResult(
     player,
     true,
-    `Куплен ${PersonalVehicles.NAME}. Вызови его через приложение «Моя машина».`
+    `Куплен ${vehicleRecord.name}. Вызови его через приложение «Моя машина».`
   );
 });
 
@@ -3204,6 +3258,10 @@ mp.events.add('ragerp:vehicle:toggle-engine', (player) => {
 });
 
 mp.events.add('playerEnterVehicle', (player, vehicle, seat) => {
+  if (adminFlyingPlayers.delete(player.id)) {
+    player.call('ragerp:admin:fly', [false]);
+    message(player, 'Режим fly отключён при посадке в автомобиль.');
+  }
   if (seat !== -1) return;
   const vehicleInfo = starterVehicleForEntity(vehicle);
   if (vehicleInfo && !hasVehicleAccess(player, vehicleInfo)) {
@@ -4172,6 +4230,11 @@ mp.events.add('ragerp:admin:action', (player, payload) => {
   }
 });
 
+mp.events.add('playerDeath', (player) => {
+  if (!adminFlyingPlayers.delete(player.id)) return;
+  player.call('ragerp:admin:fly', [false]);
+});
+
 mp.events.add('playerQuit', (player) => {
   const playtimeUpdated = checkpointPlayerPlaytime(player, Date.now());
   const adminTestVehicle = adminTestVehicles.get(player.id);
@@ -4180,6 +4243,7 @@ mp.events.add('playerQuit', (player) => {
     unregisterVehicleFuel(adminTestVehicle);
   }
   adminTestVehicles.delete(player.id);
+  adminFlyingPlayers.delete(player.id);
   const account = getAccount(player);
   if (account && account.character) {
     Admin.recordLog('auth_logs', 'player_disconnected', null,

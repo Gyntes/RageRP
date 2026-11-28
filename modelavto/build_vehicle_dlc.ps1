@@ -1,4 +1,6 @@
 param(
+  [ValidateSet('vaz2106', 'vaz2114')]
+  [string]$VehicleId = 'vaz2106',
   [string]$CodeWalkerCorePath,
   [string]$NugetPackagesPath,
   [switch]$Force
@@ -7,14 +9,32 @@ param(
 $ErrorActionPreference = 'Stop'
 
 $projectRoot = Split-Path -Parent $PSScriptRoot
-$assetName = '2103'
-$deviceName = 'dlc_vaz2106'
+$vehicleConfigurations = @{
+  vaz2106 = @{
+    ModelName = 'ragerp_vaz2106'
+    HandlingId = 'vaz2106'
+    DeviceName = 'dlc_vaz2106'
+    DisplayName = 'VAZ-2106'
+  }
+  vaz2114 = @{
+    ModelName = 'ragerp_vaz2114'
+    HandlingId = 'vaz2114'
+    DeviceName = 'dlc_vaz2114'
+    DisplayName = 'VAZ-2114 Samara'
+  }
+}
+$vehicleConfiguration = $vehicleConfigurations[$VehicleId]
+$modelName = $vehicleConfiguration.ModelName
+$handlingId = $vehicleConfiguration.HandlingId
+$deviceName = $vehicleConfiguration.DeviceName
+$changeSetName = "${VehicleId}_STARTUP".ToUpperInvariant()
 $contentDeviceName = "${deviceName}CRC"
-$assetDirectory = Join-Path $PSScriptRoot 'vaz2106\stream'
-$serverPackages = Join-Path $projectRoot 'server\client_packages\game_resources\dlcpacks\vaz2106'
+$assetDirectory = Join-Path $PSScriptRoot "$VehicleId\stream"
+$serverPackages = Join-Path $projectRoot "server\client_packages\game_resources\dlcpacks\$VehicleId"
 $serverDlc = Join-Path $serverPackages 'dlc.rpf'
 $vehiclesMeta = Join-Path $serverPackages 'vehicles.meta'
 $handlingMeta = Join-Path $serverPackages 'handling.meta'
+$assetFiles = @("$modelName.yft", "${modelName}_hi.yft", "$modelName.ytd")
 $timestamp = [DateTime]::Now.ToString('dd/MM/yyyy HH:mm:ss', [Globalization.CultureInfo]::InvariantCulture)
 
 if (-not $CodeWalkerCorePath) {
@@ -28,15 +48,11 @@ $CodeWalkerCorePath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderP
 if (-not (Test-Path -LiteralPath $CodeWalkerCorePath -PathType Leaf)) {
   throw "CodeWalker.Core.dll was not found: $CodeWalkerCorePath. Install or build CodeWalker.Core first."
 }
-foreach ($requiredFile in @(
-  (Join-Path $assetDirectory '2103.yft'),
-  (Join-Path $assetDirectory '2103_hi.yft'),
-  (Join-Path $assetDirectory '2103.ytd'),
-  $vehiclesMeta,
-  $handlingMeta
-)) {
+foreach ($requiredFile in (($assetFiles | ForEach-Object {
+  Join-Path $assetDirectory $_
+}) + @($vehiclesMeta, $handlingMeta))) {
   if (-not (Test-Path -LiteralPath $requiredFile -PathType Leaf)) {
-    throw "Required VAZ-2106 file is missing: $requiredFile"
+    throw "Required $($vehicleConfiguration.DisplayName) file is missing: $requiredFile"
   }
 }
 if ((Test-Path -LiteralPath $serverDlc) -and -not $Force) {
@@ -47,15 +63,15 @@ $vehiclesDocument = New-Object System.Xml.XmlDocument
 $vehiclesDocument.Load($vehiclesMeta)
 $modelNode = $vehiclesDocument.SelectSingleNode('/CVehicleModelInfo__InitDataList/InitDatas/Item/modelName')
 $handlingNode = $vehiclesDocument.SelectSingleNode('/CVehicleModelInfo__InitDataList/InitDatas/Item/handlingId')
-if (-not $modelNode -or $modelNode.InnerText -ne $assetName -or
-    -not $handlingNode -or $handlingNode.InnerText -ne 'vaz2106') {
-  throw 'vehicles.meta must define model 2103 and the vaz2106 handling entry.'
+if (-not $modelNode -or $modelNode.InnerText -ne $modelName -or
+    -not $handlingNode -or $handlingNode.InnerText -ne $handlingId) {
+  throw "vehicles.meta must define model $modelName and handling entry $handlingId."
 }
 $handlingDocument = New-Object System.Xml.XmlDocument
 $handlingDocument.Load($handlingMeta)
 $handlingNode = $handlingDocument.SelectSingleNode('/CHandlingDataMgr/HandlingData/Item/handlingName')
-if (-not $handlingNode -or $handlingNode.InnerText -ne 'vaz2106') {
-  throw 'handling.meta must define the vaz2106 CHandlingData entry.'
+if (-not $handlingNode -or $handlingNode.InnerText -ne $handlingId) {
+  throw "handling.meta must define the $handlingId CHandlingData entry."
 }
 
 $nugetRoot = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($NugetPackagesPath)
@@ -69,7 +85,7 @@ foreach ($dependency in @($sharpDxPath, $sharpDxMathPath)) {
 }
 Add-Type -Path $CodeWalkerCorePath
 
-$temporaryDirectory = Join-Path ([System.IO.Path]::GetTempPath()) ("vaz2106-dlc-" + [Guid]::NewGuid().ToString('N'))
+$temporaryDirectory = Join-Path ([System.IO.Path]::GetTempPath()) ("$VehicleId-dlc-" + [Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $temporaryDirectory | Out-Null
 $temporaryDlc = Join-Path $temporaryDirectory 'dlc.rpf'
 $encoding = New-Object System.Text.UTF8Encoding($false)
@@ -106,7 +122,7 @@ $contentXml = @"
   </dataFiles>
   <contentChangeSets>
     <Item>
-      <changeSetName>VAZ2106_STARTUP</changeSetName>
+      <changeSetName>$changeSetName</changeSetName>
       <filesToInvalidate />
       <filesToDisable />
       <filesToEnable>
@@ -130,13 +146,13 @@ $setup2Xml = @"
   <deviceName>$deviceName</deviceName>
   <datFile>content.xml</datFile>
   <timeStamp>$timestamp</timeStamp>
-  <nameHash>vaz2106</nameHash>
+  <nameHash>$VehicleId</nameHash>
   <contentChangeSets />
   <contentChangeSetGroups>
     <Item>
       <NameHash>GROUP_STARTUP</NameHash>
       <ContentChangeSets>
-        <Item>VAZ2106_STARTUP</Item>
+        <Item>$changeSetName</Item>
       </ContentChangeSets>
     </Item>
   </contentChangeSetGroups>
@@ -171,7 +187,7 @@ try {
   $levels = [CodeWalker.GameFiles.RpfFile]::CreateDirectory($x64, 'levels')
   $gta5 = [CodeWalker.GameFiles.RpfFile]::CreateDirectory($levels, 'gta5')
   $vehiclesArchive = [CodeWalker.GameFiles.RpfFile]::CreateNew($gta5, 'vehicles.rpf', $rpfEncryption)
-  foreach ($assetFile in @('2103.yft', '2103_hi.yft', '2103.ytd')) {
+  foreach ($assetFile in $assetFiles) {
     [void][CodeWalker.GameFiles.RpfFile]::CreateFile(
       $vehiclesArchive.Root,
       $assetFile,
@@ -193,16 +209,16 @@ try {
   if ($contentText -notmatch 'VEHICLE_METADATA_FILE' -or
       $contentText -notmatch 'HANDLING_FILE' -or
       $contentText -notmatch 'CONTENTS_DLC_VEHICLE_DATA' -or
-      $contentText -notmatch 'VAZ2106_STARTUP' -or
+      $contentText -notmatch [regex]::Escape($changeSetName) -or
       $contentText -notmatch [regex]::Escape("${contentDeviceName}:")) {
-    throw 'content.xml does not register and enable the VAZ-2106 vehicle data.'
+    throw "content.xml does not register and enable $($vehicleConfiguration.DisplayName) data."
   }
   $setupEntry = $probe.AllEntries |
     Where-Object { $_.NameLower -eq 'setup2.xml' } |
     Select-Object -First 1
   $setupText = [System.Text.Encoding]::UTF8.GetString($probe.ExtractFile($setupEntry))
   if ($setupText -notmatch [regex]::Escape("<deviceName>$deviceName</deviceName>") -or
-      $setupText -notmatch [regex]::Escape('<nameHash>vaz2106</nameHash>') -or
+      $setupText -notmatch [regex]::Escape("<nameHash>$VehicleId</nameHash>") -or
       $setupText -notmatch '<timeStamp>\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}</timeStamp>') {
     throw 'setup2.xml has an invalid device name, hash, or timestamp.'
   }
@@ -212,7 +228,7 @@ try {
   if (-not $vehiclesArchiveEntry) {
     throw 'The generated DLC is missing vehicles.rpf.'
   }
-  foreach ($assetFile in @('2103.yft', '2103_hi.yft', '2103.ytd')) {
+  foreach ($assetFile in $assetFiles) {
     if (-not ($vehiclesArchiveEntry.AllEntries | Where-Object { $_.NameLower -eq $assetFile })) {
       throw "The generated vehicle archive is missing $assetFile."
     }
@@ -222,7 +238,7 @@ try {
     Remove-Item -LiteralPath $serverDlc -Force
   }
   Move-Item -LiteralPath $temporaryDlc -Destination $serverDlc
-  Write-Host "Built RAGE:MP vehicle DLC: $serverDlc"
+  Write-Host "Built $($vehicleConfiguration.DisplayName) RAGE:MP DLC: $serverDlc"
   Write-Host ("Archive size: {0:N0} bytes" -f (Get-Item -LiteralPath $serverDlc).Length)
 }
 finally {

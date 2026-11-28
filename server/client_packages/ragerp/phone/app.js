@@ -491,7 +491,7 @@
     const purchasedVehicles = state.ownedVehicles.map(function (ownedVehicle) {
       return `<article class="card vehicle-card">
         <div class="vehicle-symbol">◈</div>
-        <div class="card-title">${escapeHtml(ownedVehicle.name || 'ВАЗ-2106')}</div>
+        <div class="card-title">${escapeHtml(ownedVehicle.name || 'Личный автомобиль')}</div>
         <div class="card-subtitle">${escapeHtml(ownedVehicle.model || '2103')} · ${ownedVehicle.isOut ? 'в городе' : 'в гараже'}</div>
         <div class="vehicle-plate">${escapeHtml(`${ownedVehicle.plate || '---'} ${ownedVehicle.region || ''}`.trim())}</div>
         <button class="button primary vehicle-button" data-action="owned-vehicle"

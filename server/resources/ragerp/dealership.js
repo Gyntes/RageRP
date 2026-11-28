@@ -28,8 +28,9 @@ const VEHICLES = Object.freeze([
     fuelType: 'Бензин'
   },
   {
-    id: 'pyatnashka',
-    name: 'Пятнашка',
+    id: 'vaz2114',
+    name: 'ВАЗ-2114 «Самара»',
+    model: 'ragerp_vaz2114',
     price: 502000,
     seats: 4,
     maxSpeed: 164,

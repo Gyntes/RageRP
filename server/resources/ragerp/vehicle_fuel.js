@@ -3,7 +3,14 @@ const MAX_FUEL_PERCENT = 100;
 const FUEL_CONSUMPTION_PERCENT_PER_MINUTE = 0.45;
 const REFUEL_PRICE_PER_PERCENT = 25;
 const GAS_STATION_RADIUS_METERS = 14;
-const SUPPORTED_VEHICLE_MODELS = new Set(['blista', 'bmwm5g90', '2103']);
+const SUPPORTED_VEHICLE_MODELS = new Set([
+  'blista',
+  'bmwm5g90',
+  'ragerp_vaz2106',
+  'ragerp_vaz2114',
+  '2103',
+  'vaz2114'
+]);
 
 const GAS_STATIONS = Object.freeze([
   { x: 49.42, y: 2778.79, z: 58.04 },

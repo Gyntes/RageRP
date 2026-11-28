@@ -18,12 +18,14 @@ test('fuel is stored additively by supported vehicle model', () => {
 
 test('fuel is stored independently by personal vehicle ID', () => {
   const account = {};
-  fuel.setFuelForAccount(account, '2103', 40, 'vehicle-one');
-  fuel.setFuelForAccount(account, '2103', 75, 'vehicle-two');
+  fuel.setFuelForAccount(account, 'ragerp_vaz2106', 40, 'vehicle-one');
+  fuel.setFuelForAccount(account, 'ragerp_vaz2106', 75, 'vehicle-two');
+  fuel.setFuelForAccount(account, 'ragerp_vaz2114', 55, 'samara-one');
 
-  assert.equal(fuel.fuelForAccount(account, '2103', 'vehicle-one'), 40);
-  assert.equal(fuel.fuelForAccount(account, '2103', 'vehicle-two'), 75);
-  assert.equal(fuel.fuelForAccount(account, '2103'), 100);
+  assert.equal(fuel.fuelForAccount(account, 'ragerp_vaz2106', 'vehicle-one'), 40);
+  assert.equal(fuel.fuelForAccount(account, 'ragerp_vaz2106', 'vehicle-two'), 75);
+  assert.equal(fuel.fuelForAccount(account, 'ragerp_vaz2106'), 100);
+  assert.equal(fuel.fuelForAccount(account, 'ragerp_vaz2114', 'samara-one'), 55);
 });
 
 test('fuel values are bounded and unsupported models are not persisted', () => {
